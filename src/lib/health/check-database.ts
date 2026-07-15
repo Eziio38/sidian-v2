@@ -12,6 +12,14 @@ export type DatabaseHealthStatus =
   | "not_configured"
   | "unavailable";
 
+function isPostgrestOperationalError(code: string | undefined): boolean {
+  if (!code) {
+    return false;
+  }
+
+  return code !== "PGRST205";
+}
+
 export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
   if (!isSupabasePublicEnvConfigured()) {
     return "not_configured";
@@ -34,17 +42,17 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
       },
     );
 
-    const { error } = await supabase.from("prestataire").select("id").limit(1);
+    const { error } = await supabase.from("prestataire").select("id").limit(0);
 
-    if (error?.code === "PGRST205") {
-      return "unavailable";
+    if (!error) {
+      return "connected";
     }
 
-    if (error) {
-      return "unavailable";
+    if (isPostgrestOperationalError(error.code)) {
+      return "connected";
     }
 
-    return "connected";
+    return "unavailable";
   } catch {
     return "unavailable";
   } finally {

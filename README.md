@@ -62,12 +62,26 @@ STRIPE_CONNECT_WEBHOOK_SECRET=
 
 ## Supabase local
 
+**Prérequis :** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (ou équivalent) pour exécuter la stack Supabase locale.
+
+Aucune table métier Sidian n'existe encore — seule l'infrastructure locale est préparée.
+
 ```bash
-supabase start
-supabase db reset
+pnpm supabase:start
+pnpm supabase:status
 ```
 
-*(À vérifier/compléter au fil de l'implémentation — le schéma du nouveau modèle, cf. 03 §1, n'a pas encore de migrations écrites au moment de la rédaction de ce README.)*
+Récupérez les valeurs locales (`API URL`, `anon key`, `service_role key`) depuis la sortie de `pnpm supabase:status`, puis copiez-les dans un fichier `.env.local` à la racine du projet (jamais commité). Utilisez `.env.example` comme modèle.
+
+```bash
+pnpm supabase:stop
+```
+
+### Projet staging (manuel)
+
+Le projet distant `sidian-v2-staging` n'est pas créé automatiquement. Créez-le depuis le [dashboard Supabase](https://supabase.com/dashboard), région européenne, puis reportez `Project URL`, `anon key` et `service_role key` uniquement dans `.env.local` ou les variables d'environnement de préproduction.
+
+*(Le schéma du nouveau modèle, cf. 03 §1, n'a pas encore de migrations métier.)*
 
 ## Tests
 

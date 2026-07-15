@@ -1,0 +1,77 @@
+import { z } from "zod";
+
+import { formatEnvValidationError } from "./env-shared";
+
+const supabasePublicEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+});
+
+const publicEnvSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
+  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+});
+
+export type PublicEnv = z.infer<typeof publicEnvSchema>;
+export type SupabasePublicEnv = z.infer<typeof supabasePublicEnvSchema>;
+
+function readPublicEnvInput() {
+  return {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  };
+}
+
+function readSupabasePublicEnvInput() {
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
+
+export function isSupabasePublicEnvConfigured(): boolean {
+  const input = readSupabasePublicEnvInput();
+
+  return Boolean(
+    input.NEXT_PUBLIC_SUPABASE_URL && input.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}
+
+export function getSupabasePublicEnv(): SupabasePublicEnv {
+  const parsed = supabasePublicEnvSchema.safeParse(readSupabasePublicEnvInput());
+
+  if (!parsed.success) {
+    const message = formatEnvValidationError("public/supabase", parsed.error);
+
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(message);
+    }
+
+    throw new Error(
+      "Configuration Supabase publique manquante ou invalide.",
+    );
+  }
+
+  return parsed.data;
+}
+
+export function getPublicEnv(): PublicEnv {
+  const parsed = publicEnvSchema.safeParse(readPublicEnvInput());
+
+  if (!parsed.success) {
+    const message = formatEnvValidationError("public", parsed.error);
+
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(message);
+    }
+
+    throw new Error("Configuration publique manquante ou invalide.");
+  }
+
+  return parsed.data;
+}

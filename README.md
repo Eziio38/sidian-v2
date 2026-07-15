@@ -64,7 +64,7 @@ STRIPE_CONNECT_WEBHOOK_SECRET=
 
 **Prérequis :** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (ou équivalent) pour exécuter la stack Supabase locale.
 
-Aucune table métier Sidian n'existe encore — seule l'infrastructure locale est préparée.
+Aucune migration staging n'est appliquée automatiquement depuis le code.
 
 ```bash
 pnpm supabase:start
@@ -92,16 +92,32 @@ pnpm test:schema
 pnpm supabase:types
 ```
 
-*(Le schéma du nouveau modèle, cf. 03 §1, est versionné dans `supabase/migrations/` — aucune table métier sur staging tant que les migrations n'y sont pas appliquées manuellement.)*
+Le schéma MVP (13 tables) est versionné dans `supabase/migrations/` et testé localement via `pnpm test:schema`.
 
 ## Tests
 
 ```bash
-pnpm test
+pnpm test:schema
+pnpm test:auth
 pnpm typecheck
 pnpm lint
 pnpm build
 ```
+
+## Authentification (phase 3)
+
+Pages disponibles :
+
+- `/inscription` — création de compte email + mot de passe (confirmation requise)
+- `/connexion` — connexion
+- `/app` — espace prestataire temporaire protégé
+
+Redirect URLs à configurer dans Supabase (local via `supabase/config.toml`, staging via le dashboard) :
+
+- `http://localhost:3000/auth/callback`
+- `http://localhost:3000/reinitialiser-mot-de-passe`
+
+Voir `docs/implementation/PHASE_3_AUTH.md` pour le détail de l'onboarding prestataire.
 
 ## Déploiement
 

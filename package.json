@@ -14,7 +14,8 @@
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
     "supabase:types": "supabase gen types typescript --local > src/types/database.generated.ts",
-    "test:schema": "node scripts/test-schema-rls.mjs"
+    "test:schema": "node scripts/test-schema-rls.mjs",
+    "test:auth": "node scripts/test-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

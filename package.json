@@ -11,7 +11,10 @@
     "supabase:init": "supabase init",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset",
+    "supabase:types": "supabase gen types typescript --local > src/types/database.generated.ts",
+    "test:schema": "node scripts/test-schema-rls.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

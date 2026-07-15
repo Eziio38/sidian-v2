@@ -32,15 +32,15 @@
 
 | Item | Commande | Environnement | Statut | Preuve |
 |---|---|---|---|---|
-| Migrations du schéma MVP écrites | — | local | [ ] À faire | |
-| Ordre migrations vérifié | `node scripts/verify-migrations-order.mjs` | local | [ ] À faire | |
-| Tests migration (ex. PGlite) | — | local | [ ] À faire | |
-| `supabase db reset` complet | `supabase db reset` | local Docker | [ ] À faire | |
-| Types Supabase alignés | `pnpm typecheck` | local | [ ] À faire | |
+| Migrations du schéma MVP écrites | — | local | [x] Terminé | `supabase/migrations/20260715*` — cf. `docs/implementation/PHASE_2_DATABASE.md` |
+| Ordre migrations vérifié | `pnpm supabase:reset` | local | [x] Terminé | 8 migrations appliquées dans l'ordre (juillet 2026, revue Phase 2) |
+| Tests migration (ex. PGlite) | — | local | [ ] À faire | Remplacé par `pnpm test:schema` (rôles réels Supabase local) |
+| `supabase db reset` complet | `pnpm supabase:reset` | local Docker | [x] Terminé | Seed sans données métier |
+| Types Supabase alignés | `pnpm supabase:types && pnpm typecheck` | local | [x] Terminé | `src/types/database.generated.ts` |
 | Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | |
 | Migrations appliquées production | Dashboard Supabase | production | [ ] À faire | **Ne pas appliquer sans Go** |
-| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test -- rls-enforcement` | local | [ ] À faire | Cf. 03 §6 — invariant non négociable |
-| RLS validée sur vrai Supabase (rôles réels) | rôles réels | staging Docker | [ ] À faire | |
+| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | 30 tests JWT + intégrité SQL (revue Phase 2) |
+| RLS validée sur vrai Supabase (rôles réels) | rôles réels | staging Docker | [ ] À faire | Local validé ; staging après `db push` manuel |
 
 **Risque si non réalisé :** schéma désaligné → webhooks et paiements échouent silencieusement.
 

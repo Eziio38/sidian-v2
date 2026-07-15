@@ -69,6 +69,9 @@ Aucune table métier Sidian n'existe encore — seule l'infrastructure locale es
 ```bash
 pnpm supabase:start
 pnpm supabase:status
+pnpm supabase:reset
+pnpm test:schema
+pnpm supabase:types
 ```
 
 Récupérez les valeurs locales (`API URL`, `anon key`, `service_role key`) depuis la sortie de `pnpm supabase:status`, puis copiez-les dans un fichier `.env.local` à la racine du projet (jamais commité). Utilisez `.env.example` comme modèle.
@@ -81,7 +84,15 @@ pnpm supabase:stop
 
 Le projet distant `sidian-v2-staging` n'est pas créé automatiquement. Créez-le depuis le [dashboard Supabase](https://supabase.com/dashboard), région européenne, puis reportez `Project URL`, `anon key` et `service_role key` uniquement dans `.env.local` ou les variables d'environnement de préproduction.
 
-*(Le schéma du nouveau modèle, cf. 03 §1, n'a pas encore de migrations métier.)*
+Vérification locale du schéma :
+
+```bash
+pnpm supabase:reset
+pnpm test:schema
+pnpm supabase:types
+```
+
+*(Le schéma du nouveau modèle, cf. 03 §1, est versionné dans `supabase/migrations/` — aucune table métier sur staging tant que les migrations n'y sont pas appliquées manuellement.)*
 
 ## Tests
 

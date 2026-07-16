@@ -1,9 +1,14 @@
 # SIDIAN — 03 · ARCHITECTURE TECHNIQUE (V2)
 ## Modèle de données, machines d'état, intégrations — le comment, jamais le pourquoi
 
-**Statut :** document purement technique. Toute justification produit ou métier renvoie à 02 (PRD) ; toute justification de contrainte externe renvoie à 01 (Fondations). Réécrit intégralement le 14 juillet 2026.
+**Statut :** document purement technique. Toute justification produit ou métier renvoie à 02 (PRD) ; toute justification de contrainte externe renvoie à 01 (Fondations). Réécrit intégralement le 14 juillet 2026 ; réaligné le 16 juillet 2026 sur le schéma MVP appliqué (migrations `2026071512*`), la phase Auth et les invariants de sécurité cibles.
 
 **Stack conservée :** Next.js / Supabase (Postgres + RLS) / Stripe Connect. Développement Cursor.
+
+**Convention de marquage :**
+- champs et contraintes **présents dans les migrations actives** : décrits sans marqueur ;
+- écarts nécessitant une évolution de schéma : **`[MIGRATION À PRÉVOIR]`** ;
+- points dépendant d'une confirmation externe : **`[VALIDATION RESTANTE]`**.
 
 ---
 
@@ -11,220 +16,421 @@
 
 **Note de vocabulaire :** `creance` est un nom d'entité interne. Il n'apparaît jamais tel quel dans l'interface ou la communication vue par le prestataire ou le client — le terme produit est « paiement à recevoir » (cf. 02, §1). Toute chaîne de caractères destinée à l'affichage doit utiliser le vocabulaire produit, jamais le nom de la table.
 
-**Périmètre :** les entités ci-dessous sont celles du MVP tel que scopé en 02 §8. Tout ce qui relève de l'agrégation bancaire est délibérément absent d'ici et regroupé en §13 (Architecture différée), pour que ce schéma reflète fidèlement ce qui est réellement construit maintenant.
+**Périmètre :** les entités ci-dessous sont celles du MVP tel que scopé en 02 §8. Tout ce qui relève de l'agrégation bancaire est délibérément absent d'ici et regroupé en §12 (Architecture différée).
+
+**Réalité schéma (juillet 2026) :** 13 tables versionnées dans `supabase/migrations/` — `prestataire`, `client_payeur`, `creance`, `tentative_paiement`, `paiement`, `payment_authorization`, `dossier_suivi`, `regle`, `conversation`, `message`, `approval_request`, `audit_log`, `processed_webhook_event`.
 
 ### `prestataire`
-`id`, `nom`, `email`, `subscription_status` (enum : `trialing` / `active` / `past_due` / `cancelled`), `pricing_version` (texte libre, ex. `early_access_49`, pour tracer quelle offre s'applique sans coder les futurs plans en dur), `subscription_started_at`, `early_access_price_locked_until` (nullable), `profil_agent_defaut` (contrôle/délégation), `created_at`. **Le prix commercial n'est jamais utilisé comme logique métier dans le code du suivi des paiements** — la grille Starter/Pro/Business codée en dur d'une version antérieure est supprimée ; la tarification future (cf. 02 §6) reste une hypothèse commerciale, pas un contrat technique actuel. Aucun quota d'utilisateurs, de clients ou d'automatisation lié à un plan n'est codé au MVP.
 
-**Opérateur unique au MVP :** une micro-agence cible peut compter 2 à 5 personnes (cf. 01 §3, 02 §2), mais le MVP ne construit pas de système de membres et de rôles. Au lancement, un compte `prestataire` possède un seul utilisateur principal (le fondateur ou responsable des règlements) — aucune architecture RBAC n'est introduite ; les fonctions multi-utilisateurs sont reportées au pricing post-validation et au backlog produit.
+**Champs présents (migrations actives) :**
+`id`, `user_id` (uuid, **unique**, FK `auth.users`, `on delete restrict` — un utilisateur Auth = un prestataire au MVP), `nom`, `email`, `subscription_status` (`trialing` / `active` / `past_due` / `cancelled`), `pricing_version` (texte, défaut `early_access_49`), `subscription_started_at` (nullable), `early_access_price_locked_until` (nullable), `profil_agent_defaut` (`controle` / `delegation`), `platform_fee_basis_points` (integer ≥ 0, défaut 0), `created_at`.
+
+**Projection Stripe Connect — `[MIGRATION À PRÉVOIR]`** (absente du schéma actuel) :
+- `stripe_account_id` (nullable)
+- `stripe_charges_enabled` (bool)
+- `stripe_payouts_enabled` (bool, si nécessaire)
+- `stripe_details_submitted` (bool)
+- statut synthétique des exigences Connect (ex. `stripe_requirements_status` ou équivalent)
+- `stripe_status_synced_at` (timestamptz)
+
+**Stripe reste la source externe de vérité.** La base conserve uniquement une **projection locale synchronisée** (webhooks + revérifications serveur). `stripe_charges_enabled` n'est **jamais** une « source de vérité unique » : c'est un cache local. Une revérification Stripe live est obligatoire avant toute action critique (création de session payable, envoi d'un lien partageable, tentative `prelevement_auto`, passage d'un compte à « payable » côté produit).
+
+**Le prix commercial n'est jamais utilisé comme logique métier** dans le suivi des paiements. Aucun quota d'utilisateurs, de clients ou d'automatisation lié à un plan n'est codé au MVP.
+
+**Opérateur unique au MVP :** un compte `prestataire` possède un seul utilisateur principal via `user_id` — aucune architecture RBAC.
+
+**Onboarding (SID-SEC-001 — architecture cible) :** la création du `prestataire` après confirmation email est une **opération de confiance serveur**, idempotente, qui lit `user.id` et `user.email` depuis la session Auth — jamais un `INSERT` libre mass-assigné depuis le navigateur. **État actuel :** l'insert authenticated scoped `user_id = auth.uid()` existe ; le durcissement (colonnes autorisées uniquement, primitive dédiée) reste à renforcer dans le code — voir §6.
+
+### Lien de paiement — préparé / payable / partageable
+
+Formalisation technique (traduction et correction de 02 §4.2) :
+
+1. La **ance est créée.
+2. Une **ressource ou URL Sidian stable et opaque** peut être créée (identifiant non prédictible, non égal à `creance_id` en clair).
+3. Cette URL vérifie **côté serveur** le prestataire, la créance et l'état Stripe (projection + revérification si nécessaire).
+4. **Aucune session Stripe payable** n'est créée ni exposée si le compte connecté n'est pas éligible (`charges_enabled` faux côté Stripe).
+5. Lorsque le compte est payable, une **session Stripe fraîche** peut être créée à la demande.
+6. Un lien **non payable** n'est **jamais** présenté comme partageable (ni à l'agent, ni à l'interface, ni au client).
+
+| État | Signification |
+|---|---|
+| **Préparé** | Créance créée ; URL Sidian stable éventuellement réservée ; aucune promesse de paiement Stripe. |
+| **Payable** | Compte Connect éligible côté Stripe (revérifié) ; une session Checkout / PaymentIntent peut être créée. |
+| **Partageable** | Lien exposable au prestataire / envoyable au client / cliquable — uniquement si **payable** est vrai au moment de l'exposition. |
+
+**Interdit :** affirmer qu'une URL ou session Stripe payable est générée et accessible dès la seule création de la créance.
 
 ### `client_payeur`
-`id`, `prestataire_id` (FK), `nom`, `email`, `historique_paiements_reguliers` (compteur, sert de déclencheur pour PRD §4.4), `created_at`. **Ne référence aucune autorisation directement** (cf. `payment_authorization` ci-dessous pour la raison).
+`id`, `prestataire_id` (FK), `nom`, `email`, `historique_paiements_reguliers` (compteur ≥ 0), `created_at`. **Ne référence aucune autorisation directement.**
 
-### `creance` — **l'entité pivot du système**
-`id`, `prestataire_id` (FK), `client_payeur_id` (FK), `montant`, `devise`, `origine` (enum : `facture_externe` / `acompte` / `echeancier` / `abonnement` / `import_manuel`), `reference_externe` (nullable — ex. numéro de facture Pennylane, purement informatif, jamais un pointeur fonctionnel), `date_echeance`, `etat` (cf. machine d'état §2.1), `created_at`, `updated_at`. **Le lien de paiement est généré et accessible dès la création de la créance** (cf. §7, clarification sur la disponibilité du lien) — l'état et le dossier de suivi ne conditionnent que l'envoi actif par l'agent, jamais la possibilité pour un client volontaire de payer plus tôt.
+### `creance` — entité pivot
+`id`, `prestataire_id` (FK), `client_payeur_id` (FK), `montant` (bigint > 0, centimes), `devise` (char 3, défaut `EUR`), `origine` (`facture_externe` / `acompte` / `echeancier` / `abonnement` / `import_manuel`), `reference_externe` (nullable), `date_echeance`, `etat` (cf. §2.1 — valeurs DB sans accents : `BROUILLON`, `OUVERTE`, `PARTIELLEMENT_REGLEE`, `REGLEE`, `EN_LITIGE`, `ANNULEE`, `IRRECOUVRABLE`), `created_at`, `updated_at`.
 
-### `tentative_paiement` — distincte du règlement confirmé
-`id`, `creance_id` (FK), `montant`, `moyen` (enum : `carte` / `sepa_core`), `source` (enum : `lien_agent` / `prelevement_auto`), `stripe_payment_intent_id`, `etat` (cf. machine d'état dédiée §2.2), `created_at`. **Toute tentative, y compris échouée, crée une ligne ici — jamais dans `paiement`.**
+Trigger de scope : `client_payeur` et `creance` doivent partager le même `prestataire_id`.
+
+### `tentative_paiement` — essai, pas règlement confirmé
+`id`, `creance_id` (FK), `montant` (bigint > 0), `moyen` (`carte` / `sepa_core`), `source` (`lien_agent` / `prelevement_auto`), `stripe_payment_intent_id` (nullable, unique si non null), `etat` (cf. §2.2), `echec_code` (nullable), `echec_message` (nullable), `created_at`.
+
+**Toute tentative, y compris échouée, crée une ligne ici — jamais dans `paiement`.** Authenticated : lecture seule (pas d'INSERT navigateur).
 
 ### `paiement` — règlements confirmés uniquement
-`id`, `creance_id` (FK), `tentative_paiement_id` (FK nullable — nul si détecté hors Sidian, cf. §13), `montant`, `source` (enum : `lien_agent` / `prelevement_auto` / `detecte_hors_sidian`), `created_at`. **Une créance peut avoir plusieurs lignes de `paiement` en cas de règlement partiel — la somme des paiements confirmés détermine le solde, jamais un flag binaire.** Une ligne référence directement une seule `creance_id` ; l'allocation multi-créances (virement groupé) n'est pas construite tant qu'aucun usage réel ne le justifie.
+`id`, `creance_id` (FK), `tentative_paiement_id` (FK nullable, unique si non null), `montant` (bigint > 0), `source`, `created_at`.
 
-### `payment_authorization` — généralisation du « mandat »
-`id`, `client_payeur_id` (FK), `prestataire_id` (FK), `type` (enum : `card_off_session` / `sepa_core_mandate`), `stripe_payment_method_id`, `stripe_mandate_id` (nullable, uniquement pour `sepa_core_mandate`), `etat` (cf. machine d'état dédiée §2.3), `is_default` (bool), `authorized_at`, `authorization_text_version`, `authorization_channel`, `revoked_at` (nullable). Une autorisation est toujours scopée `client_payeur × prestataire`, jamais globale.
+**Sources MVP :** `lien_agent`, `prelevement_auto`.
 
-**Correction d'une dépendance circulaire :** la version précédente stockait un `autorisation_active_id` sur `client_payeur`, dupliquant une information déjà portée par `payment_authorization.etat`, avec un risque réel d'incohérence entre les deux (l'un dit `ACTIVE`, l'autre pointe ailleurs ou vers rien). L'autorisation active se retrouve désormais par requête, garantie par contrainte plutôt que par duplication :
-```sql
--- Au plus une autorisation par défaut par couple client × prestataire,
--- mais plusieurs autorisations peuvent coexister à l'état ACTIVE
--- (ex. carte de secours en plus du compte bancaire principal).
-CREATE UNIQUE INDEX ON payment_authorization (client_payeur_id, prestataire_id)
-WHERE is_default = true;
-```
-**Pour le MVP**, l'interface n'expose et ne gère qu'une seule autorisation à la fois (la `is_default`) — la possibilité technique d'en coexister plusieurs est permise dans le modèle pour éviter une migration douloureuse plus tard, sans être construite côté produit maintenant.
+**Enum actuelle** contient aussi `detecte_hors_sidian` (migrations). **Hors périmètre produit MVP** — réservé à l'architecture différée (§12). Ne pas l'utiliser pour une détection automatique. Si une déclaration manuelle hors plateforme est retenue produit : introduire `declare_manuellement_hors_sidian` **`[MIGRATION À PRÉVOIR]`** (remplacement / ajout d'enum), avec écriture uniquement via commande serveur auditée — jamais via agrégation bancaire.
+
+Trigger de scope : si `tentative_paiement_id` est renseigné, il doit référencer la même `creance_id`. Authenticated : lecture seule.
+
+### `payment_authorization`
+`id`, `client_payeur_id` (FK), `prestataire_id` (FK), `type` (`card_off_session` / `sepa_core_mandate`), `stripe_payment_method_id`, `stripe_mandate_id` (nullable), `etat` (cf. §2.3), `is_default` (bool), `authorized_at`, `authorization_text_version`, `authorization_channel`, `revoked_at` (nullable), `created_at`.
+
+Contraintes actives :
+- index unique partiel : au plus une `is_default` par couple `(client_payeur_id, prestataire_id)` ;
+- **`is_default = true` implique `etat = ACTIVE`** (`payment_authorization_default_requires_active`) ;
+- trigger de scope client × prestataire.
+
+Le remplacement d'une autorisation par défaut doit être **transactionnel** (désactiver l'ancienne `is_default`, activer la nouvelle, même transaction). Authenticated : lecture seule au MVP.
 
 ### `regle`
-`id`, `prestataire_id` (FK), `client_payeur_id` (nullable — null = règle par défaut du prestataire), `parametre` (enum, cf. §4), `valeur`, `origine` (défaut/instruction_naturelle), `libelle_instruction_origine` (texte brut de l'instruction si applicable, conservé pour audit — ex. « sois plus souple avec Marie »), `actif` (bool), `created_at`.
+`id`, `prestataire_id` (FK), `client_payeur_id` (nullable), `parametre`, `valeur` (jsonb), `origine` (`defaut` / `instruction_naturelle`), `libelle_instruction_origine` (nullable), `actif`, `created_at`. Trigger de scope si `client_payeur_id` renseigné.
 
-### `conversation` / `message`
-`conversation_id`, `creance_id` (nullable), `client_payeur_id` (nullable), `emetteur` (agent/prestataire/client), `contenu`, `canal` (email/interface), `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), `created_at`. Immuable — aucune suppression, seulement des ajouts. Sert de trace probatoire (cf. 01, contrainte de prescription). **Relation explicite avec le dossier de suivi :** rattachées à `creance_id`, jamais à une seconde FK dupliquée vers `dossier_suivi` — puisqu'une créance possède au plus un dossier de suivi principal au MVP (cf. `dossier_suivi.creance_id` unique), celui-ci se retrouve par jointure simple.
+### `conversation` et `message` — deux tables distinctes
 
-### `dossier_suivi` — le fil relationnel (§2.4), auparavant référencé sans jamais être défini, et nommé `collection_case` dans une version antérieure (renommé pour cohérence avec le reste du vocabulaire français des entités)
-`id`, `creance_id` (FK, unique — une créance possède un dossier de suivi principal au MVP), `etat` (cf. machine d'état dédiée §2.4), `last_client_activity_at` (nullable), `last_agent_action_at` (nullable), `next_action_at` (nullable), `escalation_reason` (nullable, rempli à la transition vers `ESCALADE_HUMAINE`), `created_at`, `updated_at`, `clos_at` (nullable).
+#### `conversation` (migrations actives)
+`id`, `prestataire_id` (FK, **présent**), `creance_id` (nullable), `client_payeur_id` (nullable), `created_at`, `updated_at`.
 
-### `approval_request` — les demandes d'approbation créées par le registre encadré (§10), auparavant référencées sans jamais être définies
-`id`, `prestataire_id` (FK), `creance_id` (nullable), `type` (enum : `formal_action` / `rule_change` / `depassement_seuil` / autre), `requested_by_actor_type`, `requested_by_provider` (nullable, cf. traçabilité §10), `payload` (contexte structuré destiné au prestataire pour décider), `status` (`pending` / `approved` / `rejected` / `expired`), `approved_by` (nullable), `decided_at` (nullable), `created_at`, `expires_at` (nullable). Cette table reste simple — aucun moteur générique complexe d'approbation n'est nécessaire au MVP.
+Trigger de scope : `creance_id` / `client_payeur_id` doivent appartenir au même `prestataire_id`.
 
-### `audit_log` — trace systématique de toute action du registre encadré (§4, §6), auparavant mentionnée sans entité dédiée
-`id`, `actor_type`, `actor_provider` (nullable), `actor_model` (nullable), `action`, `entity_type`, `entity_id`, `metadata` (contexte structuré, incluant le cas échéant la règle appliquée), `created_at`.
+**`[MIGRATION À PRÉVOIR]`** pour le jeton de réponse publique :
+- `reply_token_hash` (empreinte du jeton opaque — jamais le jeton en clair)
+- `reply_token_revoked_at` (nullable)
 
-### `processed_webhook_event` — déduplication des événements Stripe (cf. §3)
-`id` (= `event_id` Stripe, clé primaire), `type`, `processed_at`. Toute réception d'un webhook Stripe vérifie d'abord l'absence de ce `event_id` avant tout traitement — c'est le mécanisme concret qui rend l'idempotence du §3 vérifiable, pas seulement énoncée en principe.
+Le jeton public doit être opaque, non prédictible, révocable, et stocké sous forme d'empreinte. Il ne doit jamais exposer `creance_id` en clair dans une adresse email publique (cf. PRD §4.5).
+
+#### `message` (migrations actives)
+`id`, `conversation_id` (FK), `emetteur` (`agent` / `prestataire` / `client`), `contenu`, `canal` (`email` / `interface`), `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), `created_at`.
+
+**`[MIGRATION À PRÉVOIR]` :**
+- `actor_provider` (nullable)
+- `actor_model` (nullable)
+- `external_message_id` (nullable)
+
+**Append-only pour les rôles applicatifs ordinaires** (triggers empêchent UPDATE/DELETE sur `message`). Compatible avec une **procédure privilégiée** de rétention, purge ou anonymisation auditée (service_role / opération contrôlée) — pas avec un DELETE navigateur.
+
+**SID-SEC-004 (cible) :** la provenance (`emetteur`, `actor_type`, et futurs `actor_provider` / `actor_model`) est imposée côté serveur — le navigateur ne choisit pas librement qu'un message « vient de l'agent ».
+
+### `dossier_suivi`
+`id`, `creance_id` (FK, **unique**), `etat` (cf. §2.4), `last_client_activity_at`, `last_agent_action_at`, `next_action_at`, `escalation_reason`, `created_at`, `updated_at`, `clos_at` (nullable). Une créance possède au plus un dossier principal au MVP.
+
+### `approval_request`
+`id`, `prestataire_id` (FK), `creance_id` (nullable, scopé), `type` (`formal_action` / `rule_change` / `depassement_seuil` / `autre`), `requested_by_actor_type`, `requested_by_provider` (nullable), `payload` (jsonb), `status` (`pending` / `approved` / `rejected` / `expired`), `approved_by` (nullable), `decided_at`, `created_at`, `expires_at`.
+
+**SID-SEC-003 (cible) :** payload immuable après création ; décision (`status`, `approved_by`, `decided_at`) séparée et bornée — pas de mutation libre du payload depuis le client.
+
+### `audit_log`
+`id`, `prestataire_id` (FK, **présent**), `actor_type`, `actor_provider` (nullable), `actor_model` (nullable), `action`, `entity_type`, `entity_id` (nullable), `metadata` (jsonb), `created_at`.
+
+Append-only pour rôles ordinaires (triggers UPDATE/DELETE interdits). Trigger de cohérence scope quand `entity_type`/`entity_id` est résolvable.
+
+**SID-SEC-002 (cible) :** écriture uniquement via une primitive serveur de confiance — pas d'INSERT libre authentifié depuis le navigateur pour forger une trace.
+
+### `processed_webhook_event` — état actuel vs cible
+
+**Schéma actuel (migrations) :** `id` (= `event_id` Stripe, PK), `type`, `processed_at`.
+
+**Modèle documentaire cible — `[MIGRATION À PRÉVOIR]` :**
+- `id`
+- `type`
+- `stripe_connected_account_id` (nullable / text)
+- `received_at`
+- `processing_status`
+- `processing_attempts`
+- `processed_at` (nullable)
+- `last_error_code` (nullable)
+
+Voir §3 pour l'acquisition atomique.
 
 ---
 
 ## 2. Machines d'état — quatre machines séparées, jamais mélangées
 
-**Principe de correction par rapport à une version antérieure :** une seule machine d'état mélangeait l'état financier de la créance, la source du règlement, la proposition d'autorisation et le suivi relationnel. Conséquence concrète du mélange : un simple échec de carte pouvait faire glisser l'état affiché d'une créance vers quelque chose qui ressemblait à un problème financier, alors que rien n'avait changé sur la créance elle-même. Ces quatre dimensions appartiennent à quatre domaines distincts et sont donc modélisées séparément.
+**Principe :** l'état financier de la créance, la tentative, l'autorisation et le suivi relationnel sont quatre domaines distincts. Un échec de carte ne doit jamais faire glisser à lui seul l'état financier affiché.
 
-### 2.1 Créance — reste volontairement simple
+Les libellés ci-dessous utilisent les accents pour la lisibilité ; les **valeurs d'enum Postgres** sont sans accents (ex. `PARTIELLEMENT_REGLEE`, `CREEE`, `ECHOUEE`, `REVOQUEE`).
+
+### 2.1 Créance
 
 ```
 BROUILLON
   │
   ▼
-OUVERTE                         (échéance fixée, notices informatives actives)
+OUVERTE
   │
   ├──[paiement partiel confirmé]──► PARTIELLEMENT_RÉGLÉE ──[solde atteint]──► RÉGLÉE
   ├──[paiement total confirmé]────► RÉGLÉE
   ├──[litige détecté]─────────────► EN_LITIGE ──[résolution]──► OUVERTE ou ANNULÉE ou RÉGLÉE
   ├──[prestataire annule]─────────► ANNULÉE
-  └──[silence prolongé, prestataire décide]──► IRRÉCOUVRABLE
+  └──[silence prolongé, décision prestataire]──► IRRÉCOUVRABLE
 ```
 
-`RÉGLÉE`, `ANNULÉE`, `IRRÉCOUVRABLE` sont terminaux. La créance ne connaît ni la source du règlement, ni le nombre de tentatives, ni l'existence d'une autorisation — ces informations vivent dans les machines ci-dessous et sont simplement consultées en jointure.
+`RÉGLÉE`, `ANNULÉE`, `IRRÉCOUVRABLE` sont terminaux. **SID-SEC-005 (cible) :** toute transition passe par une commande métier déterministe — pas d'UPDATE client direct de `etat`.
 
-### 2.2 Tentative de paiement — un essai, pas un règlement
+### 2.2 Tentative de paiement
 
 ```
 CRÉÉE
-  ├──► NÉCESSITE_ACTION_CLIENT   (authentification requise, ex. 3D Secure)
-  ├──► EN_TRAITEMENT             (SEPA : délai de plusieurs jours ouvrés avant confirmation)
-  ├──► RÉUSSIE                   (déclenche la création d'une ligne `paiement`, cf. §1)
-  ├──► ÉCHOUÉE                   (provision insuffisante, carte expirée, refus banque…)
+  ├──► NÉCESSITE_ACTION_CLIENT
+  ├──► EN_TRAITEMENT             (SEPA : délai avant confirmation)
+  ├──► RÉUSSIE                   → crée une ligne `paiement`
+  ├──► ÉCHOUÉE                   → renseigne `echec_code` / `echec_message`
   └──► ANNULÉE
 ```
 
-**Règle verrouillée, non négociable :** une tentative ne passe à `RÉUSSIE` que sur réception d'un événement fiable du prestataire de paiement (webhook Stripe), jamais par simple écoulement d'un délai. Pour le SEPA en particulier, où la confirmation définitive prend plusieurs jours ouvrés, l'état `EN_TRAITEMENT` peut durer — et c'est très bien ainsi. **Il est interdit de faire passer une tentative en `RÉUSSIE` sur la seule base d'un nombre de jours écoulés sans incident.** Le tableau de bord peut présenter les montants selon trois statuts d'affichage distincts (« paiement initié », « en cours de confirmation », « confirmé ») sans qu'aucun des deux premiers ne corresponde à une confirmation financière tant que l'événement réel n'est pas arrivé — les montants SEPA en traitement doivent être présentés séparément des montants confirmés, jamais agrégés ensemble comme s'ils étaient équivalents.
+**Règle verrouillée :** une tentative ne passe à `RÉUSSIE` que sur événement Stripe fiable (webhook), jamais par écoulement de délai. Une tentative échouée ne modifie jamais directement `creance.etat`.
 
-Une tentative échouée ne modifie jamais directement l'état de la créance — c'est le retry (§3) ou le repassage en flux de lien manuel qui en découle, toujours via une commande explicite, jamais par effet de bord automatique.
-
-### 2.3 Autorisation de paiement (`payment_authorization`)
+### 2.3 Autorisation de paiement
 
 ```
-NON_PROPOSÉE
-  │
-  ▼ (popup post-paiement, PRD §4.4)
-PROPOSÉE
-  │
-  ├──[client configure — SEPA : saisie IBAN + mandat ; carte : SetupIntent Stripe]──► EN_CONFIGURATION
-  │        └──succès──► ACTIVE (is_default = true si aucune autre autorisation par défaut n'existe déjà)
-  │        └──abandon──► REFUSÉE
-  │
-  ├──[refus direct]───────────────────────────────────────────────────────────────► REFUSÉE
-  │
-ACTIVE
-  ├──[client ou prestataire révoque]──► RÉVOQUÉE
-  ├──[carte expirée / mandat invalidé]──► EXPIRÉE
-  └──[signal de risque ou litige ouvert]──► SUSPENDUE ──[résolution]──► ACTIVE ou RÉVOQUÉE
+NON_PROPOSÉE → PROPOSÉE → EN_CONFIGURATION → ACTIVE | REFUSÉE
+ACTIVE → RÉVOQUÉE | EXPIRÉE | SUSPENDUE → ACTIVE | RÉVOQUÉE
 ```
 
-Seul un `payment_authorization` à l'état `ACTIVE` et `is_default = true` autorise la création d'une `tentative_paiement` de source `prelevement_auto` au MVP. Ce contrôle est une vérification systématique côté service métier, jamais une supposition. Le modèle permet à plusieurs autorisations de coexister à l'état `ACTIVE` (cf. §1) pour ne pas fermer la porte à un moyen de secours plus tard, mais un seul est utilisé et exposé au MVP.
+Seul un `payment_authorization` à l'état `ACTIVE` et `is_default = true` autorise une `tentative_paiement` de source `prelevement_auto` au MVP. **`is_default = true` implique `etat = ACTIVE`** (contrainte SQL active).
 
-### 2.4 Dossier de suivi (`dossier_suivi`) — le fil relationnel avec le client, indépendant de l'état financier
+### 2.4 Dossier de suivi
 
 ```
-PRÉVENTION           (avant échéance, notices informatives)
-  │
-  ▼
-ÉCHÉANCE              (jour J, lien envoyé)
-  │
-  ▼
-SUIVI_AMIABLE         (relances graduées, registre libre de l'agent)
-  │
-  ├──[client ouvre "signaler un problème"]──► PAUSE_LITIGE
-  ├──[silence, agent en attente de réponse]──► ATTENTE_CLIENT
-  ├──[question posée au prestataire]──────────► ATTENTE_PRESTATAIRE
-  └──[plafond de fermeté atteint ou signal fort]──► ESCALADE_HUMAINE
-           │
-           └──[prestataire tranche]──► CLOS
+PRÉVENTION → ÉCHÉANCE → SUIVI_AMIABLE
+  ├──► PAUSE_LITIGE
+  ├──► ATTENTE_CLIENT
+  ├──► ATTENTE_PRESTATAIRE
+  └──► ESCALADE_HUMAINE → CLOS
 ```
 
-`CLOS` est terminal pour le dossier — mais n'implique rien en soi sur l'état de la créance sous-jacente (une créance peut être `RÉGLÉE` alors que son dossier de suivi est encore en cours de clôture administrative, ou `IRRÉCOUVRABLE` avec un dossier `CLOS` sans jamais être passée par un règlement).
+`CLOS` est terminal pour le dossier ; il n'implique rien à lui seul sur `creance.etat`.
 
 ---
 
-## 3. Idempotence et retries
+## 3. Idempotence, webhooks et retries
 
-- Toute création de `tentative_paiement` doit être idempotente vis-à-vis de l'identifiant Stripe (`stripe_payment_intent_id` unique en base) — un webhook Stripe reçu deux fois ne doit jamais créer deux lignes de tentative, contrôle assuré concrètement par la table `processed_webhook_event` (cf. §1). La création d'une ligne `paiement` à partir d'une tentative réussie suit la même règle vis-à-vis de `tentative_paiement_id` (unique en base pour les paiements liés à une tentative).
-- **Stratégie de retry — configurable, jamais figée en dur.** Une politique de retry ne doit pas être codée comme une règle universelle du type « 3 tentatives sur 5 jours » — ce chiffre n'était qu'une hypothèse de travail et ne doit pas devenir une logique structurante avant d'avoir été confrontée à des résultats réels. **Pour le MVP, le comportement par défaut est `retry_policy = none`** (une tentative échouée repasse immédiatement en flux de lien manuel + notification prestataire) ; une politique plus élaborée peut être ajoutée ensuite, et devra de toute façon dépendre d'au moins quatre facteurs distincts : le rail (carte vs SEPA), le code d'échec renvoyé par Stripe, le besoin d'authentification, et la présence ou non d'un litige ouvert sur la créance — un échec « provision insuffisante » n'appelle pas la même réponse qu'un échec « carte expirée » ou qu'un échec survenant pendant une période de litige.
-- Chaque tentative échouée reste une ligne `tentative_paiement` en état `ÉCHOUÉE`, jamais supprimée ou écrasée — l'historique complet reste consultable, séparément de la table `paiement` qui ne contient que des règlements confirmés.
-- Les webhooks Stripe (tentative réussie, tentative échouée, autorisation créée/révoquée) doivent être traités par une queue avec déduplication par `event_id` Stripe, pas par traitement direct synchrone dans le handler HTTP — pour tolérer les retries de Stripe lui-même sans double traitement.
+### 3.1 Idempotence métier
+- Création de `tentative_paiement` idempotente vis-à-vis de `stripe_payment_intent_id` (unique partiel).
+- Création de `paiement` depuis une tentative : unique sur `tentative_paiement_id` non null.
+
+### 3.2 Webhooks Stripe — acquisition atomique (architecture cible)
+
+Remplace le modèle « vérifier l'absence puis traiter » (sujet à course).
+
+1. Vérification de signature sur le **corps brut**.
+2. Insertion **atomique** de l'événement avec contrainte unique sur `id` (= `event_id` Stripe).
+3. Doublon reconnu par **conflit unique** (événement déjà acquis) → réponse 200 sans retraitement.
+4. Mise en file.
+5. Traitement asynchrone.
+6. Retries bornés.
+7. État de traitement (`processing_status`).
+8. Erreur normalisée (`last_error_code`).
+9. Marquage final (`processed_at` lorsque terminal succès).
+
+**Schéma actuel :** `processed_webhook_event (id, type, processed_at)` — insuffisant pour les étapes 6–8. **`[MIGRATION À PRÉVOIR]`** vers le modèle du §1.
+
+### 3.3 Retries de tentative
+**MVP : `retry_policy = none`** — une tentative échouée repasse en flux de lien manuel + notification prestataire. Une politique plus riche reste une hypothèse post-MVP (rail, code d'échec, auth, litige).
+
+**Ne jamais rejouer aveuglément une requête Stripe au résultat ambigu** — cf. §6 (mode dégradé).
 
 ---
 
-## 4. Registre encadré — implémentation des garde-fous (traduction technique du PRD §3)
+## 4. Registre encadré — garde-fous système
 
-Les garde-fous non négociables du PRD doivent être des **contraintes système**, jamais de simples instructions données au LLM à respecter par bonne volonté :
+Les garde-fous du PRD §3 sont des **contraintes système**, jamais de simples instructions LLM :
 
-- Toute action classée « action formelle » ne peut aboutir qu'à faire transitionner le dossier de suivi (§2.4) vers `ESCALADE_HUMAINE` — il n'existe techniquement aucun chemin de code qui permette à l'agent de déclencher directement une action de type contentieux sans passage par cet état intermédiaire bloquant, ni de modifier l'état de la créance elle-même à cette occasion.
-- Tout montant d'étalement ou délai proposé au-delà des seuils définis en table `regle` déclenche la même mise en attente — vérification systématique côté serveur, jamais uniquement côté prompt de l'agent.
-- Détection de litige : classification par LLM **et** filet de mots-clés/règles complémentaires en parallèle — recommandation de conception : traiter comme litige dès que l'un des deux signale, jamais nécessiter l'accord des deux (biais volontaire vers le faux positif plutôt que le faux négatif).
+- Action formelle → transition `dossier_suivi` vers `ESCALADE_HUMAINE` + `approval_request` — aucun chemin direct contentieux.
+- Dépassement de seuils `regle` → même mise en attente, vérifiée serveur.
+- Détection de litige : LLM **et** règles/mots-clés en parallèle (biais faux positif).
 
-Table `regle` : liste de départ des paramètres configurables — délai de grâce, montant maximum d'étalement automatique, nombre de demandes tolérées avant escalade, seuil de montant nécessitant validation humaine, vitesse d'escalade du ton, plafond de fermeté, canaux autorisés, fréquence maximale de sollicitation, horaires autorisés. **[HYPOTHÈSE — liste à valider et probablement étendre en développement]**.
+**Exécution automatique déjà autorisée** (`prelevement_auto`) : checklist déterministe côté service, jamais déléguée au modèle :
+1. `creance.etat` ∈ {`OUVERTE`, `PARTIELLEMENT_REGLEE`} ;
+2. `dossier_suivi.etat` ≠ `PAUSE_LITIGE` ;
+3. montant ≤ solde restant ;
+4. autorisation `ACTIVE` + `is_default` revérifiée à l'exécution ;
+5. limites `regle` respectées ;
+6. compte Connect payable (projection + revérification si nécessaire) ;
+7. concordance scope Stripe (§5.2).
+
+**SID-SEC-005 :** transitions métier uniquement via commandes déterministes.
+
+Table `regle` — paramètres de départ : délai de grâce, montant max d'étalement, nb demandes avant escalade, seuil validation humaine, vitesse d'escalade du ton, plafond de fermeté, canaux, fréquence max, horaires. **[HYPOTHÈSE — liste à étendre].**
 
 ---
 
 ## 5. Intégrations externes — périmètre MVP
 
-### Stripe Connect (direct charge)
-Le prestataire est merchant of record. Commission captée via `application_fee_amount`, calculée à partir d'un paramètre commercial configurable `platform_fee_basis_points` — **fixé à 0 pendant l'Early Access** (cf. 02 §6), jamais une valeur positive codée en dur par plan. L'architecture conserve la capacité future de configurer une commission, mais aucune logique produit n'en dépend au MVP. Sur chaque paiement réussi de source `lien_agent` ou `prelevement_auto`, quel que soit le rail utilisé (carte ou SEPA Core) — jamais de commission générée sur un paiement de source `detecte_hors_sidian` (mécanisme hors MVP, cf. §12), principe conservé pour toute commission future si elle est un jour réintroduite. Le lien de paiement présente les deux rails via le Payment Element de Stripe (capable d'ordonner dynamiquement les moyens proposés), sans qu'aucun rail ne soit désactivé par une règle Sidian fondée sur un seuil de montant (cf. PRD §4.3). Webhooks à écouter au minimum : tentative réussie, tentative échouée, authentification requise, autorisation créée/révoquée, dispute ouverte. **[VALIDATION RESTANTE]** Limites Stripe à confirmer et surveiller : plafond SEPA Direct Debit par transaction et limite hebdomadaire initiale pour les nouveaux comptes, susceptibles d'évoluer.
+### 5.1 Stripe Connect (direct charge)
 
-**Disponibilité technique du lien vs envoi actif :** le lien ou la session de paiement est préparé à la création du paiement à recevoir, ou généré à la demande selon la stratégie Stripe retenue — sa disponibilité technique est distincte de son envoi actif par l'agent (cf. §7). Concrètement, le lien peut être visible pour le prestataire avant l'échéance, envoyé au client selon les règles de communication, et réutilisé ou régénéré selon sa durée de validité et le mécanisme Stripe choisi. **[VALIDATION RESTANTE]** Le choix exact entre un lien Stripe persistant, une session régénérée à chaque usage, ou une URL Sidian stable redirigeant vers une session fraîche à chaque clic, reste une question technique ouverte (cf. §9).
+Le prestataire est merchant of record. Commission via `application_fee_amount` / `platform_fee_basis_points` (**0** pendant Early Access). Payment Element : carte + SEPA Core, sans masquage d'un rail sur un seuil de montant Sidian.
 
-### Outil de facturation tiers (Pennylane ou autre)
-Hors MVP (cf. PRD §8). Si développée un jour : lecture seule des factures émises pour pré-remplir `reference_externe` et faciliter la création de `creance` — jamais d'écriture dans l'outil tiers.
+Webhooks minimaux : tentative réussie/échouée, authentification requise, autorisation créée/révoquée, dispute, mises à jour compte Connect (`account.updated`).
+
+**Lien de paiement :** URL Sidian stable opaque → contrôle serveur → session Stripe fraîche **seulement si payable**. Voir §1.
+
+**`[VALIDATION RESTANTE]`** Limites SEPA Direct Debit et plafonds nouveaux comptes Connect.
+
+### 5.2 Scope Stripe Connect — non négociable
+
+Les direct charges et leurs objets vivent dans le **périmètre du compte connecté**.
+
+Toute opération Stripe vérifie la concordance entre :
+- `prestataire_id`
+- `stripe_account_id` (projection locale)
+- PaymentIntent
+- Customer
+- PaymentMethod
+- Mandate
+- événement webhook (`stripe_connected_account_id`)
+
+**Un objet Stripe d'un prestataire ne peut jamais être utilisé pour un autre.**
+
+### 5.3 SEPA Core — prénotification
+
+**`[VALIDATION RESTANTE]`** — dépend de la configuration Stripe réelle et des obligations légales applicables.
+
+À documenter et implémenter explicitement :
+- **qui** envoie la prénotification (Sidian vs Stripe) ;
+- **quand** elle est envoyée (délai avant débit) ;
+- **comment** sa réussite est prouvée (événement, statut, journal) ;
+- **si** son échec bloque le débit ;
+- **version du texte** d'autorisation / préavis ;
+- **date d'envoi** ;
+- **autorisation et mandat** concernés (`payment_authorization_id`, `stripe_mandate_id`).
+
+Ces preuves doivent être auditables (`audit_log` et/ou champs dédiés — `[MIGRATION À PRÉVOIR]` si champs manquants).
+
+### 5.4 Outil de facturation tiers
+Hors MVP. Lecture seule future pour `reference_externe` — jamais d'écriture dans l'outil tiers.
 
 ---
 
 ## 6. Sécurité
 
-- RLS (Row Level Security) Supabase activée sur toutes les tables contenant des données de `prestataire` — un prestataire ne doit jamais pouvoir lire les créances, clients ou règles d'un autre, y compris via une requête mal formée côté client.
-- Les identifiants de moyens de paiement et de mandats SEPA stockés par Sidian (`stripe_payment_method_id`, `stripe_mandate_id`) sont uniquement des références vers les objets du prestataire de paiement. Aucune donnée de carte ou donnée bancaire brute n'est stockée — conformité PCI déléguée à Stripe par construction. Le mot « mandat » ne désigne ici que le rail `sepa_core_mandate` ; pour la carte, on parle de moyen de paiement enregistré (`card_off_session`).
-- Toute action du registre encadré (§4) crée une ligne `audit_log` (§1) avec l'identité de l'acteur (agent vs prestataire) et la règle appliquée, pour permettre un audit a posteriori en cas de litige avec un client.
-- *(Si l'agrégation bancaire est développée un jour, cf. §13 : aucune donnée bancaire brute ne transitera ni ne sera stockée par Sidian, uniquement des tokens révocables fournis par le prestataire d'agrégation — contrainte à respecter dès la conception de cette brique, pas seulement au moment de la construire.)*
+### 6.1 Invariants actifs (migrations / code)
+
+- RLS sur toutes les tables applicatives exposées.
+- Aucun accès `anon` métier (`REVOKE ALL` sur les 13 tables).
+- Isolation tenant via JWT authenticated + `current_prestataire_id()` (`SECURITY DEFINER` + `search_path = public`).
+- Triggers de scope cross-tenant (creance, authorization, conversation, approval, regle, paiement/tentative, audit).
+- Immutabilité `message` et `audit_log` pour rôles ordinaires.
+- Protection UPDATE des champs commerciaux sensibles `prestataire` côté `authenticated`.
+- Tables financières / système (`tentative_paiement`, `paiement`, `payment_authorization`, `processed_webhook_event`) : pas d'écriture navigateur (SELECT seul ou aucun grant authenticated).
+- `service_role` uniquement dans des modules `server-only` (jamais importable client).
+- Auth : `getUser()` serveur ; email prestataire issu de Auth confirmé ; redirects internes allowlistés.
+
+### 6.2 Architecture cible de confiance (audit — non prétendue corrigée)
+
+| ID | Invariant cible |
+|---|---|
+| SID-SEC-001 | Onboarding prestataire de confiance — pas de mass assignment libre à la création |
+| SID-SEC-002 | `audit_log` écrit uniquement par primitive serveur |
+| SID-SEC-003 | Approbation : payload immuable, décision séparée |
+| SID-SEC-004 | Provenance des messages imposée côté serveur |
+| SID-SEC-005 | Transitions métier uniquement via commandes déterministes |
+| SID-SEC-006 | Rate limiting obligatoire (Auth, callbacks publics, webhooks, IA) |
+| SID-SEC-007 | CI bloquante (lint, typecheck, tests schéma/Auth, build) |
+| SID-SEC-008 | Tests administratifs / service_role strictement locaux |
+
+Risques établis à traiter dans les lots de correction (sans les « résoudre » ici) :
+- mass assignment prestataire ;
+- audit falsifiable ;
+- provenance de message falsifiable ;
+- approbations mutables ;
+- transitions métier contournables.
+
+### 6.3 Privilèges et confiance
+
+- Privilèges minimaux par table (cf. migration `20500`).
+- Aucune confiance dans les identifiants reçus du navigateur (`user_id`, `prestataire_id`, montants, états).
+- Écritures d'audit, d'agent et d'intégration réservées aux primitives de confiance.
+- Fonctions `SECURITY DEFINER` : `search_path` explicite obligatoire.
+
+### 6.4 Données de paiement
+Références Stripe uniquement — jamais de carte / IBAN bruts.
+
+### 6.5 Rétention et RGPD
+
+**`[VALIDATION RESTANTE]`** Durées par catégorie (preuves financières, autorisations, audit, conversations, comptes). Le délai de prescription commerciale (cf. 01 §4) n'est **pas** la durée par défaut de tout le reste. Suppression/export de compte : format, délai, isolement des preuves encore requises.
+
+### 6.6 Mode dégradé Stripe
+
+**Ne jamais écrire qu'une tentative financière est simplement rejouée.**
+
+Seule une **intention d'exécution** peut être mise en attente. Avant tout nouvel appel Stripe, recalculer :
+- état de la créance ;
+- solde ;
+- autorisation ;
+- litige ;
+- limites ;
+- idempotency key ;
+- validité temporelle (et éligibilité Connect).
+
+Une requête Stripe au **résultat ambigu** ne doit **jamais** être rejouée aveuglément.
+
+Email / IA : files d'attente visibles ; workers déterministes indépendants de la disponibilité du modèle.
+
+### 6.7 Opérations transverses (cible)
+
+- Séparation stricte **local / staging / production** (clés, projets Supabase, Stripe, redirects).
+- Headers de sécurité et **CSP**.
+- Validation bornée (Zod) sur tous les inputs — tailles, formats, allowlists.
+- **Readiness** stricte (`/api/health` et contrôles associés sans fuite de secrets).
+- Sauvegarde et **réponse à incident** documentées dans `docs/operations/` (runbooks) — le document 03 impose l'exigence, pas le détail opérationnel.
 
 ---
 
 ## 7. Workers et tâches planifiées (cron)
 
-**Clarification préalable, verrouillée :** le lien de paiement est généré et accessible dès la création de la créance (cf. §1, §5), pas seulement à l'échéance. Ce que les workers ci-dessous déclenchent, c'est l'envoi *actif* du lien par l'agent selon le calendrier des règles — rien n'empêche un client volontaire de payer avant même de recevoir la moindre notice, en utilisant un lien que le prestataire lui aurait partagé plus tôt.
+**Clarification verrouillée :** les workers déclenchent l'**envoi actif** ou la préparation d'intentions — jamais la création automatique d'une session Stripe payable sur une créance dont le compte n'est pas payable. Un client ne peut payer tôt que si un lien **partageable** lui a été exposé (compte payable).
 
-- **Scanner de prévention** (quotidien) : recherche les créances `OUVERTE` ou `PARTIELLEMENT_RÉGLÉE` dont l'échéance entre dans la fenêtre préventive (J-5) ; fait évoluer le `dossier_suivi` associé vers `PRÉVENTION` s'il n'y est pas déjà ; déclenche la notice uniquement si elle n'a pas déjà été envoyée.
-- **Scanner d'échéance** (quotidien) : recherche les créances `OUVERTE` ou `PARTIELLEMENT_RÉGLÉE` dont l'échéance est atteinte ; fait évoluer le `dossier_suivi` vers `ÉCHÉANCE` ; déclenche l'envoi actif du lien si les règles l'autorisent — **ne change jamais directement l'état financier de la créance**.
-- **Scanner de paiements automatiques** (quotidien) : recherche les créances `OUVERTE` ou `PARTIELLEMENT_RÉGLÉE` arrivées à échéance, non contestées (pas de `dossier_suivi` en `PAUSE_LITIGE`), et liées à une `payment_authorization` à l'état `ACTIVE` et `is_default = true` ; crée une `tentative_paiement` de source `prelevement_auto` — **ne modifie pas directement l'état de la créance**, seule la confirmation ultérieure de la tentative (§2.2) peut le faire.
-- **Gestionnaire de tentative échouée** (déclenché par webhook, pas par cron) : analyse le rail et le motif d'échec ; décide, selon la politique de retry en vigueur (§3, `none` par défaut au MVP), s'il faut attendre une action du client, programmer une nouvelle tentative, ou repasser le `dossier_suivi` en flux manuel avec notification au prestataire.
-- **Scanner de silence prolongé** (quotidien) : fait évoluer le `dossier_suivi` vers `ESCALADE_HUMAINE` selon le plafond configuré en `regle`, et notifie le prestataire — **ne crée jamais un état financier spécifique**, ne marque jamais automatiquement la créance comme `IRRÉCOUVRABLE` (cette transition reste une décision explicite du prestataire, cf. §2.1).
-- **Scanner de clôture** (quotidien) : ferme le `dossier_suivi` (transition vers `CLOS`) lorsque la créance associée devient `RÉGLÉE`, `ANNULÉE` ou `IRRÉCOUVRABLE`, après exécution des communications administratives nécessaires (ex. confirmation de règlement au client).
+- **Scanner de prévention** (quotidien) : créances ouvertes / partiellement réglées dans la fenêtre J-5 → `dossier_suivi` `PRÉVENTION` → notice si non déjà envoyée.
+- **Scanner d'échéance** (quotidien) : échéance atteinte → `ÉCHÉANCE` → envoi actif du lien **uniquement si partageable** (payable) et règles OK — ne change pas `creance.etat`.
+- **Scanner de paiements automatiques** (quotidien) : checklist §4 → intention / `tentative_paiement` `prelevement_auto` — pas de modification directe de `creance.etat`.
+- **Gestionnaire de tentative échouée** (webhook) : selon `retry_policy` (none au MVP) — jamais replay ambigu.
+- **Scanner de silence prolongé** (quotidien) : escalade humaine selon `regle` — jamais `IRRECOUVRABLE` automatique.
+- **Scanner de clôture** (quotidien) : `CLOS` lorsque créance terminale, après communications admin nécessaires.
 
 ---
 
 ## 8. Observabilité
 
-Métriques techniques minimales à instrumenter dès le MVP, en miroir des KPI produit du PRD §7 :
-- Taux de succès des webhooks Stripe traités sans erreur.
-- Latence entre événement Stripe et transition d'état correspondante en base.
-- Volume de messages générés par l'agent par jour, par type (registre libre vs encadré), pour surveiller les coûts et détecter une dérive de comportement.
-- Alerte immédiate sur toute tentative de transition d'état qui contournerait un garde-fou du §4 (ne devrait jamais se produire — sa seule occurrence est un signal d'anomalie critique).
-- *(Le taux de rapprochement bancaire automatique n'a pas lieu d'être au MVP puisque l'agrégation bancaire n'est pas construite — cf. §13. Cette métrique rejoindra la liste le jour où cette brique sera développée.)*
+- Taux de succès des webhooks acquis et traités.
+- Latence événement Stripe → transition d'état.
+- Volume messages agent (registre libre vs encadré) et coûts IA.
+- Alerte sur tentative de transition contournant un garde-fou.
+- Métriques Auth (échecs signup/login génériques, rate limits) — sans PII.
+- *(Rapprochement bancaire : hors MVP, §12.)*
+
+Logs : pas de secrets, pas de mots de passe, pas de prompts complets ni de contenu sensible (cf. §10).
 
 ---
 
 ## 9. Questions techniques ouvertes
 
-**[VALIDATION RESTANTE — à trancher avant développement de la brique concernée, pas avant le MVP dans son ensemble]**
-1. Statut PDP / interopérabilité facturation électronique — sans impact sur le MVP tel que scopé en PRD §8.
-2. Mécanisme précis de détection de litige (poids relatif classification LLM vs règles mots-clés).
-3. Calibrage réel de la politique de retry (§3) une fois des données Stripe observées — le défaut `none` du MVP n'est qu'un point de départ prudent.
-4. Stratégie exacte de génération du lien/session de paiement Stripe (§5) : lien persistant, session régénérée à chaque usage, ou URL Sidian stable redirigeant vers une session fraîche.
+**`[VALIDATION RESTANTE]`**
+1. Statut PDP / facturation électronique — hors impact MVP strict.
+2. Poids relatif LLM vs règles pour la détection de litige.
+3. Calibrage retry après données Stripe réelles.
+4. Durées de conservation précises (§6.5).
+5. Format/délai suppression-export compte.
+6. Détail mode dégradé par fournisseur.
+7. Prénotification SEPA (§5.3) : responsabilités exactes Stripe vs Sidian.
+8. Champs minimaux Connect France pour `charges_enabled` (cf. 02 §4.2).
 
-*(Les questions relatives à l'agrégation bancaire — choix du prestataire, rétention des événements non rapprochés — sont déplacées en §12, puisque cette brique entière est hors MVP.)*
+*(Agrégation bancaire : §12.)*
 
 ---
 
-## 10. Système IA — abstraction légère (traduction technique de 01, P9/P10)
+## 10. Système IA — abstraction contrôlée (01 P9/P10)
 
-**Principe :** le reste de Sidian n'appelle jamais un modèle par son nom. Une seule fonction centrale sert de point de passage.
+**Principe :** aucun appel au modèle par nom dans le domaine métier. Point de passage unique serveur.
 
 ```ts
 type ModelProfile =
@@ -232,131 +438,98 @@ type ModelProfile =
   | "conversation"
   | "reasoning";
 
-interface AIRequest {
+type AITask =
+  | "classify_message"
+  | "draft_notice"
+  | "draft_reminder"
+  | "summarize_thread"
+  | "detect_dispute_signal";
+
+interface AIRequest<TInput, TOutput> {
   profile: ModelProfile;
-  systemPrompt: string;
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
-  outputSchema?: unknown;
+  task: AITask;
+  input: TInput;
+  outputSchema: ZodSchema<TOutput>;
+  tenantContext: {
+    prestataireId: string;
+    requestId: string;
+  };
 }
 
 interface AIResponse<T = unknown> {
-  content?: string;
-  structuredOutput?: T;
+  structuredOutput: T;
   provider: string;
   model: string;
 }
-
-async function runAI<T>(request: AIRequest): Promise<AIResponse<T>> {
-  // Sélection du fournisseur selon le profil. OpenAI comme fournisseur
-  // unique au MVP. Un fallback multi-fournisseurs n'est pas construit
-  // maintenant — voir §11.
-  //
-  // Le nom du profil décrit le besoin métier (classification légère,
-  // conversation courante, raisonnement complexe), jamais une
-  // considération de coût — le mapping profil → modèle/fournisseur
-  // peut changer librement sans toucher au reste du code.
-}
 ```
 
-**Le modèle ne renvoie jamais une action, seulement une intention structurée**, systématiquement validée par une fonction métier avant toute exécution :
+**Contraintes non négociables :**
+- prompts système sélectionnés **côté serveur** dans un registre versionné — **aucun** `systemPrompt` fourni par le navigateur ;
+- sorties structurées obligatoires pour les intentions métier ;
+- données minimisées ; limites de taille ; timeout ; quota et budget ;
+- allowlist d'outils ;
+- **aucune exécution financière directe** par le modèle ;
+- kill switch global et par prestataire ;
+- aucune donnée cross-tenant ;
+- logs sans prompt complet ni contenu sensible.
 
-```ts
-// Sortie du modèle — jamais exécutée telle quelle
-{
-  "intent": "draft_reminder",
-  "creance_id": "creance_123",
-  "tone": "courteous",
-  "reason": "echeance_atteinte"
-}
+Le modèle renvoie une **intention structurée**, validée par une fonction métier déterministe avant toute exécution. Registre encadré → `approval_request`, jamais exécution directe.
 
-// Passage obligatoire par une fonction métier testée, avant toute action
-const result = await validateReminderAction({
-  actor,
-  creance,
-  clientRules,
-  requestedIntent,
-});
-```
-
-Cette fonction vérifie au minimum : que la créance appartient bien au prestataire concerné, qu'elle n'est pas déjà réglée, qu'aucun litige n'est ouvert dessus, que le canal demandé est autorisé, que la fréquence maximale configurée n'est pas dépassée. **Aucun "Policy Engine" séparé n'est construit au MVP** — une fonction métier correctement testée suffit, tant que le garde-fou reste impossible à contourner dans le code, indépendamment de sa forme d'implémentation.
-
-**Toute action de type registre encadré (cf. §4) passe par le même schéma** : la fonction ne s'exécute jamais directement, elle crée une demande d'approbation.
-
-```ts
-async function requestFormalAction(input: FormalActionInput) {
-  // L'agent ne peut jamais exécuter directement une action formelle.
-  return createApprovalRequest({
-    type: "formal_action",
-    requestedBy: input.actor,
-    creanceId: input.creanceId,
-  });
-}
-```
-
-**Traçabilité de l'origine, sans infrastructure dédiée :** un champ `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), et le cas échéant `actor_provider` / `actor_model`, suffit sur les tables `conversation`/`message` et sur toute création de `approval_request` (entité définie en §1) ou de `audit_log` (idem). C'est ce champ, pas une architecture séparée, qui permettra demain d'identifier qu'une action vient de Claude ou de ChatGPT plutôt que de l'agent natif — sans rien construire de plus aujourd'hui.
-
-**Organisation de code recommandée pour le MVP :**
+Organisation recommandée :
 
 ```
 src/
 ├── ai/
 │   ├── run-ai.ts
 │   ├── model-profiles.ts
-│   ├── prompts/
+│   ├── prompt-registry/
+│   ├── tasks/
 │   └── schemas/
 ├── domain/
-│   ├── creances/
-│   ├── paiements/
-│   ├── communications/
-│   └── regles/
 ├── services/
-│   ├── stripe/
-│   ├── email/
-│   └── supabase/
 └── audit/
 ```
 
-## 11. Assistants externes (Claude, ChatGPT) et MCP — backlog, non construit au MVP
+---
 
-**Ce qui est vrai dès aujourd'hui, sans rien construire de plus :**
-- La logique métier ne dépend d'aucun fournisseur IA (P9).
-- Aucun modèle n'accède directement à Stripe ou Supabase — tout passe par les fonctions métier du §10.
-- Les actions passent par les mêmes fonctions, qu'elles soient déclenchées par l'agent natif ou, un jour, par un assistant externe.
-- Une future intégration MCP ne serait qu'un adaptateur fin vers ces fonctions existantes — jamais un lieu de logique métier propre.
+## 11. Assistants externes (Claude, ChatGPT) et MCP — backlog
 
-**Explicitement repoussé, à ne construire qu'après un besoin utilisateur réel confirmé :** serveur MCP, Command Bus / Query Bus séparé, moteur de permissions générique, bascule automatique multi-fournisseurs, fallback dynamique entre plusieurs fournisseurs, event sourcing, catalogue public d'outils, scopes OAuth granulaires, découpage en microservices, système d'évaluation industriel.
+Vrai dès aujourd'hui sans construction supplémentaire :
+- logique métier indépendante du fournisseur IA (P9) ;
+- aucun modèle n'écrit directement dans Stripe ou Supabase ;
+- même chemin de contrôles et d'audit pour tout acteur (P10).
 
-**Test de validation à garder en tête pour le jour où ce sujet redevient pertinent :** Claude, ChatGPT et l'agent Sidian natif doivent, pour une même intention, appeler la même fonction métier, subir les mêmes contrôles, et produire le même résultat et la même trace d'audit. Le jour où ce test peut s'écrire, l'intégration externe est prête — pas avant.
+**Repoussé** jusqu'à besoin utilisateur réel : serveur MCP, bus générique, multi-fournisseurs, event sourcing, microservices, etc.
+
+Test de validation futur : même intention → même fonction métier → mêmes contrôles → même trace.
 
 ---
 
-## 12. Architecture différée — MVP+1
+## 12. Architecture différée — MVP+1 (agrégation bancaire)
 
-Cette section rassemble tout ce qui touche à l'agrégation bancaire et à la détection de paiement hors Sidian — délibérément absent des sections précédentes pour que le schéma MVP (§1) reflète exactement ce qui est construit maintenant, pas une anticipation. Rien ici n'est développé au MVP.
+Rien ici n'est développé au MVP.
 
-**Ce qui sera nécessaire le jour où cette brique est construite :**
-- `prestataire.compte_bancaire_agrege` (bool, lecture seule) sur l'entité `prestataire`.
-- Une entité `evenement_bancaire` : `id`, `prestataire_id` (FK), `montant`, `date_valeur`, `libelle_brut`, `creance_id_rapprochee` (nullable), `statut_rapprochement` (`rapproché` / `non_rapproché` / `ambigu`).
-- Un moteur de rapprochement : pour chaque `evenement_bancaire` importé, recherche de `creance` à l'état `OUVERTE` ou `PARTIELLEMENT_RÉGLÉE` du même `prestataire_id`, avec un filtre temporel séparé de l'état financier (`date_echeance <= date du virement + tolérance`) et correspondance sur montant exact et proximité de référence textuelle. En cas d'ambiguïté, statut `ambigu` et validation manuelle requise — jamais de rapprochement automatique sur un score de confiance incertain.
-- Un worker d'import (fréquence à définir selon l'API du prestataire retenu).
-- Une métrique de taux de rapprochement automatique vs ambigu, à ajouter à l'observabilité (§8) une fois construite.
+Futur probable :
+- flag d'agrégation lecture seule sur `prestataire` ;
+- entité `evenement_bancaire` ;
+- moteur de rapprochement prudent (ambigu → manuel) ;
+- worker d'import ;
+- métrique de taux de rapprochement.
 
-**Questions à trancher avant de construire cette brique, pas avant :**
-1. Choix du prestataire d'agrégation bancaire (candidats évoqués : Bridge, Powens) — critères : couverture des banques des bêta-testeurs, coût par connexion, statut DSP2.
-2. Politique de rétention des `evenement_bancaire` non rapprochés (durée de conservation, RGPD).
+**Contrainte :** accès strictement lecture seule — jamais de scope d'écriture bancaire.
 
-**Contrainte de conception à respecter dès la conception de cette brique, indépendante du prestataire retenu :** accès strictement lecture seule, jamais de scope d'écriture demandé même si l'API du prestataire le permet techniquement (cf. §6).
-
-**Ce qui existe malgré tout au MVP, sans agrégation bancaire :** aucun paiement hors Sidian n'est automatiquement détecté au MVP. Un prestataire peut signaler manuellement qu'un paiement à recevoir est réglé hors plateforme, si cette possibilité est retenue côté produit (transition manuelle de la créance vers `RÉGLÉE`, cf. §2.1, à l'initiative du prestataire) — mais aucune agrégation bancaire n'est développée pour la détecter automatiquement.
+**Au MVP :** aucun paiement hors Sidian n'est détecté automatiquement. Si le produit retient une **déclaration manuelle** (`declare_manuellement_hors_sidian` — `[MIGRATION À PRÉVOIR]`), elle est une commande serveur auditée, distincte de `detecte_hors_sidian` (valeur d'enum actuelle non utilisée pour l'auto-détection).
 
 ---
 
-## 13. Inventaire du code existant — méthode de tri (inchangée, reconfirmée)
+## 13. Inventaire du code existant — méthode de tri
 
-Une seule question par brique du code Cursor actuel : dépend-elle du modèle abandonné (mission → enrôlement obligatoire → débit programmé, autour de la Facture) ?
-- **Dépend → à refaire :** toute logique d'enrôlement bloquant, tout schéma centré sur la Facture plutôt que la Créance.
-- **Neutre → à conserver :** authentification, design system, composants UI génériques, infrastructure Vercel, configuration Stripe de base (les objets Stripe Connect restent valides, seule la séquence qui les déclenche change).
-- **À évaluer :** toute intégration Pennylane existante — à conserver seulement si suffisamment découplée pour devenir une simple source de `reference_externe` optionnelle, jamais un prérequis fonctionnel.
+Une seule question par brique : dépend-elle du modèle abandonné (enrôlement obligatoire, séquence J0/J5/J9/J10, contrat central, grille Starter/Pro/Business) ?
+- **Dépend → réécrire.**
+- **Neutre → conserver après revue** (auth, design system, infra).
+- **À évaluer :** intégrations legacy facturation — uniquement si découplables en `reference_externe`.
+
+Le legacy documentaire n'est **jamais** une source de règle active.
 
 ---
 

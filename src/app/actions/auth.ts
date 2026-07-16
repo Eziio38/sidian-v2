@@ -12,6 +12,10 @@ import {
   signUpSchema,
 } from "@/lib/auth/schemas";
 import { buildAuthCallbackUrl } from "@/lib/auth/urls";
+import {
+  logSignUpInputPresence,
+  logSupabaseAuthError,
+} from "@/lib/auth/log-auth-error";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthActionState = {
@@ -46,6 +50,8 @@ export async function signUpAction(
   _prevState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  logSignUpInputPresence(formData);
+
   const parsed = signUpSchema.safeParse({
     displayName: formData.get("displayName"),
     agencyName: formData.get("agencyName"),
@@ -61,11 +67,13 @@ export async function signUpAction(
   }
 
   const supabase = await createClient();
+  const emailRedirectTo = buildAuthCallbackUrl();
+
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      emailRedirectTo: buildAuthCallbackUrl(),
+      emailRedirectTo,
       data: {
         display_name: parsed.data.displayName,
         agency_name: parsed.data.agencyName,
@@ -74,6 +82,10 @@ export async function signUpAction(
   });
 
   if (error) {
+    logSupabaseAuthError("signUp", error, {
+      redirectHost: new URL(emailRedirectTo).host,
+      redirectPath: new URL(emailRedirectTo).pathname,
+    });
     return failure(undefined, AUTH_MESSAGES.genericAuthError);
   }
 

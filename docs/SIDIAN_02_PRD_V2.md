@@ -41,6 +41,21 @@ Ce choix n'est pas cosmétique : appeler l'objet « Facture » dans l'interface 
 - **Le client (payeur)** — n'a pas de compte Sidian à proprement parler pour l'usage minimal (il peut simplement recevoir un lien et payer sans jamais « s'inscrire »). Une relation de confiance progressive se construit avec lui au fil des créances réglées.
 - **L'agent** — l'acteur opérationnel qui exécute la communication et applique les règles pour le compte du prestataire (rôle détaillé en §3).
 
+### 2bis. Onboarding prestataire — le chemin le plus court vers la première utilité
+
+**[PRINCIPE, découle de 01 P6]** L'onboarding n'est pas une session de configuration — c'est le chemin le plus court vers la création du premier paiement à recevoir. Toute étape qui demande un jugement sur une situation hypothétique (ton par défaut, seuils de fermeté, règles par client) est reportée après l'onboarding, au moment où une vraie situation la justifie (cf. §3 — configuration conversationnelle contextuelle).
+
+**Séquence cible :**
+1. Inscription (email, mot de passe).
+2. Choix du profil agent — « je garde le contrôle total » ou « je délègue au maximum » (cf. §3) — un clic, pas un questionnaire.
+3. Création minimale du compte Stripe Connect (email, type d'activité) — cf. §4.2, nécessaire pour que le lien de paiement soit disponible dès le premier paiement à recevoir créé.
+4. Ajout du premier client (nom, email).
+5. Création du premier paiement à recevoir (montant, échéance).
+
+**L'onboarding Stripe complet** (vérification d'identité, IBAN — `charges_enabled = true`) est reporté au moment du premier envoi réel du lien ou de la première tentative de paiement, jamais imposé avant (cf. §4.2).
+
+**Aucune configuration de règle par client, aucun réglage de ton fin, aucune connexion Pennylane n'est demandée à ce stade** — tout ça reste accessible mais jamais requis pour créer le premier paiement à recevoir.
+
 ---
 
 ## 3. Le rôle de l'agent
@@ -78,6 +93,12 @@ Confirmation légère à la création de la créance (montant, échéance, ton n
 Si rien n'est réglé : l'agent présume l'oubli, jamais la mauvaise foi. Un lien de paiement est envoyé directement par l'agent au client, indépendamment de tout outil de facturation tiers.
 
 **[DÉCISION]** Le lien de paiement existe et reste accessible dès la création du paiement à recevoir, pas seulement à l'échéance — ce que le calendrier de communication du §4.1 déclenche, c'est l'envoi *actif* par l'agent selon les règles configurées, jamais la disponibilité elle-même. Rien n'empêche un client volontaire de régler avant même d'avoir reçu la moindre notice, si le prestataire lui a partagé le lien plus tôt.
+
+**Conséquence sur l'onboarding prestataire, pour ne pas contredire cette décision :** un lien de paiement en direct charge suppose qu'un compte Stripe Connect existe déjà côté prestataire. Pour que le lien soit réellement disponible dès la création du premier paiement à recevoir, sans pour autant forcer l'utilisateur à traverser tout l'onboarding Stripe (vérification d'identité, IBAN) avant d'avoir vu la moindre valeur du produit, l'onboarding prestataire distingue deux moments :
+1. **Création minimale du compte Connect** (email, type d'activité) — rapide, positionnée tôt dans l'onboarding, avant même la création du premier client.
+2. **Onboarding Stripe complet** (`charges_enabled = true`) — reporté au moment du premier envoi réel du lien ou de la première tentative de paiement, jamais imposé avant.
+
+**[FAIT CONFIRMÉ, avec un point de mesure restant]** Stripe documente officiellement ce découpage sous le nom d'« onboarding incrémental » (`collection_options.future_requirements`) : un compte connecté peut être créé avec un minimum d'informations suffisant pour activer les paiements, le reste des exigences (notamment la vérification documentaire poussée) étant reporté à plus tard. Ce n'est donc pas une hypothèse de conception mais un pattern prévu par Stripe pour ce cas d'usage exact. **Ce qui reste à mesurer, pas à supposer :** le minimum incompressible d'informations exigé pour la France (probablement au moins l'identité basique du représentant — nom, date de naissance, adresse) varie selon le type d'activité et l'évaluation de risque de Stripe, et peut évoluer indépendamment de notre code — à vérifier contre l'API réelle au moment de l'implémentation, pas à figer ici comme une durée ou une liste de champs précise.
 
 ### 4.3 Le choix du moyen de paiement — carte et SEPA proposés dès le premier règlement
 

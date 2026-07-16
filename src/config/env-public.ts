@@ -17,6 +17,28 @@ const publicEnvSchema = z.object({
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type SupabasePublicEnv = z.infer<typeof supabasePublicEnvSchema>;
 
+const SUPABASE_CLOUD_HOST_SUFFIXES = [".supabase.co", ".supabase.in"] as const;
+
+export function normalizeSupabaseUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/$/, "");
+
+  try {
+    const parsed = new URL(trimmed);
+    const isSupabaseCloud = SUPABASE_CLOUD_HOST_SUFFIXES.some((suffix) =>
+      parsed.hostname.endsWith(suffix),
+    );
+
+    if (parsed.protocol === "http:" && isSupabaseCloud) {
+      parsed.protocol = "https:";
+      return parsed.toString().replace(/\/$/, "");
+    }
+
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
 function readPublicEnvInput() {
   return {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -57,7 +79,12 @@ export function getSupabasePublicEnv(): SupabasePublicEnv {
     );
   }
 
-  return parsed.data;
+  return {
+    ...parsed.data,
+    NEXT_PUBLIC_SUPABASE_URL: normalizeSupabaseUrl(
+      parsed.data.NEXT_PUBLIC_SUPABASE_URL,
+    ),
+  };
 }
 
 export function getPublicEnv(): PublicEnv {
@@ -73,5 +100,10 @@ export function getPublicEnv(): PublicEnv {
     throw new Error("Configuration publique manquante ou invalide.");
   }
 
-  return parsed.data;
+  return {
+    ...parsed.data,
+    NEXT_PUBLIC_SUPABASE_URL: normalizeSupabaseUrl(
+      parsed.data.NEXT_PUBLIC_SUPABASE_URL,
+    ),
+  };
 }

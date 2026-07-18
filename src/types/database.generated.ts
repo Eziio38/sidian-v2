@@ -636,12 +636,60 @@ export type Database = {
     }
     Functions: {
       current_prestataire_id: { Args: never; Returns: string }
+      ensure_prestataire_for_current_user: {
+        Args: { p_nom: string }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       sidian_assert_rls_enabled: {
         Args: never
         Returns: {
           rls_enabled: boolean
           table_name: string
         }[]
+      }
+      sidian_prestataire_authenticated_privileges: {
+        Args: never
+        Returns: Json
+      }
+      update_current_prestataire_name: {
+        Args: { p_nom: string }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

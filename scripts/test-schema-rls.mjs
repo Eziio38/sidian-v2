@@ -7,18 +7,21 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const LOCAL_SERVICE =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+import {
+  assertLocalTestConfig,
+  LOCAL_DEMO_ANON_KEY,
+  LOCAL_DEMO_SERVICE_ROLE_KEY,
+} from "./lib/assert-local-supabase.mjs";
+import { withLocalOnlyFetch } from "./lib/local-only-fetch.mjs";
 
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? LOCAL_URL;
-const SUPABASE_ANON =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? LOCAL_ANON;
-const SUPABASE_SERVICE =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? LOCAL_SERVICE;
+const localConfig = assertLocalTestConfig();
+const SUPABASE_URL = localConfig.url;
+const SUPABASE_ANON = LOCAL_DEMO_ANON_KEY;
+const SUPABASE_SERVICE = LOCAL_DEMO_SERVICE_ROLE_KEY;
+
+function createLocalClient(url, key, options = {}) {
+  return createClient(url, key, withLocalOnlyFetch(options));
+}
 
 const EXPECTED_TABLES = [
   "prestataire",
@@ -46,7 +49,7 @@ const FORBIDDEN_TABLES = [
   "organization_members",
 ];
 
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE, {
+const admin = createLocalClient(SUPABASE_URL, SUPABASE_SERVICE, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -83,7 +86,7 @@ async function createAuthUser(email, password) {
 }
 
 async function signIn(email, password) {
-  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  const authClient = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const { data, error } = await authClient.auth.signInWithPassword({
@@ -91,7 +94,7 @@ async function signIn(email, password) {
     password,
   });
   if (error) throw error;
-  return createClient(SUPABASE_URL, SUPABASE_ANON, {
+  return createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     global: {
       headers: { Authorization: `Bearer ${data.session.access_token}` },
     },
@@ -100,7 +103,7 @@ async function signIn(email, password) {
 }
 
 function anonClient() {
-  return createClient(SUPABASE_URL, SUPABASE_ANON, {
+  return createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
@@ -367,6 +370,69 @@ async function main() {
       .update({ subscription_status: "active", platform_fee_basis_points: 100 })
       .eq("id", prestA.id);
     if (!error) throw new Error("update champs sensibles autorisé");
+  });
+
+  await runTest("SID-SEC-001 INSERT direct prestataire authenticated refusé (JWT)", async () => {
+    const emailC = `prestataire-c-${suffix}@sidian.test`;
+    const userC = await createAuthUser(emailC, password);
+    const clientC = await signIn(emailC, password);
+
+    const { error } = await clientC.from("prestataire").insert({
+      user_id: userC.id,
+      nom: "Hack Direct Schema",
+      email: "hacked@evil.example",
+      subscription_status: "active",
+      pricing_version: "business_999",
+      platform_fee_basis_points: 500,
+    });
+
+    if (!error) {
+      throw new Error("INSERT direct prestataire autorisé côté authenticated");
+    }
+  });
+
+  await runTest("SID-SEC-001 DELETE direct prestataire authenticated refusé (JWT)", async () => {
+    const { error } = await clientA.from("prestataire").delete().eq("id", prestA.id);
+    if (!error) {
+      throw new Error("DELETE direct prestataire autorisé");
+    }
+
+    const { data, error: readError } = await admin
+      .from("prestataire")
+      .select("id")
+      .eq("id", prestA.id)
+      .maybeSingle();
+
+    if (readError) throw readError;
+    if (!data) throw new Error("prestataire supprimé malgré DELETE refusé");
+  });
+
+  await runTest("SID-SEC-001 ACL authenticated = SELECT uniquement (8 privilèges)", async () => {
+    const { data, error } = await admin.rpc("sidian_prestataire_authenticated_privileges");
+    if (error) throw error;
+
+    const expected = {
+      select: true,
+      insert: false,
+      update: false,
+      delete: false,
+      truncate: false,
+      references: false,
+      trigger: false,
+      maintain: false,
+      column_mutation_grants: false,
+      anon_select: false,
+    };
+
+    for (const [key, value] of Object.entries(expected)) {
+      if (data[key] !== value) {
+        throw new Error(`ACL ${key}=${data[key]} (attendu ${value})`);
+      }
+    }
+
+    if (!Array.isArray(data.mutation_policies) || data.mutation_policies.length > 0) {
+      throw new Error(`policies mutation présentes: ${JSON.stringify(data.mutation_policies)}`);
+    }
   });
 
   await runTest("préparation conversation/message/audit", async () => {

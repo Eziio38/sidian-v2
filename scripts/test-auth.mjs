@@ -1,25 +1,36 @@
 #!/usr/bin/env node
 /**
- * Tests Auth et onboarding prestataire — Supabase local.
- * Couvre validation Zod, onboarding idempotent, isolation RLS et garde-fous sécurité.
+ * Tests Auth et onboarding prestataire — Supabase local uniquement.
+ * Couvre validation Zod, RPC SID-SEC-001, isolation RLS et garde-fous sécurité.
+ * Exécute le vrai module métier : src/lib/auth/ensure-prestataire-core.ts
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createHmac } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-const LOCAL_URL = "http://127.0.0.1:54321";
-const LOCAL_ANON =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const LOCAL_SERVICE =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+import {
+  assertLocalTestConfig,
+  LOCAL_DEMO_ANON_KEY,
+  LOCAL_DEMO_SERVICE_ROLE_KEY,
+} from "./lib/assert-local-supabase.mjs";
+import { withLocalOnlyFetch } from "./lib/local-only-fetch.mjs";
+import { ensurePrestataireForUser } from "../src/lib/auth/ensure-prestataire-core.ts";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? LOCAL_URL;
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? LOCAL_ANON;
-const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? LOCAL_SERVICE;
+const localConfig = assertLocalTestConfig();
+const SUPABASE_URL = localConfig.url;
+const SUPABASE_ANON = LOCAL_DEMO_ANON_KEY;
+const SUPABASE_SERVICE = LOCAL_DEMO_SERVICE_ROLE_KEY;
+const LOCAL_JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long";
 
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE, {
+function createLocalClient(url, key, options = {}) {
+  return createClient(url, key, withLocalOnlyFetch(options));
+}
+
+const admin = createLocalClient(SUPABASE_URL, SUPABASE_SERVICE, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -105,6 +116,44 @@ function resolveSafeRedirectPath(candidate) {
   return pathname;
 }
 
+function base64url(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function signLocalAuthenticatedJwt({ userId, email }) {
+  const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = base64url(
+    JSON.stringify({
+      sub: userId,
+      role: "authenticated",
+      aud: "authenticated",
+      email,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    }),
+  );
+  const signature = createHmac("sha256", LOCAL_JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  return `${header}.${payload}.${signature}`;
+}
+
+function clientWithAccessToken(accessToken) {
+  return createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
 async function createConfirmedUser(email, password, metadata = {}) {
   const { data, error } = await admin.auth.admin.createUser({
     email,
@@ -120,8 +169,22 @@ async function createConfirmedUser(email, password, metadata = {}) {
   return data.user;
 }
 
+async function createUnconfirmedUser(email, password) {
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: false,
+  });
+
+  if (error || !data.user) {
+    throw error ?? new Error("createUser unconfirmed failed");
+  }
+
+  return data.user;
+}
+
 async function signInAs(email, password) {
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -135,58 +198,6 @@ async function signInAs(email, password) {
   }
 
   return { client, session: data.session, user: data.user };
-}
-
-async function ensurePrestataireForUser(client, user) {
-  const email = user.email?.trim().toLowerCase();
-
-  if (!email) {
-    throw new Error("auth_email_missing");
-  }
-
-  const { data: existing } = await client
-    .from("prestataire")
-    .select("id, nom, email, user_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (existing) {
-    return existing;
-  }
-
-  const agencyName =
-    typeof user.user_metadata?.agency_name === "string"
-      ? user.user_metadata.agency_name.trim()
-      : "Mon activité";
-
-  const { data, error } = await client
-    .from("prestataire")
-    .insert({
-      user_id: user.id,
-      email,
-      nom: agencyName,
-      pricing_version: "early_access_49",
-    })
-    .select("id, nom, email, user_id")
-    .single();
-
-  if (error?.code === "23505") {
-    const { data: raced } = await client
-      .from("prestataire")
-      .select("id, nom, email, user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (raced) {
-      return raced;
-    }
-  }
-
-  if (error || !data) {
-    throw error ?? new Error("prestataire_create_failed");
-  }
-
-  return data;
 }
 
 function walkFiles(dir, acc = []) {
@@ -271,7 +282,7 @@ await runTest("connexion valide", async () => {
 });
 
 await runTest("connexion invalide avec message générique", async () => {
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
@@ -282,6 +293,154 @@ await runTest("connexion invalide avec message générique", async () => {
 
   if (!error) {
     throw new Error("devrait échouer");
+  }
+});
+
+await runTest("SID-SEC-001 INSERT direct authenticated refusé", async () => {
+  const email = `insert-direct-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password);
+  const { client } = await signInAs(email, password);
+
+  const { error } = await client.from("prestataire").insert({
+    user_id: user.id,
+    nom: "Hack Direct",
+    email: "hacked@evil.example",
+  });
+
+  if (!error) {
+    throw new Error("INSERT direct autorisé");
+  }
+});
+
+await runTest(
+  "SID-SEC-001 INSERT direct avec champs commerciaux arbitraires refusé",
+  async () => {
+    const email = `insert-mass-${Date.now()}@example.com`;
+    const password = "Motdepasse1";
+    const user = await createConfirmedUser(email, password);
+    const { client } = await signInAs(email, password);
+
+    const { error } = await client.from("prestataire").insert({
+      user_id: user.id,
+      nom: "Hack Mass",
+      email: "arbitrary@evil.example",
+      subscription_status: "active",
+      pricing_version: "business_999",
+      platform_fee_basis_points: 500,
+    });
+
+    if (!error) {
+      throw new Error("INSERT mass assignment autorisé");
+    }
+  },
+);
+
+await runTest("SID-SEC-001 RPC sans session refusée", async () => {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await client.rpc("ensure_prestataire_for_current_user", {
+    p_nom: "Sans Session",
+  });
+
+  if (!error) {
+    throw new Error("RPC sans session acceptée");
+  }
+});
+
+await runTest("SID-SEC-001 RPC anon refusée", async () => {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await client.rpc("ensure_prestataire_for_current_user", {
+    p_nom: "Anon",
+  });
+
+  if (!error) {
+    throw new Error("RPC anon acceptée");
+  }
+});
+
+await runTest("SID-SEC-001 RPC argument non prévu impossible", async () => {
+  const email = `rpc-args-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  await createConfirmedUser(email, password);
+  const { client } = await signInAs(email, password);
+
+  const { error } = await client.rpc("ensure_prestataire_for_current_user", {
+    p_nom: "Agence",
+    p_email: "injected@evil.example",
+    user_id: "00000000-0000-0000-0000-000000000000",
+  });
+
+  if (!error) {
+    throw new Error("arguments non prévus acceptés");
+  }
+});
+
+await runTest("SID-SEC-001 utilisateur non confirmé → aucun prestataire", async () => {
+  const email = `unconfirmed-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createUnconfirmedUser(email, password);
+  const token = signLocalAuthenticatedJwt({ userId: user.id, email });
+  const client = clientWithAccessToken(token);
+
+  const { error } = await client.rpc("ensure_prestataire_for_current_user", {
+    p_nom: "Non Confirmé",
+  });
+
+  if (!error) {
+    throw new Error("RPC non confirmé acceptée");
+  }
+
+  const { count, error: countError } = await admin
+    .from("prestataire")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (countError) {
+    throw countError;
+  }
+
+  if (count !== 0) {
+    throw new Error("prestataire créé pour utilisateur non confirmé");
+  }
+});
+
+await runTest("SID-SEC-001 utilisateur A ne crée pas pour B", async () => {
+  const password = "Motdepasse1";
+  const userA = await createConfirmedUser(
+    `sec-a-${Date.now()}@example.com`,
+    password,
+    { agency_name: "Agence A" },
+  );
+  const userB = await createConfirmedUser(
+    `sec-b-${Date.now()}@example.com`,
+    password,
+    { agency_name: "Agence B" },
+  );
+
+  const { client } = await signInAs(userA.email, password);
+  const prestataire = await ensurePrestataireForUser(client, userA);
+
+  if (prestataire.user_id !== userA.id) {
+    throw new Error("user_id incohérent");
+  }
+
+  const { count, error } = await admin
+    .from("prestataire")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userB.id);
+
+  if (error) {
+    throw error;
+  }
+
+  if (count !== 0) {
+    throw new Error("prestataire créé pour B via session A");
   }
 });
 
@@ -323,6 +482,91 @@ await runTest("second passage onboarding idempotent", async () => {
 
   if (count !== 1) {
     throw new Error(`attendu 1 prestataire, obtenu ${count}`);
+  }
+});
+
+await runTest("SID-SEC-001 RPC crée prestataire avec valeurs système", async () => {
+  const email = `system-values-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Système",
+  });
+
+  const { client } = await signInAs(email, password);
+  const summary = await ensurePrestataireForUser(client, user);
+
+  const { data, error } = await admin
+    .from("prestataire")
+    .select(
+      "id, user_id, email, nom, subscription_status, pricing_version, platform_fee_basis_points, profil_agent_defaut",
+    )
+    .eq("id", summary.id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data.user_id !== user.id) {
+    throw new Error("user_id non dérivé de auth.uid()");
+  }
+
+  if (data.email !== email.toLowerCase()) {
+    throw new Error("email non dérivé de Auth");
+  }
+
+  if (data.nom !== "Agence Système") {
+    throw new Error("nom inattendu");
+  }
+
+  if (data.subscription_status !== "trialing") {
+    throw new Error("subscription_status non système");
+  }
+
+  if (data.pricing_version !== "early_access_49") {
+    throw new Error("pricing_version non système");
+  }
+
+  if (data.platform_fee_basis_points !== 0) {
+    throw new Error("commission non système");
+  }
+
+  if (data.profil_agent_defaut !== "controle") {
+    throw new Error("profil_agent_defaut non système");
+  }
+});
+
+await runTest("SID-SEC-001 appels concurrents → une seule ligne + même ID", async () => {
+  const email = `concurrent-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Concurrente",
+  });
+
+  const { client } = await signInAs(email, password);
+
+  const resultsConcurrent = await Promise.all([
+    ensurePrestataireForUser(client, user),
+    ensurePrestataireForUser(client, user),
+    ensurePrestataireForUser(client, user),
+  ]);
+
+  const ids = resultsConcurrent.map((row) => row.id);
+  if (new Set(ids).size !== 1) {
+    throw new Error(`IDs concurrents divergents: ${ids.join(",")}`);
+  }
+
+  const { count, error } = await admin
+    .from("prestataire")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw error;
+  }
+
+  if (count !== 1) {
+    throw new Error(`concurrence: attendu 1, obtenu ${count}`);
   }
 });
 
@@ -368,6 +612,30 @@ await runTest("utilisateur A ne lit pas le prestataire B", async () => {
   }
 });
 
+await runTest("UPDATE champs commerciaux protégés reste refusé", async () => {
+  const email = `update-guard-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Update",
+  });
+
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client
+    .from("prestataire")
+    .update({
+      subscription_status: "active",
+      pricing_version: "business_999",
+      platform_fee_basis_points: 250,
+    })
+    .eq("id", prestataire.id);
+
+  if (!error) {
+    throw new Error("update champs commerciaux autorisé");
+  }
+});
+
 await runTest("déconnexion invalide la session", async () => {
   const email = `logout-${Date.now()}@example.com`;
   const password = "Motdepasse1";
@@ -395,16 +663,21 @@ await runTest("callback refuse une destination externe", async () => {
 });
 
 await runTest("mot de passe oublié renvoie une réponse générique", async () => {
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   const known = await client.auth.resetPasswordForEmail("known@example.com", {
-    redirectTo: "http://localhost:3000/auth/callback?next=/reinitialiser-mot-de-passe",
+    redirectTo:
+      "http://localhost:3000/auth/callback?next=/reinitialiser-mot-de-passe",
   });
-  const unknown = await client.auth.resetPasswordForEmail("unknown@example.com", {
-    redirectTo: "http://localhost:3000/auth/callback?next=/reinitialiser-mot-de-passe",
-  });
+  const unknown = await client.auth.resetPasswordForEmail(
+    "unknown@example.com",
+    {
+      redirectTo:
+        "http://localhost:3000/auth/callback?next=/reinitialiser-mot-de-passe",
+    },
+  );
 
   if (known.error && unknown.error) {
     throw new Error("resetPasswordForEmail a échoué");
@@ -455,6 +728,397 @@ await runTest("email prestataire provient de l'utilisateur Auth confirmé", asyn
 
   if (prestataire.email !== email.toLowerCase()) {
     throw new Error("email prestataire incohérent");
+  }
+});
+
+await runTest("SID-SEC-001 UPDATE direct email refusé", async () => {
+  const email = `upd-email-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client
+    .from("prestataire")
+    .update({ email: "hacked@evil.example" })
+    .eq("id", prestataire.id);
+
+  if (!error) {
+    throw new Error("UPDATE email autorisé");
+  }
+});
+
+await runTest("SID-SEC-001 UPDATE direct created_at refusé", async () => {
+  const email = `upd-created-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client
+    .from("prestataire")
+    .update({ created_at: new Date().toISOString() })
+    .eq("id", prestataire.id);
+
+  if (!error) {
+    throw new Error("UPDATE created_at autorisé");
+  }
+});
+
+await runTest("SID-SEC-001 UPDATE direct user_id refusé", async () => {
+  const email = `upd-uid-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const other = await createConfirmedUser(
+    `upd-uid-other-${Date.now()}@example.com`,
+    password,
+  );
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client
+    .from("prestataire")
+    .update({ user_id: other.id })
+    .eq("id", prestataire.id);
+
+  if (!error) {
+    throw new Error("UPDATE user_id autorisé");
+  }
+});
+
+await runTest("SID-SEC-001 UPDATE direct champs commerciaux refusés", async () => {
+  const email = `upd-com-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  for (const patch of [
+    { subscription_status: "active" },
+    { pricing_version: "business_999" },
+    { platform_fee_basis_points: 250 },
+    { profil_agent_defaut: "delegation" },
+  ]) {
+    const { error } = await client
+      .from("prestataire")
+      .update(patch)
+      .eq("id", prestataire.id);
+
+    if (!error) {
+      throw new Error(`UPDATE autorisé: ${JSON.stringify(patch)}`);
+    }
+  }
+});
+
+await runTest("SID-SEC-001 UPDATE direct nom refusé (RPC obligatoire)", async () => {
+  const email = `upd-nom-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client
+    .from("prestataire")
+    .update({ nom: "Nom Pirate" })
+    .eq("id", prestataire.id);
+
+  if (!error) {
+    throw new Error("UPDATE nom direct autorisé");
+  }
+});
+
+await runTest("SID-SEC-001 RPC update_current_prestataire_name fonctionne", async () => {
+  const email = `rpc-nom-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Ancien Nom",
+  });
+  const { client } = await signInAs(email, password);
+  await ensurePrestataireForUser(client, user);
+
+  const { data, error } = await client.rpc("update_current_prestataire_name", {
+    p_nom: "  Nouveau   Nom  ",
+  });
+
+  if (error || !data) {
+    throw error ?? new Error("RPC nom échouée");
+  }
+
+  if (data.nom !== "Nouveau Nom") {
+    throw new Error(`nom non normalisé: ${data.nom}`);
+  }
+});
+
+await runTest("SID-SEC-001 RPC nom anon refusée", async () => {
+  const client = createLocalClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await client.rpc("update_current_prestataire_name", {
+    p_nom: "Hack",
+  });
+
+  if (!error) {
+    throw new Error("RPC nom anon acceptée");
+  }
+});
+
+await runTest("SID-SEC-001 RPC nom argument supplémentaire impossible", async () => {
+  const email = `rpc-nom-args-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence",
+  });
+  const { client } = await signInAs(email, password);
+  await ensurePrestataireForUser(client, user);
+
+  const { error } = await client.rpc("update_current_prestataire_name", {
+    p_nom: "Ok",
+    p_email: "x@y.com",
+  });
+
+  if (!error) {
+    throw new Error("arguments supplémentaires acceptés");
+  }
+});
+
+await runTest("SID-SEC-001 A ne peut pas renommer le prestataire de B", async () => {
+  const password = "Motdepasse1";
+  const userA = await createConfirmedUser(
+    `rename-a-${Date.now()}@example.com`,
+    password,
+    { agency_name: "Agence A" },
+  );
+  const userB = await createConfirmedUser(
+    `rename-b-${Date.now()}@example.com`,
+    password,
+    { agency_name: "Agence B" },
+  );
+
+  const sessionA = await signInAs(userA.email, password);
+  const sessionB = await signInAs(userB.email, password);
+  await ensurePrestataireForUser(sessionA.client, userA);
+  const prestB = await ensurePrestataireForUser(sessionB.client, userB);
+
+  await sessionA.client.rpc("update_current_prestataire_name", {
+    p_nom: "Renommé par A",
+  });
+
+  const { data } = await admin
+    .from("prestataire")
+    .select("nom")
+    .eq("id", prestB.id)
+    .single();
+
+  if (data.nom !== "Agence B") {
+    throw new Error("prestataire B modifié par A");
+  }
+});
+
+await runTest("SID-SEC-001 email historique non canonique réconcilié sans écraser le commercial", async () => {
+  const email = `hist-email-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Hist",
+  });
+
+  const fixedCreatedAt = "2024-01-15T10:30:00+00:00";
+  const lockedUntil = "2027-12-31T00:00:00+00:00";
+  const startedAt = "2024-06-01T08:00:00+00:00";
+
+  const { data: inserted, error: insertError } = await admin
+    .from("prestataire")
+    .insert({
+      user_id: user.id,
+      nom: "Nom Historique Custom",
+      email: `  ${email.toUpperCase()}  `,
+      subscription_status: "active",
+      pricing_version: "legacy_custom_99",
+      platform_fee_basis_points: 42,
+      profil_agent_defaut: "delegation",
+      subscription_started_at: startedAt,
+      early_access_price_locked_until: lockedUntil,
+      created_at: fixedCreatedAt,
+    })
+    .select(
+      "id, email, nom, created_at, subscription_status, pricing_version, platform_fee_basis_points, profil_agent_defaut, subscription_started_at, early_access_price_locked_until",
+    )
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  if (inserted.email === email.toLowerCase()) {
+    throw new Error("fixture email déjà canonique — test invalide");
+  }
+
+  const { client } = await signInAs(email, password);
+  const reconciled = await ensurePrestataireForUser(client, user);
+
+  if (reconciled.id !== inserted.id) {
+    throw new Error("ID changé après réconciliation");
+  }
+
+  if (reconciled.email !== email.toLowerCase()) {
+    throw new Error("email non canonique après RPC");
+  }
+
+  const { data: row, error: rowError } = await admin
+    .from("prestataire")
+    .select(
+      "id, email, nom, created_at, subscription_status, pricing_version, platform_fee_basis_points, profil_agent_defaut, subscription_started_at, early_access_price_locked_until",
+    )
+    .eq("id", inserted.id)
+    .single();
+
+  if (rowError) {
+    throw rowError;
+  }
+
+  if (row.email !== email.toLowerCase()) {
+    throw new Error(`email stocké non canonique: ${row.email}`);
+  }
+
+  if (row.nom !== "Nom Historique Custom") {
+    throw new Error("nom historique écrasé");
+  }
+
+  if (new Date(row.created_at).getTime() !== new Date(fixedCreatedAt).getTime()) {
+    throw new Error("created_at historique écrasé");
+  }
+
+  if (row.subscription_status !== "active") {
+    throw new Error("subscription_status historique écrasé");
+  }
+
+  if (row.pricing_version !== "legacy_custom_99") {
+    throw new Error("pricing historique écrasé");
+  }
+
+  if (row.platform_fee_basis_points !== 42) {
+    throw new Error("commission historique écrasée");
+  }
+
+  if (row.profil_agent_defaut !== "delegation") {
+    throw new Error("profil agent historique écrasé");
+  }
+
+  if (new Date(row.subscription_started_at).getTime() !== new Date(startedAt).getTime()) {
+    throw new Error("subscription_started_at écrasé");
+  }
+
+  if (
+    new Date(row.early_access_price_locked_until).getTime() !==
+    new Date(lockedUntil).getTime()
+  ) {
+    throw new Error("early_access_price_locked_until écrasé");
+  }
+
+  const { count, error: countError } = await admin
+    .from("prestataire")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (countError) {
+    throw countError;
+  }
+
+  if (count !== 1) {
+    throw new Error(`attendu 1 ligne, obtenu ${count}`);
+  }
+});
+
+await runTest("SID-SEC-001 email déjà canonique → idempotent sans écriture inutile", async () => {
+  const email = `canon-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Canon",
+  });
+  const { client } = await signInAs(email, password);
+  const first = await ensurePrestataireForUser(client, user);
+  const second = await ensurePrestataireForUser(client, user);
+
+  if (first.id !== second.id || first.email !== email.toLowerCase()) {
+    throw new Error("idempotence canonique cassée");
+  }
+});
+
+await runTest("SID-SEC-001 DELETE direct authenticated refusé", async () => {
+  const email = `del-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createConfirmedUser(email, password, {
+    agency_name: "Agence Del",
+  });
+  const { client } = await signInAs(email, password);
+  const prestataire = await ensurePrestataireForUser(client, user);
+
+  const { error } = await client.from("prestataire").delete().eq("id", prestataire.id);
+  if (!error) {
+    throw new Error("DELETE direct autorisé");
+  }
+
+  const { data } = await admin
+    .from("prestataire")
+    .select("id")
+    .eq("id", prestataire.id)
+    .maybeSingle();
+
+  if (!data) {
+    throw new Error("ligne supprimée");
+  }
+});
+
+await runTest("SID-SEC-001 tests exécutent le vrai module cœur", async () => {
+  const selfPath = fileURLToPath(import.meta.url);
+  const selfSource = readFileSync(selfPath, "utf8");
+
+  if (/async function ensurePrestataireForUser\s*\(/.test(selfSource)) {
+    throw new Error("helper dupliqué encore présent dans test-auth.mjs");
+  }
+
+  if (!selfSource.includes("ensure-prestataire-core.ts")) {
+    throw new Error("import du module cœur absent");
+  }
+
+  if (typeof ensurePrestataireForUser !== "function") {
+    throw new Error("ensurePrestataireForUser non importé");
+  }
+});
+
+await runTest("SID-SEC-001 erreur RPC → erreur applicative générique", async () => {
+  const email = `rpc-err-${Date.now()}@example.com`;
+  const password = "Motdepasse1";
+  const user = await createUnconfirmedUser(email, password);
+  const token = signLocalAuthenticatedJwt({ userId: user.id, email });
+  const client = clientWithAccessToken(token);
+
+  // Utilisateur JWT authentifié mais email non confirmé côté auth.users → RPC échoue
+  const confirmedShape = {
+    ...user,
+    email_confirmed_at: new Date().toISOString(),
+    email,
+  };
+
+  let caught = null;
+  try {
+    await ensurePrestataireForUser(client, confirmedShape);
+  } catch (error) {
+    caught = error;
+  }
+
+  if (!(caught instanceof Error) || caught.message !== "prestataire_create_failed") {
+    throw new Error(`attendu prestataire_create_failed, obtenu ${caught?.message}`);
   }
 });
 

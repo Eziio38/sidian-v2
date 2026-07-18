@@ -39,7 +39,7 @@
 
 **Opérateur unique au MVP :** un compte `prestataire` possède un seul utilisateur principal via `user_id` — aucune architecture RBAC.
 
-**Onboarding (SID-SEC-001 — architecture cible) :** la création du `prestataire` après confirmation email est une **opération de confiance serveur**, idempotente, qui lit `user.id` et `user.email` depuis la session Auth — jamais un `INSERT` libre mass-assigné depuis le navigateur. **État actuel :** l'insert authenticated scoped `user_id = auth.uid()` existe ; le durcissement (colonnes autorisées uniquement, primitive dédiée) reste à renforcer dans le code — voir §6.
+**Onboarding (SID-SEC-001 — corrigé localement) :** création via RPC `ensure_prestataire_for_current_user(p_nom)` ; mise à jour du nom via `update_current_prestataire_name(p_nom)` ; aucun INSERT/UPDATE/DELETE PostgREST `authenticated` sur `prestataire` ; ACL `authenticated` = **SELECT uniquement** (MAINTAIN révoqué). Email stocké sous forme canonique `lower(btrim(auth.users.email))` (réconciliation si `IS DISTINCT FROM`) ; champs commerciaux et `created_at` immuables côté client.
 
 ### Lien de paiement — préparé / payable / partageable
 
@@ -329,7 +329,7 @@ Hors MVP. Lecture seule future pour `reference_externe` — jamais d'écriture d
 
 | ID | Invariant cible |
 |---|---|
-| SID-SEC-001 | Onboarding prestataire de confiance — pas de mass assignment libre à la création |
+| SID-SEC-001 | Onboarding prestataire de confiance — **corrigé localement** (RPC création + RPC nom ; ACL SELECT seul ; email canonique ; pas de mutation PostgREST) |
 | SID-SEC-002 | `audit_log` écrit uniquement par primitive serveur |
 | SID-SEC-003 | Approbation : payload immuable, décision séparée |
 | SID-SEC-004 | Provenance des messages imposée côté serveur |

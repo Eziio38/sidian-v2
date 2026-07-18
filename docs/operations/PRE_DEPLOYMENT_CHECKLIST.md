@@ -33,16 +33,25 @@
 | Item | Commande | Environnement | Statut | Preuve |
 |---|---|---|---|---|
 | Migrations du schéma MVP écrites | — | local | [x] Terminé | `supabase/migrations/20260715*` — cf. `docs/implementation/PHASE_2_DATABASE.md` |
-| Ordre migrations vérifié | `pnpm supabase:reset` | local | [x] Terminé | 8 migrations appliquées dans l'ordre (juillet 2026, revue Phase 2) |
+| Ordre migrations vérifié | `pnpm supabase:reset` | local | [x] Terminé | 10 migrations (MVP 8 + SID-SEC-001 ×2) |
 | Tests migration (ex. PGlite) | — | local | [ ] À faire | Remplacé par `pnpm test:schema` (rôles réels Supabase local) |
 | `supabase db reset` complet | `pnpm supabase:reset` | local Docker | [x] Terminé | Seed sans données métier |
 | Types Supabase alignés | `pnpm supabase:types && pnpm typecheck` | local | [x] Terminé | `src/types/database.generated.ts` |
-| Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | |
+| Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | Après diagnostic SID-SEC-001 |
 | Migrations appliquées production | Dashboard Supabase | production | [ ] À faire | **Ne pas appliquer sans Go** |
-| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | 30 tests JWT + intégrité SQL (revue Phase 2) |
+| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | **33/33** tests schema (+ **26/26** local-guard en préfixe) |
+| SID-SEC-001 — intégrité prestataire (ACL SELECT, MAINTAIN révoqué, email canonique, RPC, localOnlyFetch, module cœur testé) | `pnpm test:local-guard` + `pnpm test:schema` + `pnpm test:auth` | local | [x] Terminé localement | **26/26** guard · **33/33** schema · **38/38** Auth ; migrations `20260716220000_*` + `20260717220000_*` ; diagnostic `scripts/diagnose-prestataire-integrity.sql` ; **contre-revue Codex finale puis staging** |
 | RLS validée sur vrai Supabase (rôles réels) | rôles réels | staging Docker | [ ] À faire | Local validé ; staging après `db push` manuel |
 
 **Risque si non réalisé :** schéma désaligné → webhooks et paiements échouent silencieusement.
+
+### Procédure staging SID-SEC-001 (manuelle)
+
+1. Exécuter `scripts/diagnose-prestataire-integrity.sql` sur staging (lecture seule) — emails non canoniques (`IS DISTINCT FROM lower(btrim(auth.email))`) et commerciaux hors défaut.
+2. Revue manuelle des lignes signalées (ne pas écraser de valeurs commerciales légitimes).
+3. Appliquer les migrations `20260716220000_*` puis `20260717220000_*` (jamais en prod sans Go).
+4. Revalider Auth/RLS en local (`pnpm test:schema`, `pnpm test:auth`) puis smoke Auth staging.
+5. Confirmer ACL : `authenticated` = SELECT uniquement (MAINTAIN absent).
 
 ---
 

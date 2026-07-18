@@ -33,14 +33,15 @@
 | Item | Commande | Environnement | Statut | Preuve |
 |---|---|---|---|---|
 | Migrations du schéma MVP écrites | — | local | [x] Terminé | `supabase/migrations/20260715*` — cf. `docs/implementation/PHASE_2_DATABASE.md` |
-| Ordre migrations vérifié | `pnpm supabase:reset` | local | [x] Terminé | 10 migrations (MVP 8 + SID-SEC-001 ×2) |
+| Ordre migrations vérifié | `pnpm supabase:reset` | local | [x] Terminé | 11 migrations (MVP 8 + SID-SEC-001 ×2 + SID-PROD-001) |
 | Tests migration (ex. PGlite) | — | local | [ ] À faire | Remplacé par `pnpm test:schema` (rôles réels Supabase local) |
 | `supabase db reset` complet | `pnpm supabase:reset` | local Docker | [x] Terminé | Seed sans données métier |
 | Types Supabase alignés | `pnpm supabase:types && pnpm typecheck` | local | [x] Terminé | `src/types/database.generated.ts` |
-| Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | Après diagnostic SID-SEC-001 |
+| Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | Après diagnostic SID-SEC-001 + validation SID-PROD-001 |
 | Migrations appliquées production | Dashboard Supabase | production | [ ] À faire | **Ne pas appliquer sans Go** |
 | RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | **33/33** tests schema (+ **26/26** local-guard en préfixe) |
 | SID-SEC-001 — intégrité prestataire (ACL SELECT, MAINTAIN révoqué, email canonique, RPC, localOnlyFetch, module cœur testé) | `pnpm test:local-guard` + `pnpm test:schema` + `pnpm test:auth` | local | [x] Terminé localement | **26/26** guard · **33/33** schema · **38/38** Auth ; migrations `20260716220000_*` + `20260717220000_*` ; diagnostic `scripts/diagnose-prestataire-integrity.sql` ; **contre-revue Codex finale puis staging** |
+| SID-PROD-001 — clients + paiements à recevoir (RPC, ACL SELECT, EUR, montants, idempotence, archivage bloqué) | `pnpm test:prod-001` | local | [x] Terminé localement (contre-revue Codex **non validée**) | Migration `20260718120000_*` ; UI `/app/clients` + `/app/paiements-a-recevoir` ; doc `PHASE_4_CLIENTS_CREANCES.md` |
 | RLS validée sur vrai Supabase (rôles réels) | rôles réels | staging Docker | [ ] À faire | Local validé ; staging après `db push` manuel |
 
 **Risque si non réalisé :** schéma désaligné → webhooks et paiements échouent silencieusement.
@@ -52,6 +53,14 @@
 3. Appliquer les migrations `20260716220000_*` puis `20260717220000_*` (jamais en prod sans Go).
 4. Revalider Auth/RLS en local (`pnpm test:schema`, `pnpm test:auth`) puis smoke Auth staging.
 5. Confirmer ACL : `authenticated` = SELECT uniquement (MAINTAIN absent).
+
+### Notes SID-PROD-001 (local)
+
+- Archivage client refusé si créance non archivée (`CLIENT_HAS_ACTIVE_CREANCES`), y compris brouillons.
+- Devise `EUR` uniquement ; plafond montants 1…100000000 centimes ; conversion exacte.
+- Idempotence créations via `creation_key` (UUID) unique par prestataire.
+- Brouillons : création toujours `BROUILLON` ; update draft uniquement.
+- Ne pas marquer ce lot comme validé Codex tant que la contre-revue n’est pas rejouée.
 
 ---
 

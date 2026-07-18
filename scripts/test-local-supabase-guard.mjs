@@ -14,6 +14,12 @@ import {
   resolveLocalTestConfig,
 } from "./lib/assert-local-supabase.mjs";
 import {
+  LOCAL_DEMO_DATABASE_URL,
+  assertLocalPostgresUrl,
+  createLocalPgClient,
+  validateLocalPostgresUrl,
+} from "./lib/assert-local-postgres.mjs";
+import {
   localOnlyFetch,
   withLocalOnlyFetch,
 } from "./lib/local-only-fetch.mjs";
@@ -322,6 +328,174 @@ await runTestAsync(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// Garde-fou PostgreSQL direct (port Supabase local 54322)
+// ---------------------------------------------------------------------------
+
+const ACCEPTED_PG_URLS = [
+  LOCAL_DEMO_DATABASE_URL,
+  "postgresql://postgres:postgres@localhost:54322/postgres",
+  "postgresql://postgres:postgres@[::1]:54322/postgres",
+  "postgres://postgres:postgres@127.0.0.1:54322/postgres",
+];
+
+const REJECTED_PG_URLS = [
+  [
+    "postgresql://postgres:postgres@db.xxxx.supabase.co:54322/postgres",
+    "supabase cloud",
+  ],
+  ["postgresql://postgres:postgres@example.com:54322/postgres", "hostname public"],
+  ["postgresql://postgres:postgres@10.0.0.5:54322/postgres", "IP privée"],
+  [
+    "postgresql://postgres:postgres@localhost.example.com:54322/postgres",
+    "localhost.example.com",
+  ],
+  [
+    "postgresql://example.com@127.0.0.1:54322/postgres",
+    "example.com@127.0.0.1",
+  ],
+  [
+    "postgresql://127.0.0.1@example.com:54322/postgres",
+    "127.0.0.1@example.com",
+  ],
+  ["postgresql://postgres:postgres@127.0.0.1:5432/postgres", "port 5432"],
+  ["postgresql://postgres:postgres@127.0.0.1/postgres", "port absent"],
+  ["https://127.0.0.1:54322/postgres", "protocole https"],
+  ["not-a-url", "chaîne invalide"],
+  ["postgresql://postgres:postgres@0.0.0.0:54322/postgres", "0.0.0.0"],
+  [
+    "postgresql://postgres:postgres@host.docker.internal:54322/postgres",
+    "host.docker.internal",
+  ],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db?host=example.com",
+    "query host=",
+  ],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db?hostaddr=8.8.8.8",
+    "query hostaddr=",
+  ],
+  ["postgresql://u:p@127.0.0.1:54322/db?port=5432", "query port="],
+  ["postgresql://u:p@127.0.0.1:54322/db?service=prod", "query service="],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db?host=a&host=b",
+    "paramètres dupliqués",
+  ],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db?%68ost=example.com",
+    "paramètres encodés",
+  ],
+  ["postgresql://u:p@127.0.0.1:54322/db?", "query vide explicite"],
+  ["postgresql://u:p@127.0.0.1:54322/db#frag", "fragment simple"],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db#https://evil.example/x",
+    "fragment contenant une URL",
+  ],
+  [
+    "postgresql://u:p@127.0.0.1:54322/db?host=x#y",
+    "query et fragment combinés",
+  ],
+];
+
+function assertRejectedBeforePgClient(url, label) {
+  const result = validateLocalPostgresUrl(url);
+  if (result.ok) {
+    throw new Error(`aurait dû refuser (${label}): ${url}`);
+  }
+
+  let constructed = 0;
+  let connectCalled = 0;
+  class SpyClient {
+    constructor() {
+      constructed += 1;
+    }
+    connect() {
+      connectCalled += 1;
+      throw new Error("connect ne doit pas être appelé");
+    }
+  }
+
+  let threw = false;
+  try {
+    createLocalPgClient(url, { Client: SpyClient });
+  } catch {
+    threw = true;
+  }
+  if (!threw) {
+    throw new Error(`createLocalPgClient aurait dû refuser (${label})`);
+  }
+  if (constructed !== 0) {
+    throw new Error(`SpyClient construit ${constructed} fois (${label})`);
+  }
+  if (connectCalled !== 0) {
+    throw new Error(`connect() appelé ${connectCalled} fois (${label})`);
+  }
+}
+
+for (const url of ACCEPTED_PG_URLS) {
+  runTest(`postgres accepté: ${url}`, () => {
+    const result = validateLocalPostgresUrl(url);
+    if (!result.ok) {
+      throw new Error(`attendu ok, reçu ${result.reason}`);
+    }
+    assertLocalPostgresUrl(url);
+  });
+}
+
+for (const [url, label] of REJECTED_PG_URLS) {
+  runTest(`postgres refusé avant Client: ${label}`, () => {
+    assertRejectedBeforePgClient(url, label);
+  });
+}
+
+runTest("postgres: Client construit seulement après acceptation locale", () => {
+  let constructed = 0;
+  class SpyClient {
+    constructor(config) {
+      constructed += 1;
+      if (!config?.connectionString?.includes("127.0.0.1:54322")) {
+        throw new Error("connectionString inattendue");
+      }
+    }
+  }
+
+  createLocalPgClient(LOCAL_DEMO_DATABASE_URL, { Client: SpyClient });
+  if (constructed !== 1) {
+    throw new Error(`SpyClient attendu 1, reçu ${constructed}`);
+  }
+});
+
+runTest("postgres: paramètres effectifs des URLs locales acceptées", () => {
+  const expected = [
+    [LOCAL_DEMO_DATABASE_URL, "127.0.0.1"],
+    ["postgresql://postgres:postgres@localhost:54322/postgres", "localhost"],
+    ["postgresql://postgres:postgres@[::1]:54322/postgres", "::1"],
+  ];
+
+  for (const [url, host] of expected) {
+    let seen = null;
+    class CapturingClient {
+      constructor(config) {
+        seen = new URL(config.connectionString);
+      }
+    }
+    createLocalPgClient(url, { Client: CapturingClient });
+    if (!seen) {
+      throw new Error(`Client non construit pour ${url}`);
+    }
+    const hostname = seen.hostname.replace(/^\[|\]$/g, "");
+    if (hostname !== host) {
+      throw new Error(`hôte ${hostname} ≠ ${host} pour ${url}`);
+    }
+    if (seen.port !== "54322") {
+      throw new Error(`port ${seen.port} ≠ 54322 pour ${url}`);
+    }
+    if (seen.search !== "" || seen.hash !== "") {
+      throw new Error(`query/fragment présents pour ${url}`);
+    }
+  }
+});
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} tests loopback réussis`);

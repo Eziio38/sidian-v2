@@ -16,7 +16,9 @@
     "supabase:types": "supabase gen types typescript --local > src/types/database.generated.ts",
     "test:schema": "node scripts/test-local-supabase-guard.mjs && node scripts/test-schema-rls.mjs",
     "test:auth": "node scripts/test-local-supabase-guard.mjs && node --experimental-strip-types scripts/test-auth.mjs",
-    "test:local-guard": "node scripts/test-local-supabase-guard.mjs"
+    "test:prod-001": "node scripts/test-local-supabase-guard.mjs && node --experimental-strip-types scripts/test-prod-001.mjs",
+    "test:local-guard": "node scripts/test-local-supabase-guard.mjs",
+    "test:forms": "vitest run"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
@@ -29,13 +31,21 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.1.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "jsdom": "^27.4.0",
+    "pg": "^8.22.0",
     "supabase": "^2.109.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18"
   }
 }

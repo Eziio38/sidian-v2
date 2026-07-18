@@ -215,8 +215,7 @@ async function main() {
       .update({ nom: "Piraté" })
       .eq("id", clientPayeurB.id)
       .select("id");
-    if (error) throw error;
-    if ((updated ?? []).length > 0) {
+    if (!error && (updated ?? []).length > 0) {
       throw new Error("update cross-tenant autorisé");
     }
   });

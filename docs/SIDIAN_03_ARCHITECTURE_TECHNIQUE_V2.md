@@ -61,12 +61,19 @@ Formalisation technique (traduction et correction de 02 §4.2) :
 **Interdit :** affirmer qu'une URL ou session Stripe payable est générée et accessible dès la seule création de la créance.
 
 ### `client_payeur`
-`id`, `prestataire_id` (FK), `nom`, `email`, `historique_paiements_reguliers` (compteur ≥ 0), `created_at`. **Ne référence aucune autorisation directement.**
+
+**Champs présents :** `id`, `prestataire_id`, `nom`, `email`, `historique_paiements_reguliers`, `created_at`, `archived_at` (archivage logique — filtre applicatif, hors policies RLS).
+
+**Mutations (SID-PROD-001) :** RPC `create_current_client_payeur(p_nom, p_email, p_creation_key)`, `update_current_client_payeur` (nom/email uniquement), `archive_current_client_payeur` (refusé si créance non archivée — `CLIENT_HAS_ACTIVE_CREANCES` ; idempotent si déjà archivé). ACL `authenticated` = **SELECT uniquement**. Email stocké canonique `lower(btrim(...))` + validation SQL bornée. Pas d’unicité email par prestataire. `creation_key` UUID unique par prestataire (idempotence création).
 
 ### `creance` — entité pivot
-`id`, `prestataire_id` (FK), `client_payeur_id` (FK), `montant` (bigint > 0, centimes), `devise` (char 3, défaut `EUR`), `origine` (`facture_externe` / `acompte` / `echeancier` / `abonnement` / `import_manuel`), `reference_externe` (nullable), `date_echeance`, `etat` (cf. §2.1 — valeurs DB sans accents : `BROUILLON`, `OUVERTE`, `PARTIELLEMENT_REGLEE`, `REGLEE`, `EN_LITIGE`, `ANNULEE`, `IRRECOUVRABLE`), `created_at`, `updated_at`.
+`id`, `prestataire_id` (FK), `client_payeur_id` (FK), `montant` (bigint, MVP 1…100000000 centimes), `devise` (`EUR` uniquement), `origine` (`facture_externe` / `acompte` / `echeancier` / `abonnement` / `import_manuel`), `reference_externe` (nullable), `date_echeance`, `etat` (cf. §2.1 — valeurs DB sans accents : `BROUILLON`, `OUVERTE`, `PARTIELLEMENT_REGLEE`, `REGLEE`, `EN_LITIGE`, `ANNULEE`, `IRRECOUVRABLE`), `libelle` (nullable, ≤ 200), `archived_at` (nullable), `creation_key` (UUID, unique par prestataire), `created_at`, `updated_at`.
 
 Trigger de scope : `client_payeur` et `creance` doivent partager le même `prestataire_id`.
+
+**Mutations (SID-PROD-001) :** RPC `create_current_creance(..., p_creation_key)` (toujours `etat = BROUILLON`, `origine = import_manuel`, devise `EUR` exacte), `update_current_creance_draft` (uniquement si `BROUILLON` : client, libellé, montant, devise, échéance, référence — verrouille `creance` puis `client_payeur` cible `FOR UPDATE`), `archive_current_creance` (idempotent). ACL `authenticated` = **SELECT uniquement**. Invariant concurrent : aucune créance active sur un client archivé (`FOR UPDATE` partagé create/update/archive). Terme UI : « paiement à recevoir » — jamais « facture » comme objet principal ; jamais « créance » visible.
+
+**Pennylane / liens externes :** hors SID-PROD-001 — prévu en SID-INT-001 via tables de liaison (`external_integrations` / `external_invoice_links`), pas via colonnes `external_*` sur ces tables.
 
 ### `tentative_paiement` — essai, pas règlement confirmé
 `id`, `creance_id` (FK), `montant` (bigint > 0), `moyen` (`carte` / `sepa_core`), `source` (`lien_agent` / `prelevement_auto`), `stripe_payment_intent_id` (nullable, unique si non null), `etat` (cf. §2.2), `echec_code` (nullable), `echec_message` (nullable), `created_at`.

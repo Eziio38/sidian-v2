@@ -143,7 +143,9 @@ export type Database = {
       }
       client_payeur: {
         Row: {
+          archived_at: string | null
           created_at: string
+          creation_key: string
           email: string
           historique_paiements_reguliers: number
           id: string
@@ -151,7 +153,9 @@ export type Database = {
           prestataire_id: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
+          creation_key?: string
           email: string
           historique_paiements_reguliers?: number
           id?: string
@@ -159,7 +163,9 @@ export type Database = {
           prestataire_id: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
+          creation_key?: string
           email?: string
           historique_paiements_reguliers?: number
           id?: string
@@ -227,12 +233,15 @@ export type Database = {
       }
       creance: {
         Row: {
+          archived_at: string | null
           client_payeur_id: string
           created_at: string
+          creation_key: string
           date_echeance: string
           devise: string
           etat: Database["public"]["Enums"]["creance_etat"]
           id: string
+          libelle: string | null
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
@@ -240,12 +249,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           client_payeur_id: string
           created_at?: string
+          creation_key?: string
           date_echeance: string
           devise?: string
           etat?: Database["public"]["Enums"]["creance_etat"]
           id?: string
+          libelle?: string | null
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
@@ -253,12 +265,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           client_payeur_id?: string
           created_at?: string
+          creation_key?: string
           date_echeance?: string
           devise?: string
           etat?: Database["public"]["Enums"]["creance_etat"]
           id?: string
+          libelle?: string | null
           montant?: number
           origine?: Database["public"]["Enums"]["creance_origine"]
           prestataire_id?: string
@@ -635,6 +650,103 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_current_client_payeur: {
+        Args: { p_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          creation_key: string
+          email: string
+          historique_paiements_reguliers: number
+          id: string
+          nom: string
+          prestataire_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "client_payeur"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      archive_current_creance: {
+        Args: { p_id: string }
+        Returns: {
+          archived_at: string | null
+          client_payeur_id: string
+          created_at: string
+          creation_key: string
+          date_echeance: string
+          devise: string
+          etat: Database["public"]["Enums"]["creance_etat"]
+          id: string
+          libelle: string | null
+          montant: number
+          origine: Database["public"]["Enums"]["creance_origine"]
+          prestataire_id: string
+          reference_externe: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "creance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      canonicalize_email: { Args: { p_email: string }; Returns: string }
+      create_current_client_payeur: {
+        Args: { p_creation_key: string; p_email: string; p_nom: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          creation_key: string
+          email: string
+          historique_paiements_reguliers: number
+          id: string
+          nom: string
+          prestataire_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "client_payeur"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_current_creance: {
+        Args: {
+          p_client_payeur_id: string
+          p_creation_key: string
+          p_date_echeance: string
+          p_devise?: string
+          p_libelle?: string
+          p_montant: number
+          p_reference_externe?: string
+        }
+        Returns: {
+          archived_at: string | null
+          client_payeur_id: string
+          created_at: string
+          creation_key: string
+          date_echeance: string
+          devise: string
+          etat: Database["public"]["Enums"]["creance_etat"]
+          id: string
+          libelle: string | null
+          montant: number
+          origine: Database["public"]["Enums"]["creance_origine"]
+          prestataire_id: string
+          reference_externe: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "creance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_prestataire_id: { Args: never; Returns: string }
       ensure_prestataire_for_current_user: {
         Args: { p_nom: string }
@@ -658,6 +770,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      normalize_creance_devise: { Args: { p_devise: string }; Returns: string }
+      normalize_creance_montant: {
+        Args: { p_montant: number }
+        Returns: number
+      }
+      normalize_person_name: { Args: { p_nom: string }; Returns: string }
+      require_current_prestataire_id: { Args: never; Returns: string }
       sidian_assert_rls_enabled: {
         Args: never
         Returns: {
@@ -668,6 +787,62 @@ export type Database = {
       sidian_prestataire_authenticated_privileges: {
         Args: never
         Returns: Json
+      }
+      sidian_table_authenticated_privileges: {
+        Args: { p_table: string }
+        Returns: Json
+      }
+      update_current_client_payeur: {
+        Args: { p_email: string; p_id: string; p_nom: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          creation_key: string
+          email: string
+          historique_paiements_reguliers: number
+          id: string
+          nom: string
+          prestataire_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "client_payeur"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_current_creance_draft: {
+        Args: {
+          p_client_payeur_id: string
+          p_date_echeance: string
+          p_devise?: string
+          p_id: string
+          p_libelle?: string
+          p_montant: number
+          p_reference_externe?: string
+        }
+        Returns: {
+          archived_at: string | null
+          client_payeur_id: string
+          created_at: string
+          creation_key: string
+          date_echeance: string
+          devise: string
+          etat: Database["public"]["Enums"]["creance_etat"]
+          id: string
+          libelle: string | null
+          montant: number
+          origine: Database["public"]["Enums"]["creance_origine"]
+          prestataire_id: string
+          reference_externe: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "creance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       update_current_prestataire_name: {
         Args: { p_nom: string }

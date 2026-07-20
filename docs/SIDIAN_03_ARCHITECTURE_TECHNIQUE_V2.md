@@ -1,7 +1,7 @@
 # SIDIAN — 03 · ARCHITECTURE TECHNIQUE (V2)
 ## Modèle de données, machines d'état, intégrations — le comment, jamais le pourquoi
 
-**Statut :** document purement technique. Toute justification produit ou métier renvoie à 02 (PRD) ; toute justification de contrainte externe renvoie à 01 (Fondations). Réécrit intégralement le 14 juillet 2026 ; réaligné le 16 juillet 2026 sur le schéma MVP appliqué (migrations `2026071512*`), la phase Auth et les invariants de sécurité cibles.
+**Statut :** document purement technique. Toute justification produit ou métier renvoie à 02 (PRD) ; toute justification de contrainte externe renvoie à 01 (Fondations). Réécrit intégralement le 14 juillet 2026 ; réaligné le 16 juillet 2026 sur le schéma MVP appliqué (migrations `2026071512*`), la phase Auth et les invariants de sécurité cibles ; réaligné le 19 juillet 2026 (première passe) sur le lien préparé/payable/partageable, Express/Checkout, Customer binding, URL de paiement, canaux WhatsApp/SMS, pricing, signal « prêt à communiquer » ; corrigé le 19 juillet 2026 (seconde passe) sur la contradiction Connect/onboarding, la définition currently_due/future_requirements, le parcours setup pour l'autorisation future, le statut payment_link (active/revoked seul), et la projection des exigences Stripe ; verrouillé le 19 juillet 2026 (troisième passe) sur la liste explicite des webhooks, les identifiants Stripe de rapprochement (`stripe_checkout_session_id`, `stripe_setup_intent_id`, `stripe_setup_checkout_session_id`), les contraintes SQL de `payment_link`/`stripe_customer_binding`, et la reformulation prudente du parcours setup ; figé le 19 juillet 2026 (quatrième passe, documentaire) sur le cycle de vie active/superseded de `stripe_customer_binding` et la transition explicite `checkout.session.expired` → `ANNULEE` ; verrouillé le 19 juillet 2026 (cinquième passe, finale) sur la nullabilité conditionnelle de `payment_authorization` et l'état `EXPIRÉE` distinguant session de paiement et session `setup` expirées ; complété le 19 juillet 2026 (sixième passe, invariants finaux) sur la portée relationnelle de l'autorisation, les transitions documentées, la rotation irréversible des liens, la suspension complète en litige, l'isolation Customer, les webhooks inconnus et l'EUR exclusif au MVP.
 
 **Stack conservée :** Next.js / Supabase (Postgres + RLS) / Stripe Connect. Développement Cursor.
 
@@ -18,22 +18,30 @@
 
 **Périmètre :** les entités ci-dessous sont celles du MVP tel que scopé en 02 §8. Tout ce qui relève de l'agrégation bancaire est délibérément absent d'ici et regroupé en §12 (Architecture différée).
 
-**Réalité schéma (juillet 2026) :** 13 tables versionnées dans `supabase/migrations/` — `prestataire`, `client_payeur`, `creance`, `tentative_paiement`, `paiement`, `payment_authorization`, `dossier_suivi`, `regle`, `conversation`, `message`, `approval_request`, `audit_log`, `processed_webhook_event`.
+**Réalité schéma (20 juillet 2026) :** 17 tables versionnées dans `supabase/migrations/` — les 13 tables métier initiales, `stripe_customer_binding`, `payment_link`, `stripe_webhook_effect` et `stripe_connect_audit_outbox`.
 
 ### `prestataire`
 
 **Champs présents (migrations actives) :**
-`id`, `user_id` (uuid, **unique**, FK `auth.users`, `on delete restrict` — un utilisateur Auth = un prestataire au MVP), `nom`, `email`, `subscription_status` (`trialing` / `active` / `past_due` / `cancelled`), `pricing_version` (texte, défaut `early_access_49`), `subscription_started_at` (nullable), `early_access_price_locked_until` (nullable), `profil_agent_defaut` (`controle` / `delegation`), `platform_fee_basis_points` (integer ≥ 0, défaut 0), `created_at`.
+`id`, `user_id` (uuid, **unique**, FK `auth.users`, `on delete restrict` — un utilisateur Auth = un prestataire au MVP), `nom`, `email`, `subscription_status` (`trialing` / `active` / `past_due` / `cancelled`), `pricing_version` (texte — **[DÉCISION]** toute valeur historique non vide est conservée telle quelle afin de préserver sa provenance ; `early_solo` est uniquement la valeur par défaut des nouveaux comptes ; aucune reclassification automatique vers une offre active n'est autorisée sans migration produit explicitement documentée — le prix commercial affiché n'est jamais encodé dans l'identifiant technique), `subscription_started_at` (nullable), `early_access_price_locked_until` (nullable — s'applique désormais à un verrouillage à vie pour les 30 premiers comptes, pas à une fenêtre de 12 mois), `profil_agent_defaut` (`controle` / `delegation`), `platform_fee_basis_points` (integer ≥ 0, défaut 0), `created_at`.
 
-**Projection Stripe Connect — `[MIGRATION À PRÉVOIR]`** (absente du schéma actuel) :
+**Projection Stripe Connect — présente depuis SID-STRIPE-001 :**
 - `stripe_account_id` (nullable)
 - `stripe_charges_enabled` (bool)
 - `stripe_payouts_enabled` (bool, si nécessaire)
 - `stripe_details_submitted` (bool)
-- statut synthétique des exigences Connect (ex. `stripe_requirements_status` ou équivalent)
+- `stripe_onboarding_status` (texte normalisé, dérivé des champs Stripe ci-dessous — ex. `non_commence` / `configuration_commencee` / `informations_requises` / `verification_en_cours` / `paiements_actives` / `paiements_indisponibles` / `action_requise`, cf. 02 §2bis pour le mapping produit)
+- `stripe_requirements_currently_due` (jsonb ou texte, liste normalisée)
+- `stripe_requirements_pending_verification` (jsonb ou texte)
+- `stripe_requirements_past_due` (jsonb ou texte)
+- `stripe_disabled_reason` (nullable, texte)
 - `stripe_status_synced_at` (timestamptz)
 
+Ne pas nécessairement stocker les tableaux Stripe complets tels quels — une projection compacte normalisée suffit pour piloter l'affichage produit. **Les Account Links sont à usage unique** : l'utilisateur doit pouvoir être renvoyé dans un nouveau flux dès que de nouvelles exigences apparaissent, détectées via webhook `account.updated` plutôt que supposées stables après la première visite.
+
 **Stripe reste la source externe de vérité.** La base conserve uniquement une **projection locale synchronisée** (webhooks + revérifications serveur). `stripe_charges_enabled` n'est **jamais** une « source de vérité unique » : c'est un cache local. Une revérification Stripe live est obligatoire avant toute action critique (création de session payable, envoi d'un lien partageable, tentative `prelevement_auto`, passage d'un compte à « payable » côté produit).
+
+**Invariant unique de décision Stripe [DÉCISION].** La projection locale sert uniquement à l'affichage produit, au diagnostic et à éviter des appels inutiles. Toute décision financière ou toute exposition d'une capacité de paiement repose sur une revérification Stripe live au moment de l'action ; aucun cache local, même récemment synchronisé, ne peut autoriser seul une opération financière.
 
 **Le prix commercial n'est jamais utilisé comme logique métier** dans le suivi des paiements. Aucun quota d'utilisateurs, de clients ou d'automatisation lié à un plan n'est codé au MVP.
 
@@ -45,7 +53,7 @@
 
 Formalisation technique (traduction et correction de 02 §4.2) :
 
-1. La **ance est créée.
+1. La **créance** est créée.
 2. Une **ressource ou URL Sidian stable et opaque** peut être créée (identifiant non prédictible, non égal à `creance_id` en clair).
 3. Cette URL vérifie **côté serveur** le prestataire, la créance et l'état Stripe (projection + revérification si nécessaire).
 4. **Aucune session Stripe payable** n'est créée ni exposée si le compte connecté n'est pas éligible (`charges_enabled` faux côté Stripe).
@@ -75,8 +83,12 @@ Trigger de scope : `client_payeur` et `creance` doivent partager le même `prest
 
 **Pennylane / liens externes :** hors SID-PROD-001 — prévu en SID-INT-001 via tables de liaison (`external_integrations` / `external_invoice_links`), pas via colonnes `external_*` sur ces tables.
 
+**Signal « prêt à communiquer » — présent depuis SID-STRIPE-001 :** `ready_for_collection_at` (nullable, timestamptz), renseigné par la commande `mark_creance_ready_for_collection`. Jamais renseigné par une déduction autonome du LLM.
+
 ### `tentative_paiement` — essai, pas règlement confirmé
 `id`, `creance_id` (FK), `montant` (bigint > 0), `moyen` (`carte` / `sepa_core`), `source` (`lien_agent` / `prelevement_auto`), `stripe_payment_intent_id` (nullable, unique si non null), `etat` (cf. §2.2), `echec_code` (nullable), `echec_message` (nullable), `created_at`.
+
+`stripe_checkout_session_id` (nullable, unique si non null) permet à `checkout.session.completed` de retrouver directement la tentative concernée sans dépendre uniquement des métadonnées.
 
 **Toute tentative, y compris échouée, crée une ligne ici — jamais dans `paiement`.** Authenticated : lecture seule (pas d'INSERT navigateur).
 
@@ -90,14 +102,42 @@ Trigger de scope : `client_payeur` et `creance` doivent partager le même `prest
 Trigger de scope : si `tentative_paiement_id` est renseigné, il doit référencer la même `creance_id`. Authenticated : lecture seule.
 
 ### `payment_authorization`
-`id`, `client_payeur_id` (FK), `prestataire_id` (FK), `type` (`card_off_session` / `sepa_core_mandate`), `stripe_payment_method_id`, `stripe_mandate_id` (nullable), `etat` (cf. §2.3), `is_default` (bool), `authorized_at`, `authorization_text_version`, `authorization_channel`, `revoked_at` (nullable), `created_at`.
+`id`, `client_payeur_id` (FK), `prestataire_id` (FK), `type` (`card_off_session` / `sepa_core_mandate` — **nullable tant que `etat = EN_CONFIGURATION`**, la Checkout Session `setup` n'a pas encore révélé le moyen choisi), `stripe_payment_method_id` (**nullable tant que `etat = EN_CONFIGURATION`**, aucun PaymentMethod n'existe avant le succès du SetupIntent), `stripe_mandate_id` (nullable), `etat` (cf. §2.3), `is_default` (bool), `authorized_at` (**nullable tant que `etat ≠ ACTIVE`**), `authorization_text_version`, `authorization_channel`, `revoked_at` (nullable), `created_at`.
+
+**Contraintes SQL progressives [DÉCISION SID-STRIPE-001-FIX] — compatibles avec une base peuplée :**
+```
+etat = ACTIVE implique :
+  - type IS NOT NULL
+  - stripe_payment_method_id IS NOT NULL
+  - authorized_at IS NOT NULL
+  - authorization_text_version non vide
+  - authorization_channel non vide
+  - revoked_at IS NULL
+
+etat = REVOQUEE implique :
+  - revoked_at IS NOT NULL
+
+type = sepa_core_mandate ET etat = ACTIVE implique :
+  - stripe_mandate_id IS NOT NULL, lorsque Stripe expose un mandat distinct applicable
+```
+Ces contraintes sont ajoutées `NOT VALID` : elles protègent les nouvelles écritures et mutations, mais aucune ligne historique incompatible n'est artificiellement déclarée conforme. Le diagnostic agrégé précède toute validation ultérieure. La contrainte de mandat distinct reste à adapter au comportement réel de Stripe ; l'autorisation ne peut en aucun cas exiger un `stripe_payment_method_id` avant que le SetupIntent ait réussi.
+
+`stripe_setup_intent_id` (nullable, unique si non null) et `stripe_setup_checkout_session_id` (nullable, unique si non null) permettent le rapprochement idempotent du parcours `setup`.
+
+**Règles d'idempotence (rapprochement Stripe) :**
+- une Checkout Session de paiement correspond à une seule `tentative_paiement` ;
+- une Checkout Session `setup` et son SetupIntent correspondent à une seule `payment_authorization` ;
+- les métadonnées Stripe transmises contiennent uniquement les identifiants internes minimaux nécessaires (ex. `creance_id`, `payment_authorization_id`), jamais de donnée sensible ;
+- tout identifiant reçu par webhook est systématiquement recoupé avec le compte connecté attendu (cf. §5.2).
 
 Contraintes actives :
 - index unique partiel : au plus une `is_default` par couple `(client_payeur_id, prestataire_id)` ;
 - **`is_default = true` implique `etat = ACTIVE`** (`payment_authorization_default_requires_active`) ;
 - trigger de scope client × prestataire.
 
-Le remplacement d'une autorisation par défaut doit être **transactionnel** (désactiver l'ancienne `is_default`, activer la nouvelle, même transaction). Authenticated : lecture seule au MVP.
+**Portée métier de l'autorisation [DÉCISION].** Une `payment_authorization` autorise les futurs paiements éligibles entre un `client_payeur` et un `prestataire` ; elle n'est pas rattachée à la seule créance ou au seul paiement ayant déclenché sa proposition. Un remboursement, une annulation ou une dispute ultérieure du premier paiement ne la révoque pas automatiquement.
+
+Le remplacement d'une autorisation par défaut doit être **transactionnel** : l'ancienne autorisation conserve son historique et son état propre mais passe à `is_default = false`, puis la nouvelle autorisation `ACTIVE` passe à `is_default = true` dans la même transaction. Aucune fenêtre ne doit permettre deux autorisations par défaut, ni zéro autorisation par défaut si l'opération était censée réussir atomiquement. Authenticated : lecture seule au MVP.
 
 ### `regle`
 `id`, `prestataire_id` (FK), `client_payeur_id` (nullable), `parametre`, `valeur` (jsonb), `origine` (`defaut` / `instruction_naturelle`), `libelle_instruction_origine` (nullable), `actif`, `created_at`. Trigger de scope si `client_payeur_id` renseigné.
@@ -118,11 +158,6 @@ Le jeton public doit être opaque, non prédictible, révocable, et stocké sous
 #### `message` (migrations actives)
 `id`, `conversation_id` (FK), `emetteur` (`agent` / `prestataire` / `client`), `contenu`, `canal` (`email` / `interface`), `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), `created_at`.
 
-**`[MIGRATION À PRÉVOIR]` :**
-- `actor_provider` (nullable)
-- `actor_model` (nullable)
-- `external_message_id` (nullable)
-
 **Append-only pour les rôles applicatifs ordinaires** (triggers empêchent UPDATE/DELETE sur `message`). Compatible avec une **procédure privilégiée** de rétention, purge ou anonymisation auditée (service_role / opération contrôlée) — pas avec un DELETE navigateur.
 
 **SID-SEC-004 (cible) :** la provenance (`emetteur`, `actor_type`, et futurs `actor_provider` / `actor_model`) est imposée côté serveur — le navigateur ne choisit pas librement qu'un message « vient de l'agent ».
@@ -142,11 +177,46 @@ Append-only pour rôles ordinaires (triggers UPDATE/DELETE interdits). Trigger d
 
 **SID-SEC-002 (cible) :** écriture uniquement via une primitive serveur de confiance — pas d'INSERT libre authentifié depuis le navigateur pour forger une trace.
 
+### `stripe_customer_binding` — mapping Customer Stripe
+
+`id`, `prestataire_id` (FK), `client_payeur_id` (FK), `stripe_account_id`, `stripe_customer_id`, `status` (`active` / `superseded`), `superseded_at` (nullable), `created_at`, `updated_at`.
+
+**Contraintes SQL à verrouiller [DÉCISION — corrige la contradiction entre la contrainte unique et le remplacement de compte] :**
+- `UNIQUE (stripe_account_id, stripe_customer_id)`
+- `UNIQUE PARTIEL (prestataire_id, client_payeur_id) WHERE status = 'active'` — remplace l'unicité stricte précédente, incompatible avec la conservation d'un ancien binding lors d'un remplacement de compte Connect.
+
+**Remplacement de compte Connect [DÉCISION] :** ne jamais écraser silencieusement un binding existant. Avec des direct charges, le compte connecté est le merchant of record — Customers et PaymentMethods lui appartiennent. Si un compte Connect doit être remplacé pour un prestataire, c'est une **opération administrative contrôlée** : le binding existant passe à `superseded` (`superseded_at` renseigné), une nouvelle ligne `active` est créée — jamais un UPDATE qui écrase l'ancien identifiant Stripe. Ainsi un seul binding actif existe par couple prestataire/client, l'historique reste intact pour l'audit, et aucun identifiant Stripe historique n'est perdu.
+
+Contraintes : cohérence stricte entre `prestataire_id`, `client_payeur_id` et le compte connecté (même principe que le §5.2) ; aucune écriture navigateur, création/mutation par primitive serveur uniquement ; les Customers sont créés dans le scope du compte connecté ; aucun Customer Stripe n'est réutilisable entre deux prestataires.
+
+Avant tout binding, le Customer est relu dans le compte Connect dérivé du prestataire et doit porter exactement `sidian_prestataire_id`, `sidian_client_payeur_id` et `sidian_environment`. Un Customer supprimé, sans métadonnées ou avec une valeur différente est refusé.
+
+La rotation est ensuite exécutée par `replace_verified_stripe_customer_binding`, accessible uniquement au rôle PostgreSQL `stripe_customer_binding_writer` (`NOLOGIN`, `NOINHERIT`, `NOBYPASSRLS`) endossé par `authenticator` depuis un JWT serveur pré-généré. `service_role` conserve uniquement la lecture de diagnostic : il ne peut ni appeler cette RPC, ni muter directement `stripe_customer_binding`. Le JWT porte `sidian_environment`, possède une expiration bornée et reste distinct entre les projets Supabase local, staging et production.
+
+**Invariant d'identité [DÉCISION].** Un `Stripe Customer` n'est jamais assimilé au client produit globalement. Un même `client_payeur` — y compris avec le même email — peut et doit posséder un Customer Stripe distinct dans chaque compte Connect de prestataire. Aucun rapprochement cross-prestataire n'est autorisé sur la seule base de l'email, du nom ou d'un identifiant Stripe provenant d'un autre compte connecté.
+
+### `payment_link` — URL publique opaque
+
+`id`, `creance_id` (FK), `token_hash`, `status` (**[DÉCISION — corrige l'ambiguïté précédente]** `active` / `revoked` uniquement — jamais `prepared` ni `payable` ni `partageable` comme statut stocké, ces qualités dépendent de l'état Stripe qui peut changer à tout moment et ne doivent jamais devenir des données périmées en base), `revoked_at` (nullable), `created_at`, `updated_at`.
+
+**Contraintes SQL à verrouiller :**
+- `UNIQUE PARTIEL (creance_id) WHERE status = 'active'` — un seul lien actif par paiement à recevoir, tout en conservant les anciens liens révoqués pour l'historique et l'audit.
+- `UNIQUE (token_hash)`.
+- `CHECK` : `revoked_at IS NOT NULL` si `status = revoked` ; `revoked_at IS NULL` si `status = active`.
+
+**Lecture métier, calculée dynamiquement à chaque accès, jamais lue depuis une colonne de statut figée :**
+- **Préparé** : `payment_link.status = active`, mais compte Stripe non payable (revérification live).
+- **Payable** : calcul serveur dynamique après revérification Stripe (`charges_enabled` + éligibilité pour ce montant/rail) — jamais un booléen mis en cache sans revérification avant action critique (cf. §1, projection `prestataire`).
+- **Partageable** : `payment_link.status = active` **et** créance éligible **et** compte payable confirmé au moment de l'exposition.
+- **Révoqué** : `payment_link.status = revoked` — lien inutilisable, quelle que soit l'éligibilité Stripe.
+
+Règles non négociables : token aléatoire, opaque, non prédictible ; stocké uniquement sous forme d'empreinte (`token_hash`), jamais en clair ; `creance_id` jamais exposé directement dans l'URL publique ; une URL active génère des sessions Stripe fraîches à la demande, jamais une session stockée comme lien durable ; aucune session payable si le compte Connect n'est pas payable ; validation serveur du token, de la créance, du prestataire et du compte Stripe à chaque ouverture ; rate limiting sur l'endpoint public.
+
+**Rotation irréversible [DÉCISION].** Un lien révoqué ne repasse jamais à `active` et son token reste définitivement inutilisable. Recréer un lien pour la même créance implique l'insertion d'une nouvelle ressource `payment_link` avec un nouveau token opaque et une nouvelle empreinte ; l'ancienne ligne demeure `revoked` pour l'historique.
+
 ### `processed_webhook_event` — état actuel vs cible
 
-**Schéma actuel (migrations) :** `id` (= `event_id` Stripe, PK), `type`, `processed_at`.
-
-**Modèle documentaire cible — `[MIGRATION À PRÉVOIR]` :**
+**Schéma SID-STRIPE-001-FIX :**
 - `id`
 - `type`
 - `stripe_connected_account_id` (nullable / text)
@@ -155,6 +225,21 @@ Append-only pour rôles ordinaires (triggers UPDATE/DELETE interdits). Trigger d
 - `processing_attempts`
 - `processed_at` (nullable)
 - `last_error_code` (nullable)
+- `lease_expires_at` (nullable)
+- `lease_token` (nullable, UUID non réutilisable)
+- `next_attempt_at` (nullable)
+
+`processing_status` distingue `received`, `processing`, `processed`, `ignored`, `failed_retryable` et `failed_terminal`.
+
+Chaque claim réussi remplace `lease_token`. Renouvellement et transition finale exigent `(event_id, lease_token, processing_attempts)` et un lease non expiré. Le plafond est de 8 tentatives ; son dépassement produit `failed_terminal` / `webhook_max_attempts_exceeded`. Les erreurs sont classées `retryable`, `terminal` ou `lease_lost` ; un worker ayant perdu son lease ne réécrit aucun statut.
+
+### `stripe_webhook_effect`
+
+Registre transactionnel des effets métier, unique sur `(stripe_event_id, stripe_object_id, effect_type)`. Pour `account.updated`, la RPC verrouille `processed_webhook_event` et exige le token, la tentative et le lease courant avant toute écriture. Un worker périmé ne consomme donc pas la clé d'effet et ne projette rien. Le worker courant réapplique toujours la projection Stripe live, même si le registre existe déjà, tout en conservant son unicité. Cette réapplication est réservée aux projections idempotentes ; elle ne doit jamais être généralisée automatiquement aux futurs effets financiers.
+
+### `stripe_connect_audit_outbox`
+
+Preuve durable créée dans la même transaction que la finalisation locale Connect. Une livraison idempotente vers `audit_log` peut être reprise après panne ; le verrou de ligne empêche tout doublon sous concurrence.
 
 Voir §3 pour l'acquisition atomique.
 
@@ -199,9 +284,23 @@ CRÉÉE
 ### 2.3 Autorisation de paiement
 
 ```
-NON_PROPOSÉE → PROPOSÉE → EN_CONFIGURATION → ACTIVE | REFUSÉE
+NON_PROPOSÉE → PROPOSÉE → EN_CONFIGURATION
+                                  ├──► ACTIVE
+                                  ├──► REFUSÉE
+                                  └──► EXPIRÉE
 ACTIVE → RÉVOQUÉE | EXPIRÉE | SUSPENDUE → ACTIVE | RÉVOQUÉE
 ```
+
+**`EXPIRÉE` en sortie de `EN_CONFIGURATION` `[MIGRATION À PRÉVOIR]`** — distinct de `REFUSÉE` : un refus est une décision explicite du client sur l'écran Stripe, une expiration est un parcours abandonné ou une Checkout Session `setup` arrivée à expiration sans action. Les deux laissent l'autorisation hors `ACTIVE`, mais la distinction reste utile pour l'agent (relancer une expiration silencieuse diffère de respecter un refus exprimé) et pour le diagnostic produit.
+
+**Causes de transition [DÉCISION] :**
+- `EN_CONFIGURATION → ACTIVE` : SetupIntent confirmé et moyen/mandat utilisable ;
+- `EN_CONFIGURATION → REFUSÉE` : refus explicite du client ;
+- `EN_CONFIGURATION → EXPIRÉE` : parcours abandonné ou Checkout Session `setup` expirée ;
+- `ACTIVE → SUSPENDUE` : moyen détaché ou temporairement inutilisable, mandat invalide, litige nécessitant un gel, ou garde-fou produit ;
+- `SUSPENDUE → ACTIVE` : cause de suspension résolue et validité Stripe revérifiée, ou nouveau moyen correctement enregistré ;
+- `ACTIVE | SUSPENDUE → RÉVOQUÉE` : révocation explicite du client ou événement Stripe terminal ;
+- `ACTIVE → EXPIRÉE` : moyen ou mandat arrivé à expiration sans remplacement utilisable.
 
 Seul un `payment_authorization` à l'état `ACTIVE` et `is_default = true` autorise une `tentative_paiement` de source `prelevement_auto` au MVP. **`is_default = true` implique `etat = ACTIVE`** (contrainte SQL active).
 
@@ -230,16 +329,14 @@ PRÉVENTION → ÉCHÉANCE → SUIVI_AMIABLE
 Remplace le modèle « vérifier l'absence puis traiter » (sujet à course).
 
 1. Vérification de signature sur le **corps brut**.
-2. Insertion **atomique** de l'événement avec contrainte unique sur `id` (= `event_id` Stripe).
-3. Doublon reconnu par **conflit unique** (événement déjà acquis) → réponse 200 sans retraitement.
-4. Mise en file.
-5. Traitement asynchrone.
-6. Retries bornés.
-7. État de traitement (`processing_status`).
-8. Erreur normalisée (`last_error_code`).
-9. Marquage final (`processed_at` lorsque terminal succès).
-
-**Schéma actuel :** `processed_webhook_event (id, type, processed_at)` — insuffisant pour les étapes 6–8. **`[MIGRATION À PRÉVOIR]`** vers le modèle du §1.
+2. Claim **atomique** de l'événement avec contrainte unique sur `id`, lease et compteur de tentatives.
+3. Un terminal `processed` / `ignored` / `failed_terminal` est acquitté 200 sans retraitement.
+4. Un `failed_retryable` arrivé à échéance ou un `processing` au lease expiré peut être réclamé par un seul worker.
+5. Toute transition et tout renouvellement sont fenced par le token et le numéro de tentative.
+6. Une livraison concurrente non terminale reçoit un non-2xx afin que Stripe retente.
+7. Les retries sont bornés (8) et les raisons terminales sont normalisées pour l'exploitation.
+8. Toute écriture de statut est contrôlée ; une panne non persistée ne reçoit jamais 200.
+9. Tout type inconnu devient terminal `ignored` sans transition métier ni effet de bord.
 
 ### 3.3 Retries de tentative
 **MVP : `retry_policy = none`** — une tentative échouée repasse en flux de lien manuel + notification prestataire. Une politique plus riche reste une hypothèse post-MVP (rail, code d'échec, auth, litige).
@@ -275,9 +372,50 @@ Table `regle` — paramètres de départ : délai de grâce, montant max d'étal
 
 ### 5.1 Stripe Connect (direct charge)
 
-Le prestataire est merchant of record. Commission via `application_fee_amount` / `platform_fee_basis_points` (**0** pendant Early Access). Payment Element : carte + SEPA Core, sans masquage d'un rail sur un seuil de montant Sidian.
+**[DÉCISION — type de compte rendu explicite]** Compte connecté de type **Express**, sauf incompatibilité technique démontrée à l'implémentation. Direct charges. Le prestataire est merchant of record ; les objets financiers Stripe (Customer, PaymentMethod, Mandate, PaymentIntent) appartiennent au scope du compte connecté, jamais à la plateforme. Sidian guide l'utilisateur via sa propre interface autour de ce compte, mais les étapes sensibles de vérification d'identité et de compte bancaire restent hébergées ou sécurisées par Stripe — Sidian ne recrée pas ces écrans réglementaires au MVP.
 
-Webhooks minimaux : tentative réussie/échouée, authentification requise, autorisation créée/révoquée, dispute, mises à jour compte Connect (`account.updated`).
+Commission via `application_fee_amount` / `platform_fee_basis_points` (**0** pendant Early Access).
+
+**Devise MVP [DÉCISION].** Toute l'intégration Stripe du MVP est strictement en EUR : créances, Checkout Sessions de paiement, PaymentIntents, montants de commission et rapprochements financiers utilisent `eur`. Les Checkout Sessions en mode `setup` n'encaissent pas de montant, mais les moyens configurés ne sont utilisés au MVP que pour des paiements futurs en EUR. Toute ouverture multi-devise exige une décision produit et une évolution explicite du domaine, jamais un simple paramètre Stripe ajouté localement.
+
+**Interface de paiement client [DÉCISION — corrige la mention précédente] :** Stripe Checkout hébergé pour le premier paiement (carte + SEPA Core) — pas de Payment Element ni de formulaire de carte/IBAN construit par Sidian au MVP. Toute opération sensible (paiement, ajout/modification d'un moyen de paiement) passe par les écrans Stripe. Sidian peut envisager une expérience de paiement entièrement intégrée plus tard, hors périmètre MVP. Aucun masquage d'un rail (carte ou SEPA) sur la seule base d'un seuil de montant Sidian (cf. 02 §4.3).
+
+### 5.1bis Parcours technique de l'autorisation future — Checkout Session en mode setup
+
+**[DÉCISION]** Après le retour du premier Checkout (paiement), Sidian affiche la proposition d'autorisation (cf. 02 §4.4) indépendamment de l'état de confirmation du paiement initial. Si le client accepte, Sidian crée une **nouvelle Checkout Session Stripe en mode `setup`**, distincte de la session de paiement initiale. **[REFORMULÉ — ne pas garantir plus que ce que Stripe assure réellement]** Cette session permet au client de configurer le moyen destiné aux futurs paiements. Lorsque Stripe permet de réafficher le moyen précédemment utilisé et que le consentement approprié a été recueilli pendant le premier Checkout, celui-ci peut être proposé ; le client conserve toujours la possibilité de choisir un autre moyen compatible — la réutilisation transparente du moyen initial n'est jamais présentée comme garantie, elle dépend du rattachement du PaymentMethod au même Customer Stripe, de son enregistrement pendant le premier Checkout, du consentement recueilli, et des paramètres Checkout utilisés. Le `payment_authorization.etat` ne passe à `ACTIVE` que sur confirmation fiable du SetupIntent ou du mandat correspondant (webhook), jamais sur la seule fin du parcours Checkout de la session `setup`.
+
+**`[DÉCISION — liste verrouillée, pas de choix laissé à l'implémentation]`** Webhooks Stripe à écouter au MVP :
+
+```
+account.updated
+checkout.session.completed
+checkout.session.expired
+payment_intent.processing
+payment_intent.succeeded
+payment_intent.payment_failed
+setup_intent.succeeded
+setup_intent.setup_failed
+payment_method.detached
+mandate.updated
+charge.dispute.created
+```
+
+Responsabilité de chacun :
+- `account.updated` : rafraîchit la projection Stripe du prestataire (§1) — jamais utilisé seul pour autoriser une action critique sans revérification live.
+- `checkout.session.completed` : rattache le parcours terminé à la `tentative_paiement` (paiement) ou `payment_authorization` (setup) via `stripe_checkout_session_id` / `stripe_setup_checkout_session_id` — **ne confirme jamais seul un paiement SEPA** (cf. §5.1bis, 02 §4.4).
+- `checkout.session.expired` : **si la session est une session de paiement** (`stripe_checkout_session_id` sur `tentative_paiement`), `tentative_paiement` → `ANNULEE` (pas d'état `EXPIREE` dans la machine §2.2), ne modifie jamais `creance.etat` directement. **Si la session est une session `setup`** (`stripe_setup_checkout_session_id` sur `payment_authorization`), l'autorisation reste hors `ACTIVE` et passe de `EN_CONFIGURATION` à `EXPIRÉE` (§2.3) — jamais considérée comme autorisée, distincte d'un refus explicite.
+- `payment_intent.processing` : `tentative_paiement` → `EN_TRAITEMENT`.
+- `payment_intent.succeeded` : `tentative_paiement` → `RÉUSSIE`, création idempotente de `paiement`, recalcul de l'état de la créance.
+- `payment_intent.payment_failed` : `tentative_paiement` → `ÉCHOUÉE` (`echec_code`/`echec_message`), sans modifier directement l'état financier de la créance.
+- `setup_intent.succeeded` : activation transactionnelle de `payment_authorization` (`EN_CONFIGURATION` → `ACTIVE`).
+- `setup_intent.setup_failed` : `payment_authorization` reste hors `ACTIVE`, erreur normalisée journalisée.
+- `payment_method.detached` : suspension ou expiration de l'autorisation concernée si elle référence ce moyen.
+- `mandate.updated` : réévaluation de l'état de l'autorisation SEPA concernée (ex. mandat révoqué côté banque).
+- `charge.dispute.created` : procédure prudente déjà documentée ci-dessus (litiges).
+
+Le SEPA reste un moyen à confirmation différée : c'est le `PaymentIntent` qui pilote ses états jusqu'à confirmation finale — la fin du Checkout ne signifie jamais que les fonds sont disponibles.
+
+**Traitement de `charge.dispute.created` [DÉCISION — règles de non-régression] :** ne jamais supprimer ou réécrire un `paiement` déjà confirmé ; ne jamais faire repasser automatiquement une créance terminale `REGLEE` vers un état improvisé ; créer une trace d'audit rattachée au prestataire, au client, à la tentative et au paiement concernés lorsque résolvable ; suspendre les nouvelles tentatives `prelevement_auto` pour l'autorisation concernée et toute relance automatique de l'agent sur le dossier le temps du litige ; placer le dossier en `ESCALADE_HUMAINE` ; afficher clairement au prestataire qu'un litige Stripe est en cours. Les communications nécessaires à la résolution restent possibles uniquement sous contrôle humain. **`[MIGRATION À PRÉVOIR]`** si un objet dédié est nécessaire pour la gestion comptable complète (reversals, remboursements, pertes) — proposition : `payment_dispute` — sans surcharger `creance.etat` pour ce besoin.
 
 **Lien de paiement :** URL Sidian stable opaque → contrôle serveur → session Stripe fraîche **seulement si payable**. Voir §1.
 
@@ -298,20 +436,13 @@ Toute opération Stripe vérifie la concordance entre :
 
 **Un objet Stripe d'un prestataire ne peut jamais être utilisé pour un autre.**
 
+**Réconciliation du provisioning Connect.** Les comptes créés portent les métadonnées serveur stables `sidian_prestataire_id`, `sidian_environment` et `sidian_provisioning_operation_id`. Une reprise parcourt toutes les pages Stripe et collecte tous les comptes portant l'identifiant d'opération. Zéro résultat autorise une création avec l'idempotency key persistée ; un résultat est réutilisé seulement s'il est Express, français, non supprimé, contrôlé par l'application avec collecte Stripe et Dashboard Express, dans le bon tenant et environnement ; plusieurs résultats, un compte incompatible ou déjà rattaché à un autre prestataire produisent un échec terminal opérable.
+
 ### 5.3 SEPA Core — prénotification
 
-**`[VALIDATION RESTANTE]`** — dépend de la configuration Stripe réelle et des obligations légales applicables.
+**[DÉCISION MVP — formulation prudente]** Au MVP, Sidian s'appuie sur les mécanismes de notification SEPA fournis par Stripe lorsque la configuration utilisée le permet, plutôt que de construire un moteur complet de prénotification. Les éléments de preuve exposés par Stripe (événement, statut) sont journalisés (`audit_log` et/ou champs dédiés — `[MIGRATION À PRÉVOIR]` si champs manquants). La version du texte d'autorisation présenté par Sidian lui-même (le consentement à l'autorisation de paiement future, cf. `payment_authorization.authorization_text_version`) est distincte de la prénotification légale du prélèvement et déjà tracée.
 
-À documenter et implémenter explicitement :
-- **qui** envoie la prénotification (Sidian vs Stripe) ;
-- **quand** elle est envoyée (délai avant débit) ;
-- **comment** sa réussite est prouvée (événement, statut, journal) ;
-- **si** son échec bloque le débit ;
-- **version du texte** d'autorisation / préavis ;
-- **date d'envoi** ;
-- **autorisation et mandat** concernés (`payment_authorization_id`, `stripe_mandate_id`).
-
-Ces preuves doivent être auditables (`audit_log` et/ou champs dédiés — `[MIGRATION À PRÉVOIR]` si champs manquants).
+**`[VALIDATION RESTANTE]`** Toute responsabilité complémentaire (qui envoie la prénotification si Stripe ne la couvre pas entièrement pour la configuration retenue, délai exact, blocage du débit en cas d'échec) doit être validée contre la configuration Stripe réelle avant activation en production du prélèvement automatique SEPA — ne pas présenter cette validation comme acquise avant implémentation réelle.
 
 ### 5.4 Outil de facturation tiers
 Hors MVP. Lecture seule future pour `reference_externe` — jamais d'écriture dans l'outil tiers.
@@ -323,13 +454,14 @@ Hors MVP. Lecture seule future pour `reference_externe` — jamais d'écriture d
 ### 6.1 Invariants actifs (migrations / code)
 
 - RLS sur toutes les tables applicatives exposées.
-- Aucun accès `anon` métier (`REVOKE ALL` sur les 13 tables).
+- Aucun accès `anon` métier (`REVOKE ALL` sur les 17 tables).
 - Isolation tenant via JWT authenticated + `current_prestataire_id()` (`SECURITY DEFINER` + `search_path = public`).
 - Triggers de scope cross-tenant (creance, authorization, conversation, approval, regle, paiement/tentative, audit).
 - Immutabilité `message` et `audit_log` pour rôles ordinaires.
 - Protection UPDATE des champs commerciaux sensibles `prestataire` côté `authenticated`.
 - Tables financières / système (`tentative_paiement`, `paiement`, `payment_authorization`, `processed_webhook_event`) : pas d'écriture navigateur (SELECT seul ou aucun grant authenticated).
 - `service_role` uniquement dans des modules `server-only` (jamais importable client).
+- `stripe_customer_binding` : aucun DML direct par `service_role` ; rotation uniquement via le JWT de `stripe_customer_binding_writer`, après validation Stripe live.
 - Auth : `getUser()` serveur ; email prestataire issu de Auth confirmé ; redirects internes allowlistés.
 
 ### 6.2 Architecture cible de confiance (audit — non prétendue corrigée)
@@ -388,7 +520,7 @@ Email / IA : files d'attente visibles ; workers déterministes indépendants de 
 - Séparation stricte **local / staging / production** (clés, projets Supabase, Stripe, redirects).
 - Headers de sécurité et **CSP**.
 - Validation bornée (Zod) sur tous les inputs — tailles, formats, allowlists.
-- **Readiness** stricte (`/api/health` et contrôles associés sans fuite de secrets).
+- **Readiness Stripe** stricte : `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED` est obligatoire. À `false`, le webhook retourne immédiatement `404`, sans lire la requête ni créer de client Stripe/Supabase, et un build générique est permis. À `true`, `SIDIAN_ENVIRONMENT`, mode, clés secrète/publiable, secret webhook et `SUPABASE_STRIPE_BINDING_WRITER_JWT` non expiré sont tous obligatoires et cohérents avec `local|staging|production`. Le build échoue sans ce contrat complet, sans afficher les secrets.
 - Sauvegarde et **réponse à incident** documentées dans `docs/operations/` (runbooks) — le document 03 impose l'exigence, pas le détail opérationnel.
 
 ---

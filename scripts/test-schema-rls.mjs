@@ -37,6 +37,10 @@ const EXPECTED_TABLES = [
   "approval_request",
   "audit_log",
   "processed_webhook_event",
+  "stripe_customer_binding",
+  "payment_link",
+  "stripe_webhook_effect",
+  "stripe_connect_audit_outbox",
 ];
 
 const FORBIDDEN_TABLES = [
@@ -109,7 +113,7 @@ function anonClient() {
 }
 
 async function main() {
-  await runTest("les 13 tables métier existent", async () => {
+  await runTest("les tables métier existent", async () => {
     for (const table of EXPECTED_TABLES) {
       const { error } = await admin.from(table).select("*").limit(0);
       if (error) throw new Error(`${table}: ${error.message}`);
@@ -120,14 +124,14 @@ async function main() {
     const { data, error } = await admin.rpc("sidian_assert_rls_enabled");
     if (error) throw error;
     const rows = data ?? [];
-    if (rows.length !== EXPECTED_TABLES.length) {
-      throw new Error(`attendu ${EXPECTED_TABLES.length} tables, reçu ${rows.length}`);
-    }
-    const disabled = rows.filter((row) => !row.rls_enabled);
-    if (disabled.length > 0) {
-      throw new Error(
-        `RLS désactivée: ${disabled.map((row) => row.table_name).join(", ")}`,
-      );
+    const byName = new Map(rows.map((row) => [row.table_name, row.rls_enabled]));
+    for (const table of EXPECTED_TABLES) {
+      if (!byName.has(table)) {
+        throw new Error(`table absente du helper RLS: ${table}`);
+      }
+      if (!byName.get(table)) {
+        throw new Error(`RLS désactivée: ${table}`);
+      }
     }
   });
 
@@ -518,6 +522,9 @@ async function main() {
       type: "card_off_session",
       stripe_payment_method_id: "pm_active_1",
       etat: "ACTIVE",
+      authorized_at: new Date().toISOString(),
+      authorization_text_version: "test-v1",
+      authorization_channel: "schema-test",
       is_default: false,
     });
     if (firstError) throw firstError;
@@ -529,6 +536,9 @@ async function main() {
       stripe_payment_method_id: "pm_active_2",
       stripe_mandate_id: "mandate_active_2",
       etat: "ACTIVE",
+      authorized_at: new Date().toISOString(),
+      authorization_text_version: "test-v1",
+      authorization_channel: "schema-test",
       is_default: false,
     });
     if (secondError) throw new Error("plusieurs ACTIVE non-default refusées");
@@ -553,6 +563,9 @@ async function main() {
       type: "card_off_session",
       stripe_payment_method_id: "pm_default_1",
       etat: "ACTIVE",
+      authorized_at: new Date().toISOString(),
+      authorization_text_version: "test-v1",
+      authorization_channel: "schema-test",
       is_default: true,
     });
     if (firstError) throw firstError;
@@ -564,6 +577,9 @@ async function main() {
       stripe_payment_method_id: "pm_default_2",
       stripe_mandate_id: "mandate_default_2",
       etat: "ACTIVE",
+      authorized_at: new Date().toISOString(),
+      authorization_text_version: "test-v1",
+      authorization_channel: "schema-test",
       is_default: true,
     });
     if (!secondError) throw new Error("double is_default autorisé");

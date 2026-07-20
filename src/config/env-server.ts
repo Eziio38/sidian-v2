@@ -9,9 +9,20 @@ const supabaseServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 });
 
-const stripeServerEnvSchema = z.object({
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().min(1),
+const stripeEnabledEnvSchema = z.object({
+  NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: z.literal("true"),
+  SIDIAN_ENVIRONMENT: z.enum(["local", "staging", "production"]),
+  STRIPE_MODE: z.enum(["test", "live"]),
+  STRIPE_SECRET_KEY: z.string().regex(/^sk_(test|live)_\S+$/),
+  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().regex(/^whsec_\S+$/),
+  SUPABASE_STRIPE_BINDING_WRITER_JWT: z.string().min(1),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z
+    .string()
+    .regex(/^pk_(test|live)_\S+$/),
+});
+
+const stripeDisabledEnvSchema = z.object({
+  NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: z.literal("false"),
 });
 
 const aiServerEnvSchema = z.object({
@@ -26,6 +37,71 @@ const emailServerEnvSchema = z.object({
 export type SupabaseServerEnv = SupabasePublicEnv & {
   SUPABASE_SERVICE_ROLE_KEY: string;
 };
+
+export type SidianEnvironment = "local" | "staging" | "production";
+type StripeEnabledEnv = z.infer<typeof stripeEnabledEnvSchema>;
+export type StripeServerEnv = Omit<
+  StripeEnabledEnv,
+  "SUPABASE_STRIPE_BINDING_WRITER_JWT"
+>;
+export type StripeBindingWriterEnv = Pick<
+  SupabasePublicEnv,
+  "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+> & {
+  SUPABASE_STRIPE_BINDING_WRITER_JWT: string;
+};
+export type StripeReadiness =
+  | { enabled: false }
+  | ({ enabled: true } & StripeEnabledEnv);
+
+export function validateStripeEnvironment(
+  input: unknown,
+  appEnvironment: SidianEnvironment,
+): StripeReadiness {
+  const disabled = stripeDisabledEnvSchema.safeParse(input);
+  if (disabled.success) return { enabled: false };
+
+  const parsed = stripeEnabledEnvSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error("Configuration Stripe manquante ou invalide.");
+  }
+  let writerClaims: { role?: unknown; sidian_environment?: unknown; exp?: unknown };
+  try {
+    const payload = parsed.data.SUPABASE_STRIPE_BINDING_WRITER_JWT.split(".")[1];
+    if (!payload) throw new Error("missing_payload");
+    writerClaims = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as typeof writerClaims;
+  } catch {
+    throw new Error("Configuration Stripe manquante ou invalide.");
+  }
+  if (
+    writerClaims.role !== "stripe_customer_binding_writer" ||
+    writerClaims.sidian_environment !== parsed.data.SIDIAN_ENVIRONMENT ||
+    typeof writerClaims.exp !== "number" ||
+    writerClaims.exp <= Math.floor(Date.now() / 1000)
+  ) {
+    throw new Error("Configuration Stripe manquante ou invalide.");
+  }
+  const secretMode = parsed.data.STRIPE_SECRET_KEY.startsWith("sk_live_")
+    ? "live"
+    : "test";
+  const publishableMode = parsed.data.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.startsWith(
+    "pk_live_",
+  )
+    ? "live"
+    : "test";
+  if (
+    secretMode !== parsed.data.STRIPE_MODE ||
+    publishableMode !== parsed.data.STRIPE_MODE ||
+    parsed.data.SIDIAN_ENVIRONMENT !== appEnvironment ||
+    (appEnvironment === "production" && parsed.data.STRIPE_MODE !== "live") ||
+    (appEnvironment !== "production" && parsed.data.STRIPE_MODE !== "test")
+  ) {
+    throw new Error("Configuration Stripe incohérente avec l’environnement.");
+  }
+  return { enabled: true, ...parsed.data };
+}
 
 function readSupabaseServerEnvInput() {
   return {
@@ -61,23 +137,66 @@ export function getSupabaseServerEnv(): SupabaseServerEnv {
   return parsed.data;
 }
 
-export function getStripeServerEnv() {
-  const parsed = stripeServerEnvSchema.safeParse({
+function getApplicationEnvironment(): SidianEnvironment {
+  if (process.env.VERCEL_ENV === "production") return "production";
+  if (process.env.VERCEL_ENV === "preview") return "staging";
+  return "local";
+}
+
+export function getStripeReadiness(): StripeReadiness {
+  const input = {
+    NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED:
+      process.env.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED,
+    SIDIAN_ENVIRONMENT: process.env.SIDIAN_ENVIRONMENT,
+    STRIPE_MODE: process.env.STRIPE_MODE,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
-  });
+    SUPABASE_STRIPE_BINDING_WRITER_JWT:
+      process.env.SUPABASE_STRIPE_BINDING_WRITER_JWT,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  };
 
-  if (!parsed.success) {
-    const message = formatEnvValidationError("server/stripe", parsed.error);
+  return validateStripeEnvironment(input, getApplicationEnvironment());
+}
 
-    if (process.env.NODE_ENV === "development") {
-      throw new Error(message);
-    }
-
-    throw new Error("Configuration Stripe manquante ou invalide.");
+export function getStripeServerEnv(): StripeServerEnv {
+  const readiness = getStripeReadiness();
+  if (!readiness.enabled) {
+    throw new Error("Module de paiement Stripe désactivé.");
   }
+  return {
+    NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED:
+      readiness.NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED,
+    SIDIAN_ENVIRONMENT: readiness.SIDIAN_ENVIRONMENT,
+    STRIPE_MODE: readiness.STRIPE_MODE,
+    STRIPE_SECRET_KEY: readiness.STRIPE_SECRET_KEY,
+    STRIPE_CONNECT_WEBHOOK_SECRET: readiness.STRIPE_CONNECT_WEBHOOK_SECRET,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      readiness.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  };
+}
 
-  return parsed.data;
+export function getStripeBindingWriterEnv(): StripeBindingWriterEnv {
+  const stripe = getStripeReadiness();
+  if (!stripe.enabled) {
+    throw new Error("Module de paiement Stripe désactivé.");
+  }
+  const supabase = getSupabasePublicEnv();
+  return {
+    NEXT_PUBLIC_SUPABASE_URL: supabase.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_STRIPE_BINDING_WRITER_JWT:
+      stripe.SUPABASE_STRIPE_BINDING_WRITER_JWT,
+  };
+}
+
+export function isStripePaymentsEnabled(): boolean {
+  return getStripeReadiness().enabled;
+}
+
+export function getSidianEnvironment(): SidianEnvironment {
+  return getStripeServerEnv().SIDIAN_ENVIRONMENT;
 }
 
 export function getAiServerEnv() {

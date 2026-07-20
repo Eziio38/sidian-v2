@@ -15,7 +15,7 @@
 |---|---|---|---|
 | Verrou production paiements automatiques | Tech lead | [ ] À faire | Nom de flag à définir en Phase 3 (cf. plan d'implémentation 03) |
 | Aucun paiement live avant validation E2E test | Tech lead | [ ] À faire | Voir §11 |
-| Migrations du schéma MVP (13 entités, cf. 03 §1 — `conversation` et `message` comptées séparément) appliquées en staging/prod | Ops | [ ] À faire | |
+| Migrations du schéma courant (17 tables, cf. 03 §1) appliquées en staging/prod | Ops | [ ] À faire | |
 | Webhook Connect configuré et signé | Ops | [ ] À faire | `STRIPE_CONNECT_WEBHOOK_SECRET` requis |
 | Build production réussi | Dev | [ ] À faire | |
 | Suite de tests verte | Dev | [ ] À faire | Nouvelle suite à écrire pour le nouveau modèle |
@@ -28,7 +28,7 @@
 
 ## 2. Base de données et migrations
 
-**Schéma cible (MVP, cf. 03 §1) :** `prestataire`, `client_payeur`, `creance`, `tentative_paiement`, `paiement`, `payment_authorization`, `dossier_suivi`, `regle`, `conversation`, `message`, `approval_request`, `audit_log`, `processed_webhook_event`.
+**Schéma courant (17 tables, cf. 03 §1) :** 13 tables métier initiales + `stripe_customer_binding`, `payment_link`, `stripe_webhook_effect`, `stripe_connect_audit_outbox`.
 
 | Item | Commande | Environnement | Statut | Preuve |
 |---|---|---|---|---|
@@ -39,8 +39,8 @@
 | Types Supabase alignés | `pnpm supabase:types && pnpm typecheck` | local | [x] Terminé | `src/types/database.generated.ts` |
 | Migrations appliquées staging | Dashboard Supabase / CI | staging | [ ] À faire | Après diagnostic SID-SEC-001 + validation SID-PROD-001 |
 | Migrations appliquées production | Dashboard Supabase | production | [ ] À faire | **Ne pas appliquer sans Go** |
-| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | **33/33** tests schema (+ **26/26** local-guard en préfixe) |
-| SID-SEC-001 — intégrité prestataire (ACL SELECT, MAINTAIN révoqué, email canonique, RPC, localOnlyFetch, module cœur testé) | `pnpm test:local-guard` + `pnpm test:schema` + `pnpm test:auth` | local | [x] Terminé localement | **26/26** guard · **33/33** schema · **38/38** Auth ; migrations `20260716220000_*` + `20260717220000_*` ; diagnostic `scripts/diagnose-prestataire-integrity.sql` ; **contre-revue Codex finale puis staging** |
+| RLS activée sur toutes les tables `prestataire`-scopées | `pnpm test:schema` | local | [x] Terminé | **33/33** tests schema (+ **54/54** local-guard en préfixe) |
+| SID-SEC-001 — intégrité prestataire (ACL SELECT, MAINTAIN révoqué, email canonique, RPC, localOnlyFetch, module cœur testé) | `pnpm test:local-guard` + `pnpm test:schema` + `pnpm test:auth` | local | [x] Terminé localement | **54/54** guard · **33/33** schema · **38/38** Auth ; migrations `20260716220000_*` + `20260717220000_*` ; diagnostic `scripts/diagnose-prestataire-integrity.sql` ; **contre-revue Codex finale puis staging** |
 | SID-PROD-001 — clients + paiements à recevoir (RPC, ACL SELECT, EUR, montants, idempotence, archivage bloqué) | `pnpm test:prod-001` | local | [x] Terminé localement (contre-revue Codex **non validée**) | Migration `20260718120000_*` ; UI `/app/clients` + `/app/paiements-a-recevoir` ; doc `PHASE_4_CLIENTS_CREANCES.md` |
 | RLS validée sur vrai Supabase (rôles réels) | rôles réels | staging Docker | [ ] À faire | Local validé ; staging après `db push` manuel |
 
@@ -84,15 +84,17 @@
 
 | Item | Endpoint | Secret | Statut |
 |---|---|---|---|
-| Connect webhook | `POST /api/stripe/connect/webhook` | `STRIPE_CONNECT_WEBHOOK_SECRET` | [ ] À faire |
+| Connect webhook | `POST /api/stripe/webhook` | `STRIPE_CONNECT_WEBHOOK_SECRET` | [ ] À faire |
 | Déduplication `event.id` | `processed_webhook_event` (cf. 03 §1) | — | [ ] À faire |
 | `event.account` obligatoire Connect | handlers | — | [ ] À faire |
 | Replay idempotent | tests | — | [ ] À faire |
+| Fencing effet `account.updated` | token + tentative + lease sous verrou | — | [x] 20/20 Stripe local |
+| Webhook désactivé | `404` avant lecture du corps/headers et avant clients | — | [x] Vitest ciblé |
 | Événements refund/dispute | Connect | — | [ ] À faire |
 
 **Commande test local :**
 ```bash
-stripe listen --forward-connect-to localhost:3000/api/stripe/connect/webhook
+stripe listen --forward-connect-to localhost:3000/api/stripe/webhook
 ```
 
 ---
@@ -146,7 +148,7 @@ stripe listen --forward-connect-to localhost:3000/api/stripe/connect/webhook
 | Mandat SEPA vs moyen enregistré carte clairement distingués | [ ] À faire | `payment_authorization.type` |
 | Aucune écriture directe du LLM dans Stripe/Supabase | [ ] À faire | Registre encadré, cf. 03 §4/§10 |
 | Toute action du registre encadré tracée dans `audit_log` | [ ] À faire | |
-| Service role uniquement pour webhooks/cron | [ ] À faire | |
+| Service role uniquement pour webhooks/cron ; jamais pour écrire un Customer binding | [x] Local | rôle writer validé |
 | Rate limiting sur les routes publiques (lien de paiement) | [ ] À faire | |
 | Fonctions SECURITY DEFINER — `SET search_path` explicite | [ ] À faire | |
 
@@ -161,9 +163,13 @@ Voir `.env.example`. **Ne jamais committer les valeurs réelles.**
 | `NEXT_PUBLIC_SUPABASE_URL` | Oui | tous | App inutilisable |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Oui | tous | Auth/RLS client cassés |
 | `SUPABASE_SERVICE_ROLE_KEY` | Oui | serveur | Webhooks/cron impossibles |
+| `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED` | Oui (`true` ou `false`) | build/client | Build refusé si absent |
+| `SIDIAN_ENVIRONMENT` | Si Stripe actif | serveur | Scope environnement invalide |
+| `STRIPE_MODE` | Si Stripe actif | serveur | Test/live incohérent |
 | `STRIPE_SECRET_KEY` | Oui | serveur | Aucun appel Stripe |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Oui | client | Paiement cassé |
 | `STRIPE_CONNECT_WEBHOOK_SECRET` | Oui | serveur | Webhooks Connect rejetés |
+| `SUPABASE_STRIPE_BINDING_WRITER_JWT` | Si Stripe actif | serveur | Bindings Customer refusés |
 | `OPENAI_API_KEY` (ou équivalent fournisseur configuré) | Oui | serveur | `runAI` indisponible (cf. 03 §10) |
 
 *(Compléter au fil de l'implémentation — Bridge/Powens, Pennylane, autres fournisseurs IA : uniquement si la brique correspondante est effectivement développée, cf. 02 §8 périmètre MVP.)*
@@ -212,7 +218,7 @@ Prérequis :
 
 ### Procédure (à exécuter manuellement)
 
-1. Définir et poser le flag de verrouillage production pour le nouveau modèle (équivalent du précédent `PAYMENTS_DIRECT_CHARGE`)
+1. Définir `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED=true`, `SIDIAN_ENVIRONMENT=production`, `STRIPE_MODE=live` et toutes les clés Stripe cohérentes
 2. Déployer avec le flag activé en production
 3. Vérifier T+0 (§13)
 4. Surveiller webhooks et workers 24h

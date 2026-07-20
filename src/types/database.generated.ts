@@ -245,6 +245,7 @@ export type Database = {
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
+          ready_for_collection_at: string | null
           reference_externe: string | null
           updated_at: string
         }
@@ -261,6 +262,7 @@ export type Database = {
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
+          ready_for_collection_at?: string | null
           reference_externe?: string | null
           updated_at?: string
         }
@@ -277,6 +279,7 @@ export type Database = {
           montant?: number
           origine?: Database["public"]["Enums"]["creance_origine"]
           prestataire_id?: string
+          ready_for_collection_at?: string | null
           reference_externe?: string | null
           updated_at?: string
         }
@@ -437,8 +440,10 @@ export type Database = {
           prestataire_id: string
           revoked_at: string | null
           stripe_mandate_id: string | null
-          stripe_payment_method_id: string
-          type: Database["public"]["Enums"]["payment_authorization_type"]
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_intent_id: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
         }
         Insert: {
           authorization_channel?: string | null
@@ -452,8 +457,12 @@ export type Database = {
           prestataire_id: string
           revoked_at?: string | null
           stripe_mandate_id?: string | null
-          stripe_payment_method_id: string
-          type: Database["public"]["Enums"]["payment_authorization_type"]
+          stripe_payment_method_id?: string | null
+          stripe_setup_checkout_session_id?: string | null
+          stripe_setup_intent_id?: string | null
+          type?:
+            | Database["public"]["Enums"]["payment_authorization_type"]
+            | null
         }
         Update: {
           authorization_channel?: string | null
@@ -467,8 +476,12 @@ export type Database = {
           prestataire_id?: string
           revoked_at?: string | null
           stripe_mandate_id?: string | null
-          stripe_payment_method_id?: string
-          type?: Database["public"]["Enums"]["payment_authorization_type"]
+          stripe_payment_method_id?: string | null
+          stripe_setup_checkout_session_id?: string | null
+          stripe_setup_intent_id?: string | null
+          type?:
+            | Database["public"]["Enums"]["payment_authorization_type"]
+            | null
         }
         Relationships: [
           {
@@ -487,6 +500,44 @@ export type Database = {
           },
         ]
       }
+      payment_link: {
+        Row: {
+          creance_id: string
+          created_at: string
+          id: string
+          revoked_at: string | null
+          status: Database["public"]["Enums"]["payment_link_status"]
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          creance_id: string
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          status?: Database["public"]["Enums"]["payment_link_status"]
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          creance_id?: string
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          status?: Database["public"]["Enums"]["payment_link_status"]
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_link_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prestataire: {
         Row: {
           created_at: string
@@ -497,6 +548,24 @@ export type Database = {
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
           user_id: string
@@ -510,6 +579,24 @@ export type Database = {
           platform_fee_basis_points?: number
           pricing_version?: string
           profil_agent_defaut?: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_connect_attempts?: number
+          stripe_connect_idempotency_key?: string | null
+          stripe_connect_last_error_code?: string | null
+          stripe_connect_lease_expires_at?: string | null
+          stripe_connect_operation_key?: string | null
+          stripe_connect_provisioning_status?: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at?: string | null
+          stripe_details_submitted?: boolean
+          stripe_disabled_reason?: string | null
+          stripe_onboarding_status?: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled?: boolean
+          stripe_requirements_currently_due?: Json
+          stripe_requirements_past_due?: Json
+          stripe_requirements_pending_verification?: Json
+          stripe_sepa_debit_payments_status?: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
           user_id: string
@@ -523,6 +610,24 @@ export type Database = {
           platform_fee_basis_points?: number
           pricing_version?: string
           profil_agent_defaut?: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_connect_attempts?: number
+          stripe_connect_idempotency_key?: string | null
+          stripe_connect_last_error_code?: string | null
+          stripe_connect_lease_expires_at?: string | null
+          stripe_connect_operation_key?: string | null
+          stripe_connect_provisioning_status?: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at?: string | null
+          stripe_details_submitted?: boolean
+          stripe_disabled_reason?: string | null
+          stripe_onboarding_status?: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled?: boolean
+          stripe_requirements_currently_due?: Json
+          stripe_requirements_past_due?: Json
+          stripe_requirements_pending_verification?: Json
+          stripe_sepa_debit_payments_status?: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
           user_id?: string
@@ -532,17 +637,41 @@ export type Database = {
       processed_webhook_event: {
         Row: {
           id: string
-          processed_at: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string | null
+          processed_at: string | null
+          processing_attempts: number
+          processing_status: Database["public"]["Enums"]["webhook_processing_status"]
+          received_at: string
+          stripe_connected_account_id: string | null
           type: string
         }
         Insert: {
           id: string
-          processed_at?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string | null
+          processed_at?: string | null
+          processing_attempts?: number
+          processing_status?: Database["public"]["Enums"]["webhook_processing_status"]
+          received_at?: string
+          stripe_connected_account_id?: string | null
           type: string
         }
         Update: {
           id?: string
-          processed_at?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string | null
+          processed_at?: string | null
+          processing_attempts?: number
+          processing_status?: Database["public"]["Enums"]["webhook_processing_status"]
+          received_at?: string
+          stripe_connected_account_id?: string | null
           type?: string
         }
         Relationships: []
@@ -598,6 +727,119 @@ export type Database = {
           },
         ]
       }
+      stripe_connect_audit_outbox: {
+        Row: {
+          action: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          operation_key: string
+          prestataire_id: string
+          status: Database["public"]["Enums"]["stripe_connect_audit_outbox_status"]
+          stripe_account_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          operation_key: string
+          prestataire_id: string
+          status?: Database["public"]["Enums"]["stripe_connect_audit_outbox_status"]
+          stripe_account_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          operation_key?: string
+          prestataire_id?: string
+          status?: Database["public"]["Enums"]["stripe_connect_audit_outbox_status"]
+          stripe_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_connect_audit_outbox_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_customer_binding: {
+        Row: {
+          client_payeur_id: string
+          created_at: string
+          id: string
+          prestataire_id: string
+          status: Database["public"]["Enums"]["stripe_customer_binding_status"]
+          stripe_account_id: string
+          stripe_customer_id: string
+          superseded_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_payeur_id: string
+          created_at?: string
+          id?: string
+          prestataire_id: string
+          status?: Database["public"]["Enums"]["stripe_customer_binding_status"]
+          stripe_account_id: string
+          stripe_customer_id: string
+          superseded_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_payeur_id?: string
+          created_at?: string
+          id?: string
+          prestataire_id?: string
+          status?: Database["public"]["Enums"]["stripe_customer_binding_status"]
+          stripe_account_id?: string
+          stripe_customer_id?: string
+          superseded_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customer_binding_client_payeur_id_fkey"
+            columns: ["client_payeur_id"]
+            isOneToOne: false
+            referencedRelation: "client_payeur"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_customer_binding_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_webhook_effect: {
+        Row: {
+          applied_at: string
+          effect_type: string
+          stripe_event_id: string
+          stripe_object_id: string
+        }
+        Insert: {
+          applied_at?: string
+          effect_type: string
+          stripe_event_id: string
+          stripe_object_id: string
+        }
+        Update: {
+          applied_at?: string
+          effect_type?: string
+          stripe_event_id?: string
+          stripe_object_id?: string
+        }
+        Relationships: []
+      }
       tentative_paiement: {
         Row: {
           creance_id: string
@@ -609,6 +851,7 @@ export type Database = {
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
           source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
         }
         Insert: {
@@ -621,6 +864,7 @@ export type Database = {
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
           source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
         }
         Update: {
@@ -633,6 +877,7 @@ export type Database = {
           montant?: number
           moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"]
           source?: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
         }
         Relationships: [
@@ -650,6 +895,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_account_updated_projection: {
+        Args: {
+          p_charges_enabled: boolean
+          p_currently_due: Json
+          p_details_submitted: boolean
+          p_disabled_reason: string
+          p_lease_token: string
+          p_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          p_past_due: Json
+          p_payouts_enabled: boolean
+          p_pending_verification: Json
+          p_prestataire_id: string
+          p_processing_attempt: number
+          p_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          p_stripe_account_id: string
+          p_stripe_event_id: string
+          p_stripe_object_id: string
+        }
+        Returns: Json
+      }
       archive_current_client_payeur: {
         Args: { p_id: string }
         Returns: {
@@ -684,6 +949,7 @@ export type Database = {
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
+          ready_for_collection_at: string | null
           reference_externe: string | null
           updated_at: string
         }
@@ -695,6 +961,101 @@ export type Database = {
         }
       }
       canonicalize_email: { Args: { p_email: string }; Returns: string }
+      claim_current_prestataire_connect_provisioning: {
+        Args: { p_lease_seconds?: number }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      claim_stripe_webhook_event: {
+        Args: {
+          p_event_id: string
+          p_lease_seconds?: number
+          p_max_attempts?: number
+          p_stripe_connected_account_id?: string
+          p_type: string
+        }
+        Returns: Json
+      }
+      complete_prestataire_connect_provisioning: {
+        Args: {
+          p_audit_action: string
+          p_operation_key: string
+          p_prestataire_id: string
+          p_stripe_account_id: string
+        }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_current_client_payeur: {
         Args: { p_creation_key: string; p_email: string; p_nom: string }
         Returns: {
@@ -737,12 +1098,31 @@ export type Database = {
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
+          ready_for_collection_at: string | null
           reference_externe: string | null
           updated_at: string
         }
         SetofOptions: {
           from: "*"
           to: "creance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_payment_link_for_creance: {
+        Args: { p_creance_id: string; p_token_hash: string }
+        Returns: {
+          creance_id: string
+          created_at: string
+          id: string
+          revoked_at: string | null
+          status: Database["public"]["Enums"]["payment_link_status"]
+          token_hash: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_link"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -759,6 +1139,24 @@ export type Database = {
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
           user_id: string
@@ -770,13 +1168,249 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fail_prestataire_connect_provisioning: {
+        Args: {
+          p_error_code: string
+          p_operation_key: string
+          p_prestataire_id: string
+          p_retryable: boolean
+        }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      flush_stripe_connect_audit_outbox: {
+        Args: { p_operation_key: string; p_prestataire_id: string }
+        Returns: {
+          action: string
+          created_at: string
+          delivered_at: string | null
+          id: string
+          operation_key: string
+          prestataire_id: string
+          status: Database["public"]["Enums"]["stripe_connect_audit_outbox_status"]
+          stripe_account_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stripe_connect_audit_outbox"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mark_creance_ready_for_collection: {
+        Args: { p_creance_id: string }
+        Returns: {
+          archived_at: string | null
+          client_payeur_id: string
+          created_at: string
+          creation_key: string
+          date_echeance: string
+          devise: string
+          etat: Database["public"]["Enums"]["creance_etat"]
+          id: string
+          libelle: string | null
+          montant: number
+          origine: Database["public"]["Enums"]["creance_origine"]
+          prestataire_id: string
+          ready_for_collection_at: string | null
+          reference_externe: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "creance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      mark_stripe_webhook_event_status: {
+        Args: {
+          p_attempt: number
+          p_error_code?: string
+          p_event_id: string
+          p_lease_token: string
+          p_retry_delay_seconds?: number
+          p_status: Database["public"]["Enums"]["webhook_processing_status"]
+        }
+        Returns: {
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string | null
+          processed_at: string | null
+          processing_attempts: number
+          processing_status: Database["public"]["Enums"]["webhook_processing_status"]
+          received_at: string
+          stripe_connected_account_id: string | null
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "processed_webhook_event"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       normalize_creance_devise: { Args: { p_devise: string }; Returns: string }
       normalize_creance_montant: {
         Args: { p_montant: number }
         Returns: number
       }
       normalize_person_name: { Args: { p_nom: string }; Returns: string }
+      renew_stripe_webhook_event_lease: {
+        Args: {
+          p_attempt: number
+          p_event_id: string
+          p_lease_seconds?: number
+          p_lease_token: string
+        }
+        Returns: {
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string | null
+          processed_at: string | null
+          processing_attempts: number
+          processing_status: Database["public"]["Enums"]["webhook_processing_status"]
+          received_at: string
+          stripe_connected_account_id: string | null
+          type: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "processed_webhook_event"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      replace_verified_stripe_customer_binding: {
+        Args: {
+          p_client_payeur_id: string
+          p_prestataire_id: string
+          p_sidian_environment: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+        }
+        Returns: {
+          client_payeur_id: string
+          created_at: string
+          id: string
+          prestataire_id: string
+          status: Database["public"]["Enums"]["stripe_customer_binding_status"]
+          stripe_account_id: string
+          stripe_customer_id: string
+          superseded_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stripe_customer_binding"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       require_current_prestataire_id: { Args: never; Returns: string }
+      revoke_payment_link: {
+        Args: { p_payment_link_id: string }
+        Returns: {
+          creance_id: string
+          created_at: string
+          id: string
+          revoked_at: string | null
+          status: Database["public"]["Enums"]["payment_link_status"]
+          token_hash: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_link"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      revoke_stripe_customer_binding: {
+        Args: { p_client_payeur_id: string; p_prestataire_id: string }
+        Returns: {
+          client_payeur_id: string
+          created_at: string
+          id: string
+          prestataire_id: string
+          status: Database["public"]["Enums"]["stripe_customer_binding_status"]
+          stripe_account_id: string
+          stripe_customer_id: string
+          superseded_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "stripe_customer_binding"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_default_payment_authorization: {
+        Args: { p_authorization_id: string }
+        Returns: {
+          authorization_channel: string | null
+          authorization_text_version: string | null
+          authorized_at: string | null
+          client_payeur_id: string
+          created_at: string
+          etat: Database["public"]["Enums"]["payment_authorization_etat"]
+          id: string
+          is_default: boolean
+          prestataire_id: string
+          revoked_at: string | null
+          stripe_mandate_id: string | null
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_intent_id: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_authorization"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       sidian_assert_rls_enabled: {
         Args: never
         Returns: {
@@ -791,6 +1425,58 @@ export type Database = {
       sidian_table_authenticated_privileges: {
         Args: { p_table: string }
         Returns: Json
+      }
+      sync_prestataire_stripe_projection: {
+        Args: {
+          p_charges_enabled: boolean
+          p_currently_due: Json
+          p_details_submitted: boolean
+          p_disabled_reason: string
+          p_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          p_past_due: Json
+          p_payouts_enabled: boolean
+          p_pending_verification: Json
+          p_prestataire_id: string
+          p_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          p_stripe_account_id: string
+        }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       update_current_client_payeur: {
         Args: { p_email: string; p_id: string; p_nom: string }
@@ -834,6 +1520,7 @@ export type Database = {
           montant: number
           origine: Database["public"]["Enums"]["creance_origine"]
           prestataire_id: string
+          ready_for_collection_at: string | null
           reference_externe: string | null
           updated_at: string
         }
@@ -855,6 +1542,24 @@ export type Database = {
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
           user_id: string
@@ -911,6 +1616,7 @@ export type Database = {
         | "REVOQUEE"
         | "EXPIREE"
       payment_authorization_type: "card_off_session" | "sepa_core_mandate"
+      payment_link_status: "active" | "revoked"
       profil_agent_defaut: "controle" | "delegation"
       regle_origine: "defaut" | "instruction_naturelle"
       regle_parametre:
@@ -923,6 +1629,23 @@ export type Database = {
         | "canaux_autorises"
         | "frequence_max_sollicitation"
         | "horaires_autorises"
+      stripe_capability_status: "inactive" | "pending" | "active"
+      stripe_connect_audit_outbox_status: "pending" | "delivered"
+      stripe_connect_provisioning_status:
+        | "not_started"
+        | "creating"
+        | "created"
+        | "failed_retryable"
+        | "failed_terminal"
+      stripe_customer_binding_status: "active" | "superseded"
+      stripe_onboarding_status:
+        | "non_commence"
+        | "configuration_commencee"
+        | "informations_requises"
+        | "verification_en_cours"
+        | "paiements_actives"
+        | "paiements_indisponibles"
+        | "action_requise"
       subscription_status: "trialing" | "active" | "past_due" | "cancelled"
       tentative_paiement_etat:
         | "CREEE"
@@ -933,6 +1656,13 @@ export type Database = {
         | "ANNULEE"
       tentative_paiement_moyen: "carte" | "sepa_core"
       tentative_paiement_source: "lien_agent" | "prelevement_auto"
+      webhook_processing_status:
+        | "received"
+        | "processing"
+        | "processed"
+        | "failed_retryable"
+        | "failed_terminal"
+        | "ignored"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1115,6 +1845,7 @@ export const Constants = {
         "EXPIREE",
       ],
       payment_authorization_type: ["card_off_session", "sepa_core_mandate"],
+      payment_link_status: ["active", "revoked"],
       profil_agent_defaut: ["controle", "delegation"],
       regle_origine: ["defaut", "instruction_naturelle"],
       regle_parametre: [
@@ -1128,6 +1859,25 @@ export const Constants = {
         "frequence_max_sollicitation",
         "horaires_autorises",
       ],
+      stripe_capability_status: ["inactive", "pending", "active"],
+      stripe_connect_audit_outbox_status: ["pending", "delivered"],
+      stripe_connect_provisioning_status: [
+        "not_started",
+        "creating",
+        "created",
+        "failed_retryable",
+        "failed_terminal",
+      ],
+      stripe_customer_binding_status: ["active", "superseded"],
+      stripe_onboarding_status: [
+        "non_commence",
+        "configuration_commencee",
+        "informations_requises",
+        "verification_en_cours",
+        "paiements_actives",
+        "paiements_indisponibles",
+        "action_requise",
+      ],
       subscription_status: ["trialing", "active", "past_due", "cancelled"],
       tentative_paiement_etat: [
         "CREEE",
@@ -1139,6 +1889,14 @@ export const Constants = {
       ],
       tentative_paiement_moyen: ["carte", "sepa_core"],
       tentative_paiement_source: ["lien_agent", "prelevement_auto"],
+      webhook_processing_status: [
+        "received",
+        "processing",
+        "processed",
+        "failed_retryable",
+        "failed_terminal",
+        "ignored",
+      ],
     },
   },
 } as const

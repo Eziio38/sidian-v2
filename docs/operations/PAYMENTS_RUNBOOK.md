@@ -1,7 +1,7 @@
 # Sidian — Runbook paiements
 
 > Guide opérationnel pour diagnostiquer et réconcilier les paiements.
-> Source de vérité métier : [`docs/SIDIAN_02_PRD_V2.md`](docs/SIDIAN_02_PRD_V2.md) et [`docs/SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md`](docs/SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md)
+> Source de vérité métier : [`SIDIAN_02_PRD_V2.md`](../SIDIAN_02_PRD_V2.md) et [`SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md`](../SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md)
 > Checklist déploiement : [`PRE_DEPLOYMENT_CHECKLIST.md`](./PRE_DEPLOYMENT_CHECKLIST.md)
 >
 > **Ce fichier remplace entièrement la version antérieure**, construite autour de `mission_status`, d'une séquence figée J0/J5/J9/J10 et d'un enrôlement carte obligatoire — modèle abandonné le 14 juillet 2026. Voir `AGENTS.md` pour le contexte du changement.
@@ -74,6 +74,10 @@ Deux types : `card_off_session` et `sepa_core_mandate`. Une seule autorisation `
 | `approval_request` | Demandes d'approbation créées par le registre encadré |
 | `audit_log` | Trace systématique de toute action du registre encadré |
 | `processed_webhook_event` | Déduplication des webhooks Stripe |
+| `stripe_webhook_effect` | Unicité transactionnelle des effets Stripe |
+| `stripe_customer_binding` | Customer Stripe scopé par prestataire/client |
+| `payment_link` | URL opaque active/révoquée |
+| `stripe_connect_audit_outbox` | Audit Connect durable et récupérable |
 
 ---
 
@@ -94,7 +98,7 @@ Deux types : `card_off_session` et `sepa_core_mandate`. Une seule autorisation `
 
 ## 5. Webhooks
 
-**Endpoint Connect :** `POST /api/stripe/connect/webhook`
+**Endpoint Connect :** `POST /api/stripe/webhook`
 **Secret :** `STRIPE_CONNECT_WEBHOOK_SECRET`
 
 Événements minimum à traiter : tentative réussie, tentative échouée, authentification requise, autorisation créée/révoquée, dispute ouverte.
@@ -102,8 +106,10 @@ Deux types : `card_off_session` et `sepa_core_mandate`. Une seule autorisation `
 Chaque événement :
 1. Vérification signature.
 2. `event.account` = compte connecté attendu.
-3. Vérification `processed_webhook_event` (déduplication par `event_id`) avant tout traitement.
-4. Mise à jour de la `tentative_paiement`, puis création du `paiement` si `RÉUSSIE`, puis mise à jour de la `creance`.
+3. Claim atomique avec token de lease et tentative ; toute transition/extension exige les deux.
+4. Erreur classée `retryable`, `terminal` ou `lease_lost`, avec 8 tentatives maximum.
+5. Effet métier transactionnel/idempotent ; `account.updated` relit toujours Stripe live et vérifie le fencing du claim avant toute écriture. La projection peut être rafraîchie sous le claim courant même si le registre d'effet existe ; ne pas reprendre cette règle pour un effet financier.
+6. Mise à jour de la `tentative_paiement`, puis création du `paiement` si `RÉUSSIE`, puis mise à jour de la `creance` (SID-STRIPE-002, non implémenté dans ce lot).
 
 ---
 
@@ -136,7 +142,7 @@ Chaque événement :
 1. Stripe Dashboard → Developers → Events → retrouver l'événement.
 2. Vérifier `event.account` = compte connecté attendu.
 3. **Replay** depuis Stripe (ou `stripe events resend`).
-4. Vérifier `processed_webhook_event` — si déjà présent, pas de double écriture.
+4. Vérifier `processed_webhook_event` et `stripe_webhook_effect` — acquisition terminale et effet métier sont deux garanties distinctes.
 5. Si écart persistant : correction manuelle **uniquement** via SQL service role documenté (dernier recours).
 
 ---
@@ -168,15 +174,30 @@ Chaque événement :
 
 ## 12. Rollback d'urgence
 
-1. Désactiver le flag d'activation des paiements automatiques en production (nom exact du flag à définir en Phase 3, cf. 03 §10 plan d'implémentation).
+1. Poser `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED=false` puis redéployer. Le flag est obligatoire et fail-closed.
 2. Mettre en pause les workers (§4, cf. 03 §7) — en particulier le Scanner de paiements automatiques.
-3. Garder les webhooks **actifs** (pour ne pas perdre d'événements Stripe).
-4. Redéployer la version stable.
-5. Voir la checklist de déploiement pour la procédure complète.
+3. Le webhook Sidian répond alors immédiatement `404` sans lire ni persister l'événement. Stripe retentera : surveiller le backlog avant toute réactivation.
+4. Garder l'endpoint configuré dans Stripe ; ne pas supprimer sa destination ni son secret.
+5. Redéployer la version stable, réactiver seulement après diagnostic, puis résorber les retries Stripe.
+6. Voir la checklist de déploiement pour la procédure complète.
+
+## 13. JWT Customer binding writer
+
+`SUPABASE_STRIPE_BINDING_WRITER_JWT` est un JWT serveur pré-généré, jamais une clé privée. Il porte au minimum `role=stripe_customer_binding_writer`, `sidian_environment=local|staging|production` et une expiration bornée. Le JWT, la clé publishable/anon et l'URL doivent provenir du même projet Supabase.
+
+Procédure manuelle, à exécuter hors logs et hors CI bavarde :
+
+1. Utiliser la clé de signature contrôlée du projet Supabase de l'environnement concerné ; ne jamais copier la clé privée dans Vercel.
+2. Générer le bearer avec `supabase gen bearer-jwt --role stripe_customer_binding_writer --valid-for <durée-bornée> --payload '{"sidian_environment":"<environnement>"}'`.
+3. Poser uniquement le JWT résultant dans la variable Vercel sensible de l'environnement correspondant, puis redéployer.
+4. Valider un binding et les refus `service_role` avant de retirer l'ancien déploiement.
+5. Pour la rotation, générer un nouveau JWT, mettre à jour Vercel, redéployer et vérifier avant l'expiration de l'ancien. En cas de compromission, révoquer/faire tourner la signing key Supabase selon le runbook du projet et redéployer tous les consommateurs.
+
+Local, staging et production utilisent des projets/signing keys distincts. Un JWT staging ne doit jamais être copié dans les variables production.
 
 ---
 
-## 13. Commandes utiles
+## 14. Commandes utiles
 
 **⚠️ Ces commandes reprennent des conventions de l'ancien projet — à vérifier une par une au fil de l'implémentation ; si le script ou la commande n'existe pas encore dans le nouveau repo, le créer plutôt que de supposer qu'il existe.**
 
@@ -189,7 +210,7 @@ pnpm test
 pnpm typecheck
 
 # Écouter webhooks Connect en local
-stripe listen --forward-connect-to localhost:3000/api/stripe/connect/webhook
+stripe listen --forward-connect-to localhost:3000/api/stripe/webhook
 
 # Build
 pnpm build

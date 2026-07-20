@@ -55,6 +55,9 @@ Voir `.env.example` et `docs/operations/PRE_DEPLOYMENT_CHECKLIST.md` §9. **Ne j
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED=false
+SIDIAN_ENVIRONMENT=local
+STRIPE_MODE=test
 STRIPE_SECRET_KEY=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_CONNECT_WEBHOOK_SECRET=
@@ -92,7 +95,7 @@ pnpm test:schema
 pnpm supabase:types
 ```
 
-Le schéma MVP (13 tables) est versionné dans `supabase/migrations/` et testé localement via `pnpm test:schema`.
+Le schéma courant (17 tables, dont les registres techniques Stripe) est versionné dans `supabase/migrations/` et testé localement via `pnpm test:schema`.
 
 ## Tests
 
@@ -124,7 +127,7 @@ Voir `docs/implementation/PHASE_3_AUTH.md` pour le détail de l'onboarding prest
 Voir `docs/operations/PRE_DEPLOYMENT_CHECKLIST.md` — **statut actuel : NO-GO PRODUCTION**, nouveau modèle en cours d'implémentation.
 
 ```bash
-stripe listen --forward-connect-to localhost:3000/api/stripe/connect/webhook
+stripe listen --forward-connect-to localhost:3000/api/stripe/webhook
 ```
 
 ## Règles de sécurité (non négociables)
@@ -138,4 +141,4 @@ Détail complet : `docs/SIDIAN_01_FONDATIONS_V2.md` §4, `docs/SIDIAN_03_ARCHITE
 
 ## État actuel de la reconstruction
 
-Le produit repart d'un modèle entièrement nouveau depuis le 14 juillet 2026 (voir `AGENTS.md`). Le code antérieur à cette date (construit autour de l'enrôlement obligatoire, de la séquence J0/J5/J9/J10 et de `mission_status`) doit être trié selon la méthode définie dans `AGENTS.md` avant réutilisation — ce qui dépend de l'ancien modèle est à réécrire, ce qui est neutre (auth, design system, infra) se garde. Aucune migration du nouveau schéma n'est encore appliquée au moment de la rédaction de ce README.
+Le produit repart d'un modèle entièrement nouveau depuis le 14 juillet 2026 (voir `AGENTS.md`). Le code antérieur à cette date (construit autour de l'enrôlement obligatoire, de la séquence J0/J5/J9/J10 et de `mission_status`) doit être trié selon la méthode définie dans `AGENTS.md` avant réutilisation — ce qui dépend de l'ancien modèle est à réécrire, ce qui est neutre (auth, design system, infra) se garde. Les migrations du nouveau schéma et le socle Stripe Connect sont appliqués et vérifiés localement ; aucun déploiement distant n'est implicite.

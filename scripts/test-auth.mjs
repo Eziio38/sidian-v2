@@ -523,7 +523,7 @@ await runTest("SID-SEC-001 RPC crée prestataire avec valeurs système", async (
     throw new Error("subscription_status non système");
   }
 
-  if (data.pricing_version !== "early_access_49") {
+  if (data.pricing_version !== "early_solo") {
     throw new Error("pricing_version non système");
   }
 
@@ -943,7 +943,7 @@ await runTest("SID-SEC-001 email historique non canonique réconcilié sans écr
       nom: "Nom Historique Custom",
       email: `  ${email.toUpperCase()}  `,
       subscription_status: "active",
-      pricing_version: "legacy_custom_99",
+      pricing_version: "early_solo_plus",
       platform_fee_basis_points: 42,
       profil_agent_defaut: "delegation",
       subscription_started_at: startedAt,
@@ -1002,7 +1002,7 @@ await runTest("SID-SEC-001 email historique non canonique réconcilié sans écr
     throw new Error("subscription_status historique écrasé");
   }
 
-  if (row.pricing_version !== "legacy_custom_99") {
+  if (row.pricing_version !== "early_solo_plus") {
     throw new Error("pricing historique écrasé");
   }
 

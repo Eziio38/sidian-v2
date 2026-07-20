@@ -1,7 +1,7 @@
 # Validation Stripe — mode test
 
 > Plan E2E pré-production. **Ne pas marquer comme terminé sans preuve.**
-> Référence : [`docs/SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md`](docs/SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md)
+> Référence : [`SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md`](../SIDIAN_03_ARCHITECTURE_TECHNIQUE_V2.md)
 >
 > **Ce fichier remplace entièrement la version antérieure**, dont les 10 scénarios étaient calés sur l'ancienne séquence (enrôlement obligatoire, confirmation freelance à J+9, direct charge à J+10). Modèle abandonné le 14 juillet 2026 — voir `AGENTS.md`.
 
@@ -13,10 +13,13 @@
 
 | Prérequis | Statut | Note |
 |---|---|---|
+| `NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED=true` | [ ] | Activation explicite |
+| `SIDIAN_ENVIRONMENT=local` et `STRIPE_MODE=test` | [ ] | Aucun fallback implicite |
 | `STRIPE_SECRET_KEY=sk_test_*` | [ ] | |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_*` | [ ] | |
 | `STRIPE_CONNECT_WEBHOOK_SECRET` configuré | [ ] | Bloque tous les scénarios webhook si absent |
-| Migrations MVP appliquées (13 entités, cf. 03 §1 — `conversation` et `message` comptées séparément) | [ ] | |
+| `SUPABASE_STRIPE_BINDING_WRITER_JWT` local valide | [ ] | Rôle writer + `sidian_environment=local`, aucune clé privée dans l'app |
+| Migrations MVP appliquées (17 tables, dont 4 registres techniques Stripe) | [ ] | |
 | Compte prestataire avec Connect onboardé (`charges_enabled=true`) | [ ] | Onboarding hébergé humain requis |
 | Stripe CLI | [ ] | `brew install stripe/stripe-cli/stripe` |
 | App Next démarrée | [ ] | |
@@ -48,7 +51,7 @@
 |---|---|---|---|---|
 | 1.1 | Prestataire crée un paiement à recevoir (création manuelle) | `creance` en état `OUVERTE` | [ ] | |
 | 1.2 | Vérifier qu'aucune tentative n'est créée automatiquement | 0 `tentative_paiement` à ce stade | [ ] | |
-| 1.3 | Le lien de paiement est-il déjà accessible ? | Lien consultable dès la création, indépendamment de l'envoi actif (cf. PRD §4.2) | [ ] | |
+| 1.3 | Le lien de paiement est-il déjà accessible ? | URL éventuellement préparée, mais ni payable ni partageable avant revérification live du compte Connect (cf. PRD §4.2) | [ ] | |
 
 ---
 
@@ -140,7 +143,11 @@
 
 | Cas | Résultat attendu | Statut | Preuve |
 |---|---|---|---|
-| Webhook rejoué (même `event_id`) | Idempotent via `processed_webhook_event` | [ ] | |
+| Webhook rejoué (même `event_id`) | Claim fenced et effet métier idempotent via `processed_webhook_event` + `stripe_webhook_effect` | [ ] | |
+| Lease A expiré, worker B reprend | A ne peut ni renouveler ni finaliser ; B finalise avec son token | [ ] | `pnpm test:stripe-001` |
+| Effet A après reprise par B | A ne consomme pas la clé ; B applique et peut rafraîchir la projection live | [x] | `pnpm test:stripe-001` — 20/20 |
+| Stripe désactivé | `POST /api/stripe/webhook` retourne `404` sans lire/persister | [x] | Vitest ciblé — 49/49 total ciblé |
+| Huit échecs retryables | Terminalisation `failed_terminal` avec raison normalisée | [ ] | `pnpm test:stripe-001` |
 | Deux tentatives créées quasi simultanément sur la même créance | Pas de double `paiement` pour un même règlement | [ ] | |
 | Webhook reçu avant réponse HTTP de la tentative | État final cohérent | [ ] | |
 
@@ -153,7 +160,7 @@
 pnpm dev
 
 # Terminal 2 — webhooks Connect
-stripe listen --forward-connect-to localhost:3000/api/stripe/connect/webhook
+stripe listen --forward-connect-to localhost:3000/api/stripe/webhook
 
 # Vérifier un PI dans le compte connecté
 stripe payment_intents retrieve pi_xxx --stripe-account acct_xxx

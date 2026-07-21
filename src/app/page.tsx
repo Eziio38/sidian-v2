@@ -1,4 +1,8 @@
+import { getApplicationEnvironment } from "@/config/env-server";
+
 export default function Home() {
+  const environment = getApplicationEnvironment();
+
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16 sm:px-6">
       <section
@@ -24,7 +28,7 @@ export default function Home() {
           </div>
           <div className="flex items-baseline justify-between gap-4">
             <dt className="text-sm text-gris-500">Environnement</dt>
-            <dd className="text-sm font-semibold text-nuit">local</dd>
+            <dd className="text-sm font-semibold text-nuit">{environment}</dd>
           </div>
         </dl>
       </section>

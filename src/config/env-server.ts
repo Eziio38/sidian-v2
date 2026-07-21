@@ -137,7 +137,7 @@ export function getSupabaseServerEnv(): SupabaseServerEnv {
   return parsed.data;
 }
 
-function getApplicationEnvironment(): SidianEnvironment {
+export function getApplicationEnvironment(): SidianEnvironment {
   if (process.env.VERCEL_ENV === "production") return "production";
   if (process.env.VERCEL_ENV === "preview") return "staging";
   return "local";

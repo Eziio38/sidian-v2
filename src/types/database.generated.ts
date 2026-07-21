@@ -1617,6 +1617,10 @@ export type Database = {
         Args: { p_token_hash: string }
         Returns: Json
       }
+      resolve_payment_status_by_checkout_session_id: {
+        Args: { p_checkout_session_id: string }
+        Returns: Json
+      }
       revoke_payment_link: {
         Args: { p_payment_link_id: string }
         Returns: {

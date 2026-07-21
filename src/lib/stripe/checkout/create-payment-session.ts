@@ -45,13 +45,19 @@ type ResolvedLink = {
   prestataire_id?: string;
   client_payeur_id?: string;
   stripe_account_id?: string | null;
+  prestataire_nom?: string | null;
   montant?: number;
   devise?: string;
   remaining?: number;
   creance_etat?: string;
   creance_archived?: boolean;
+  creance_libelle?: string | null;
+  creance_reference_externe?: string | null;
+  creance_date_echeance?: string | null;
   client_email?: string | null;
   client_nom?: string | null;
+  pending_payment?: boolean;
+  pending_moyen?: string | null;
 };
 
 type ClaimResult = {
@@ -81,6 +87,11 @@ export type ResolveLinkDisplayResult =
       montant: number;
       remaining: number;
       clientNom: string | null;
+      prestataireNom: string | null;
+      libelle: string | null;
+      referenceExterne: string | null;
+      dateEcheance: string | null;
+      pendingMoyen: string | null;
     };
 
 /**
@@ -130,18 +141,29 @@ export async function resolvePaymentLinkForDisplay(params: {
   }
 
   const remaining = resolved.remaining ?? 0;
+  const inOpenState =
+    resolved.creance_etat === "OUVERTE" ||
+    resolved.creance_etat === "PARTIELLEMENT_REGLEE";
+  const hasAccount = Boolean(resolved.stripe_account_id);
   const open =
     !resolved.creance_archived &&
-    (resolved.creance_etat === "OUVERTE" ||
-      resolved.creance_etat === "PARTIELLEMENT_REGLEE") &&
-    remaining > 0;
+    inOpenState &&
+    remaining > 0 &&
+    !resolved.pending_payment &&
+    hasAccount;
+  // Ordre de priorité stable : un état plus définitif (archivé, réglé) prime
+  // toujours sur un état transitoire (paiement en cours, compte à configurer).
   const reason = resolved.creance_archived
     ? "archived"
     : remaining <= 0
       ? "settled"
-      : !open
+      : !inOpenState
         ? "not_open"
-        : undefined;
+        : resolved.pending_payment
+          ? "pending_payment"
+          : !hasAccount
+            ? "account_not_configured"
+            : undefined;
 
   return {
     status: "display",
@@ -150,6 +172,11 @@ export async function resolvePaymentLinkForDisplay(params: {
     montant: resolved.montant ?? 0,
     remaining,
     clientNom: resolved.client_nom ?? null,
+    prestataireNom: resolved.prestataire_nom ?? null,
+    libelle: resolved.creance_libelle ?? null,
+    referenceExterne: resolved.creance_reference_externe ?? null,
+    dateEcheance: resolved.creance_date_echeance ?? null,
+    pendingMoyen: resolved.pending_moyen ?? null,
   };
 }
 
@@ -193,6 +220,11 @@ export async function createPaymentCheckoutSession(params: {
   }
   if ((resolved.remaining ?? 0) <= 0) {
     return { status: "not_payable", reason: "already_settled" };
+  }
+  if (resolved.pending_payment) {
+    // Un prélèvement est déjà en traitement pour cette créance : ne jamais
+    // provisionner une seconde Session tant que le premier n'est pas résolu.
+    return { status: "not_payable", reason: "pending_payment" };
   }
   const stripeAccountId = resolved.stripe_account_id;
   if (!stripeAccountId) {

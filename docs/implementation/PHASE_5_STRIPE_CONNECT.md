@@ -38,10 +38,11 @@ Checkout paiement, Setup Session, UI onboarding, lien public client, prélèveme
 
 # SID-STRIPE-002 — Checkout de paiement, effets financiers et lien public
 
-Statut : **SID-STRIPE-002-A et 002-B implémentés et validés localement.** Chemin
-Checkout de **paiement** de bout en bout (socle DB, provisioning, webhooks
-financiers, lien public, UI minimale). Le chemin **autorisation future**
-(Setup Session, `payment_authorization`, prélèvement auto) reste un lot ultérieur.
+Statut : **SID-STRIPE-002-A, 002-B (+ correctifs d'audit) et 002-C implémentés et
+validés localement.** Chemin Checkout de **paiement** de bout en bout (socle DB,
+provisioning, webhooks financiers, lien public, interface minimale prestataire
+et client). Le chemin **autorisation future** (Setup Session,
+`payment_authorization`, prélèvement auto) reste un lot ultérieur.
 
 ## Livré — 002-A (socle, préexistant)
 
@@ -79,6 +80,47 @@ financiers, lien public, UI minimale). Le chemin **autorisation future**
 - Action prestataire `openPaymentReceivableAction` + `PrepareLinkButton`
   (token brut affiché une seule fois).
 
+**Correctifs d'audit 002-B (`20260721170000_sid_stripe_002_b_audit_corrections.sql`)**
+- `apply_eur_payment_intent_succeeded` : entrée EUR explicite, seule RPC de succès
+  exécutable par `service_role` ; un succès Stripe sans tentative résoluble crée
+  une trace d'audit + `approval_request` de rapprochement idempotentes plutôt que
+  d'être acquitté silencieusement.
+- `resolveConnectedAccountPaymentRails` (`connect/retrieve-and-sync.ts`) : revérification
+  live dérive strictement les rails **réellement actifs** (carte, SEPA, les deux, ou
+  aucun) — la Session Checkout n'propose jamais un moyen non actif côté compte connecté.
+
+## Livré — 002-C (ce lot — interface minimale de paiement)
+
+**Migration additive**
+- `20260721180000_sid_stripe_002_c_public_display_and_status.sql` : lecture seule
+  uniquement, aucun invariant financier modifié.
+  - `resolve_payment_link_by_token_hash` enrichi : nom prestataire, libellé,
+    référence externe, échéance, indicateur `pending_payment` (SEPA en traitement).
+  - `resolve_payment_status_by_checkout_session_id` (nouvelle) : statut d'une
+    tentative par identifiant de Session Checkout (capacité opaque Stripe) —
+    aucun identifiant interne exposé — pour la revérification serveur de `/retour`.
+
+**Services serveur**
+- `checkout/resolve-checkout-status.ts` : mappe l'état `tentative_paiement` vers
+  `confirmed` / `processing` / `not_confirmed` / `unknown` pour `/retour`.
+- `connect/readiness.ts` : projection Stripe locale pour affichage prestataire
+  uniquement (jamais une décision financière).
+- `creances/creance-core.ts` : `listPaidAmountsByCreanceIds` (montant réglé par
+  créance, agrégation applicative sur `paiement`, RLS déjà scopée).
+
+**UI**
+- `/p/[token]` : nom prestataire, libellé/référence, échéance, bouton
+  « Régler maintenant », états payable / déjà réglé / paiement en cours / lien
+  invalide / compte indisponible / aucun moyen disponible / erreur temporaire.
+- `/p/retour` : ne conclut jamais du seul query param Stripe — revérifie via
+  `resolveCheckoutReturnStatus` ; bouton « Vérifier à nouveau » (`router.refresh()`,
+  nouveau rendu serveur, jamais une relecture client des query params).
+- `/p/annule` : inchangé (déjà conforme — aucune écriture, retour au lien existant).
+- Prestataire : `ReceivablePaymentSection` (composant réutilisable) — total / réglé /
+  solde / statut / lien copiable / disponibilité Stripe lisible.
+- Routes publiques (`/p/*`) : `noindex`, `no-store`, `Referrer-Policy: no-referrer`
+  déjà posés en amont (`next.config.ts`, `publicPaymentRouteHeaders`).
+
 ## Décisions notables
 
 - **Trop-perçu** : `paiement.montant` = montant reçu (autoritatif Stripe) ; créance
@@ -93,13 +135,18 @@ financiers, lien public, UI minimale). Le chemin **autorisation future**
   jamais de réécriture de `paiement`. Suspension d'autorisation `prelevement_auto` et
   escalade `dossier_suivi` câblées dans leurs lots respectifs (aucune ligne concernée
   n'existe encore).
+- **Paiement en cours (002-C)** : un `EN_TRAITEMENT` non résolu bloque une nouvelle
+  Session (affichage ET création) — jamais de double provisioning pendant qu'un
+  prélèvement SEPA est en traitement.
 
-## Validation locale 002-B
+## Validation locale
 
-- `pnpm test:stripe-002-b` : **16/16** ; suite complète (`pnpm test`) : loopback 54/54,
-  schema 33/33, auth 38/38, prod-001 50/50, stripe-001 20/20, stripe-002-a 12/12,
-  stripe-002-b 16/16, Vitest **85/85**.
-- `pnpm typecheck`, `pnpm lint`, `pnpm build` (contrat désactivé), `git diff --check` : OK.
+- `pnpm test:stripe-002-b` : **18/18** (inclut les correctifs d'audit).
+- `pnpm test:stripe-002-c` : **12/12** (nouveau).
+- Suite complète (`pnpm test`) : loopback 54/54, schema 33/33, auth 38/38,
+  prod-001 50/50, stripe-001 20/20, stripe-002-a 12/12, stripe-002-b 18/18,
+  stripe-002-c 12/12, Vitest.
+- `pnpm typecheck`, `pnpm lint`, `pnpm build` (contrat désactivé) : OK.
 
 ## Réserves
 
@@ -109,4 +156,7 @@ financiers, lien public, UI minimale). Le chemin **autorisation future**
   environnement Stripe test avec compte Connect.
 - **Dérivation du moyen** (`carte`/`sepa_core`) best-effort à partir de l'événement,
   `null` si ambigu (colonne nullable, non structurante financièrement).
+- **SID-STRIPE-002-A** : un test (`purge_expired_public_rate_limits`) reste
+  intermittent (course de timing réelle, pas un défaut fonctionnel) — identifié et
+  documenté séparément comme dette technique, non traité dans ce lot.
 - Chemin **autorisation future** différé (cf. ci-dessus).

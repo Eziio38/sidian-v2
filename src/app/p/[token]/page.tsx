@@ -6,6 +6,7 @@ import { resolvePaymentLinkForDisplay } from "@/lib/stripe/checkout/create-payme
 import { clientIpFromHeaders } from "@/lib/stripe/checkout/client-ip";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { payAction } from "./pay-action";
 import { PayButton } from "./pay-button";
 
 export const runtime = "nodejs";
@@ -18,10 +19,25 @@ function formatMoney(cents: number): string {
   }).format(cents / 100);
 }
 
+function formatDateEcheance(dateEcheance: string | null): string | null {
+  if (!dateEcheance) return null;
+  const parsed = new Date(`${dateEcheance}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
+}
+
 const NOT_PAYABLE_MESSAGES: Record<string, string> = {
   settled: "Ce paiement a déjà été réglé. Merci !",
   not_open: "Ce paiement n’est plus disponible.",
   archived: "Ce paiement n’est plus disponible.",
+  account_not_configured:
+    "Le paiement en ligne n’est pas encore activé pour ce prestataire. Réessayez un peu plus tard.",
+  pending_payment:
+    "Un paiement est déjà en cours de traitement pour ce montant. Vous recevrez une confirmation dès qu’il sera validé.",
 };
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -44,7 +60,7 @@ export default async function PublicPaymentPage({
   }
   const { token } = await params;
   const requestHeaders = await headers();
-  const admin = createAdminClient();
+  const admin = await createAdminClient();
 
   const result = await resolvePaymentLinkForDisplay({
     supabaseAdmin: admin,
@@ -79,19 +95,29 @@ export default async function PublicPaymentPage({
     );
   }
 
+  const label = result.libelle || result.referenceExterne;
+  const echeance = formatDateEcheance(result.dateEcheance);
+
   return (
     <Shell>
       <p className="text-sm font-medium uppercase tracking-wide text-gris-500">
-        Paiement à régler
+        {result.prestataireNom
+          ? `Paiement à régler · ${result.prestataireNom}`
+          : "Paiement à régler"}
       </p>
       <p className="mt-2 text-3xl font-semibold text-gris-900">
         {formatMoney(result.remaining)}
       </p>
-      <p className="mt-1 text-sm text-gris-600">
-        Paiement sécurisé via Stripe. Vous serez redirigé pour finaliser.
+      {label ? <p className="mt-1 text-sm text-gris-600">{label}</p> : null}
+      {echeance ? (
+        <p className="mt-1 text-xs text-gris-500">Échéance : {echeance}</p>
+      ) : null}
+      <p className="mt-3 text-sm text-gris-600">
+        Paiement simplifié et sécurisé. L’argent va directement à{" "}
+        {result.prestataireNom || "votre prestataire"}.
       </p>
       <div className="mt-6">
-        <PayButton token={token} />
+        <PayButton token={token} action={payAction} />
       </div>
     </Shell>
   );

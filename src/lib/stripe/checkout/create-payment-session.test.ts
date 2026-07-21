@@ -281,6 +281,65 @@ describe("createPaymentCheckoutSession", () => {
     expect(result).toEqual({ status: "retry" });
   });
 
+  it("paiement déjà en traitement (SEPA) → not_payable sans appel Stripe live", async () => {
+    const { admin, rpc } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable({ pending_payment: true }),
+        error: null,
+      }),
+    });
+    const result = await createPaymentCheckoutSession({
+      ...base,
+      supabaseAdmin: admin,
+      stripe: makeStripe(),
+    });
+    expect(result).toEqual({ status: "not_payable", reason: "pending_payment" });
+    expect(rpc).not.toHaveBeenCalledWith("claim_checkout_provisioning", expect.anything());
+  });
+
+  it("double clic : deux claims concurrents sur le même lien → un seul aboutit, l'autre patiente", async () => {
+    // Simule deux soumissions quasi simultanées du bouton « Régler maintenant ».
+    // Le navigateur n'est jamais l'arbitre : seul claim_checkout_provisioning
+    // (sérialisé par créance, cf. 002-B) décide qui obtient la Session.
+    let claimCount = 0;
+    const { admin, rpc } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+      claim_checkout_provisioning: () => {
+        claimCount += 1;
+        if (claimCount === 1) {
+          return {
+            data: {
+              status: "claimed",
+              tentative_id: "t1",
+              montant: 12000,
+              idempotency_key: "sidian_checkout_x",
+              lease_token: "lease-1",
+            },
+            error: null,
+          };
+        }
+        return { data: { status: "in_progress" }, error: null };
+      },
+      complete_checkout_provisioning: () => ({ data: {}, error: null }),
+    });
+    const stripe = makeStripe();
+
+    const [first, second] = await Promise.all([
+      createPaymentCheckoutSession({ ...base, supabaseAdmin: admin, stripe }),
+      createPaymentCheckoutSession({ ...base, supabaseAdmin: admin, stripe }),
+    ]);
+
+    const outcomes = [first, second].map((r) => r.status).sort();
+    expect(outcomes).toEqual(["ready", "retry"]);
+    expect(
+      (stripe as { checkout: { sessions: { create: ReturnType<typeof vi.fn> } } }).checkout
+        .sessions.create,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      rpc.mock.calls.filter((call) => call[0] === "claim_checkout_provisioning"),
+    ).toHaveLength(2);
+  });
+
   it("échec Stripe pendant la création → fail_checkout_provisioning puis propagation", async () => {
     const failRpc = vi.fn(() => ({ data: {}, error: null }));
     const { admin, rpc } = makeAdmin({
@@ -334,6 +393,32 @@ describe("resolvePaymentLinkForDisplay", () => {
     );
   });
 
+  it("expose les champs d'affichage public (nom prestataire, libellé, référence, échéance)", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable({
+          prestataire_nom: "Agence Exemple",
+          creance_libelle: "Mission juillet",
+          creance_reference_externe: "FA-2026-042",
+          creance_date_echeance: "2026-08-01",
+        }),
+        error: null,
+      }),
+    });
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+    expect(result).toMatchObject({
+      status: "display",
+      prestataireNom: "Agence Exemple",
+      libelle: "Mission juillet",
+      referenceExterne: "FA-2026-042",
+      dateEcheance: "2026-08-01",
+    });
+  });
+
   it("créance déjà réglée → display non payable (settled)", async () => {
     const { admin } = makeAdmin({
       resolve_payment_link_by_token_hash: () => ({
@@ -347,6 +432,72 @@ describe("resolvePaymentLinkForDisplay", () => {
       clientIp: "203.0.113.1",
     });
     expect(result).toMatchObject({ status: "display", payable: false, reason: "settled" });
+  });
+
+  it("solde nul sans créance terminale → display non payable (settled)", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable({ remaining: 0 }),
+        error: null,
+      }),
+    });
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+    expect(result).toMatchObject({ status: "display", payable: false, reason: "settled" });
+  });
+
+  it("compte Stripe non configuré → display non payable (account_not_configured)", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable({ stripe_account_id: null }),
+        error: null,
+      }),
+    });
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+    expect(result).toMatchObject({
+      status: "display",
+      payable: false,
+      reason: "account_not_configured",
+    });
+  });
+
+  it("paiement en cours (SEPA) → display non payable (pending_payment), moyen exposé", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable({ pending_payment: true, pending_moyen: "sepa_core" }),
+        error: null,
+      }),
+    });
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+    expect(result).toMatchObject({
+      status: "display",
+      payable: false,
+      reason: "pending_payment",
+      pendingMoyen: "sepa_core",
+    });
+  });
+
+  it("lien invalide (jamais émis) → not_found", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: { found: false }, error: null }),
+    });
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+    expect(result).toEqual({ status: "not_found" });
   });
 
   it("quota d'ouverture dépassé → rate_limited link_resolution_ip", async () => {

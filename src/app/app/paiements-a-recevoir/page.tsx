@@ -6,11 +6,12 @@ import {
 import { AppShell } from "@/components/app/app-shell";
 import { ArchiveButton } from "@/components/app/client-forms";
 import { CreanceForm } from "@/components/app/creance-forms";
-import { PrepareLinkButton } from "@/components/app/prepare-link-button";
+import { ReceivablePaymentSection } from "@/components/app/receivable-payment-section";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
-import { listActiveCreances } from "@/lib/creances/creance";
+import { listActiveCreances, listPaidAmountsByCreanceIds } from "@/lib/creances/creance";
+import { getPrestataireStripeReadiness } from "@/lib/stripe/connect/readiness";
 import { createClient } from "@/lib/supabase/server";
 
 function centsToEurosInput(cents: number): string {
@@ -27,10 +28,11 @@ function formatMoney(cents: number, devise: string): string {
 export default async function PaiementsARecevoirPage() {
   const user = await requireConfirmedUser();
   const supabase = await createClient();
-  await ensurePrestataireForUser(supabase, user);
+  const prestataire = await ensurePrestataireForUser(supabase, user);
 
   let clients: Awaited<ReturnType<typeof listActiveClientPayeurs>> = [];
   let creances: Awaited<ReturnType<typeof listActiveCreances>> = [];
+  let paidByCreance = new Map<string, number>();
   let loadError: string | null = null;
 
   try {
@@ -38,9 +40,18 @@ export default async function PaiementsARecevoirPage() {
       listActiveClientPayeurs(supabase),
       listActiveCreances(supabase),
     ]);
+    paidByCreance = await listPaidAmountsByCreanceIds(
+      supabase,
+      creances.map((c) => c.id),
+    );
   } catch {
     loadError = "Impossible de charger les paiements à recevoir pour le moment.";
   }
+
+  const stripeReadiness = await getPrestataireStripeReadiness(
+    supabase,
+    prestataire.id,
+  );
 
   const clientNameById = new Map(clients.map((c) => [c.id, c.nom]));
 
@@ -86,12 +97,11 @@ export default async function PaiementsARecevoirPage() {
                         · {formatMoney(creance.montant, creance.devise)} ·
                         échéance {creance.date_echeance}
                       </p>
-                      <p className="mt-1 text-xs uppercase tracking-wide text-gris-500">
-                        {creance.etat}
-                        {creance.reference_externe
-                          ? ` · réf. ${creance.reference_externe}`
-                          : ""}
-                      </p>
+                      {creance.reference_externe ? (
+                        <p className="mt-1 text-xs text-gris-500">
+                          Réf. {creance.reference_externe}
+                        </p>
+                      ) : null}
                     </div>
                     <ArchiveButton
                       action={archiveCreanceAction}
@@ -122,11 +132,16 @@ export default async function PaiementsARecevoirPage() {
                       Seuls les brouillons sont modifiables ici.
                     </p>
                   )}
-                  {creance.etat === "BROUILLON" || creance.etat === "OUVERTE" ? (
-                    <div className="border-t border-gris-100 pt-4">
-                      <PrepareLinkButton creanceId={creance.id} />
-                    </div>
-                  ) : null}
+                  <div className="border-t border-gris-100 pt-4">
+                    <ReceivablePaymentSection
+                      creanceId={creance.id}
+                      etat={creance.etat}
+                      montantTotalCents={creance.montant}
+                      montantRegleCents={paidByCreance.get(creance.id) ?? 0}
+                      devise={creance.devise}
+                      stripeReadiness={stripeReadiness}
+                    />
+                  </div>
                 </li>
               );
             })}

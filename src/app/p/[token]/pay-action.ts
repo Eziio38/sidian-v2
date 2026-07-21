@@ -11,6 +11,7 @@ import { clientIpFromHeaders } from "@/lib/stripe/checkout/client-ip";
 
 export type PayActionState = {
   status: "not_payable" | "rate_limited" | "retry" | "not_found" | "error";
+  reason?: string;
 } | null;
 
 /**
@@ -27,7 +28,7 @@ export async function payAction(
   }
   const token = String(formData.get("token") ?? "");
   const requestHeaders = await headers();
-  const admin = createAdminClient();
+  const admin = await createAdminClient();
 
   let result;
   try {
@@ -46,5 +47,8 @@ export async function payAction(
   if (result.status === "ready") {
     redirect(result.url);
   }
-  return { status: result.status };
+  return {
+    status: result.status,
+    reason: "reason" in result ? result.reason : undefined,
+  };
 }

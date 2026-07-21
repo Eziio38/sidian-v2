@@ -10,6 +10,7 @@ export type PrestataireStripeReadiness = {
   configured: boolean;
   chargesEnabled: boolean;
   onboardingStatus: Database["public"]["Enums"]["stripe_onboarding_status"] | null;
+  sepaDebitPaymentsStatus?: Database["public"]["Enums"]["stripe_capability_status"];
 };
 
 /**
@@ -23,7 +24,9 @@ export async function getPrestataireStripeReadiness(
 ): Promise<PrestataireStripeReadiness> {
   const { data, error } = await supabase
     .from("prestataire")
-    .select("stripe_account_id, stripe_charges_enabled, stripe_onboarding_status")
+    .select(
+      "stripe_account_id, stripe_charges_enabled, stripe_onboarding_status, stripe_sepa_debit_payments_status",
+    )
     .eq("id", prestataireId)
     .maybeSingle();
 
@@ -35,5 +38,7 @@ export async function getPrestataireStripeReadiness(
     configured: Boolean(data?.stripe_account_id),
     chargesEnabled: Boolean(data?.stripe_charges_enabled),
     onboardingStatus: data?.stripe_onboarding_status ?? null,
+    sepaDebitPaymentsStatus:
+      data?.stripe_sepa_debit_payments_status ?? "inactive",
   };
 }

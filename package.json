@@ -17,6 +17,9 @@
     "test:schema": "node scripts/test-local-supabase-guard.mjs && node scripts/test-schema-rls.mjs",
     "test:auth": "node scripts/test-local-supabase-guard.mjs && node --experimental-strip-types scripts/test-auth.mjs",
     "test:prod-001": "node scripts/test-local-supabase-guard.mjs && node --experimental-strip-types scripts/test-prod-001.mjs",
+    "test:prod-002": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-002.mjs",
+    "test:prod-002-p1": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-002-p1-state-guards.mjs",
+    "test:prod-003": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-003.mjs",
     "test:stripe-001": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-001.mjs",
     "test:stripe-002-a": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-a.mjs",
     "test:stripe-002-b": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-b.mjs",
@@ -26,7 +29,7 @@
     "test:security-environment": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-sec-environment.mjs",
     "test:local-guard": "node scripts/test-local-supabase-guard.mjs",
     "test:forms": "vitest run",
-    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
+    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:prod-002 && pnpm test:prod-002-p1 && pnpm test:prod-003 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

@@ -545,6 +545,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -576,6 +577,7 @@ export type Database = {
           email: string
           id?: string
           nom: string
+          onboarding_profile_completed_at?: string | null
           platform_fee_basis_points?: number
           pricing_version?: string
           profil_agent_defaut?: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -607,6 +609,7 @@ export type Database = {
           email?: string
           id?: string
           nom?: string
+          onboarding_profile_completed_at?: string | null
           platform_fee_basis_points?: number
           pricing_version?: string
           profil_agent_defaut?: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1112,6 +1115,10 @@ export type Database = {
         Returns: undefined
       }
       attest_sidian_environment: { Args: never; Returns: Json }
+      cancel_current_payment_receivable: {
+        Args: { p_creance_id: string }
+        Returns: Json
+      }
       canonicalize_email: { Args: { p_email: string }; Returns: string }
       claim_checkout_provisioning: {
         Args: {
@@ -1132,6 +1139,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1230,6 +1238,51 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
+          platform_fee_basis_points: number
+          pricing_version: string
+          profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
+          stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_connect_attempts: number
+          stripe_connect_idempotency_key: string | null
+          stripe_connect_last_error_code: string | null
+          stripe_connect_lease_expires_at: string | null
+          stripe_connect_operation_key: string | null
+          stripe_connect_provisioning_status: Database["public"]["Enums"]["stripe_connect_provisioning_status"]
+          stripe_connect_provisioning_updated_at: string | null
+          stripe_details_submitted: boolean
+          stripe_disabled_reason: string | null
+          stripe_onboarding_status: Database["public"]["Enums"]["stripe_onboarding_status"]
+          stripe_payouts_enabled: boolean
+          stripe_requirements_currently_due: Json
+          stripe_requirements_past_due: Json
+          stripe_requirements_pending_verification: Json
+          stripe_sepa_debit_payments_status: Database["public"]["Enums"]["stripe_capability_status"]
+          stripe_status_synced_at: string | null
+          subscription_started_at: string | null
+          subscription_status: Database["public"]["Enums"]["subscription_status"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "prestataire"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      configure_current_prestataire_profile: {
+        Args: {
+          p_nom: string
+          p_profil_agent: Database["public"]["Enums"]["profil_agent_defaut"]
+        }
+        Returns: {
+          created_at: string
+          early_access_price_locked_until: string | null
+          email: string
+          id: string
+          nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1349,6 +1402,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_current_dossier_suivi: {
+        Args: { p_creance_id: string }
+        Returns: {
+          clos_at: string | null
+          creance_id: string
+          created_at: string
+          escalation_reason: string | null
+          etat: Database["public"]["Enums"]["dossier_suivi_etat"]
+          id: string
+          last_agent_action_at: string | null
+          last_client_activity_at: string | null
+          next_action_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "dossier_suivi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ensure_prestataire_for_current_user: {
         Args: { p_nom: string }
         Returns: {
@@ -1357,6 +1431,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1441,6 +1516,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1491,6 +1567,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      is_dossier_suivi_transition_allowed: {
+        Args: {
+          p_creance_etat: Database["public"]["Enums"]["creance_etat"]
+          p_from: Database["public"]["Enums"]["dossier_suivi_etat"]
+          p_to: Database["public"]["Enums"]["dossier_suivi_etat"]
+        }
+        Returns: boolean
       }
       mark_stripe_webhook_event_status: {
         Args: {
@@ -1748,6 +1832,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]
@@ -1833,6 +1918,32 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      update_current_dossier_suivi: {
+        Args: {
+          p_creance_id: string
+          p_escalation_reason: string
+          p_next_action_at: string
+          p_target_state: Database["public"]["Enums"]["dossier_suivi_etat"]
+        }
+        Returns: {
+          clos_at: string | null
+          creance_id: string
+          created_at: string
+          escalation_reason: string | null
+          etat: Database["public"]["Enums"]["dossier_suivi_etat"]
+          id: string
+          last_agent_action_at: string | null
+          last_client_activity_at: string | null
+          next_action_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "dossier_suivi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_current_prestataire_name: {
         Args: { p_nom: string }
         Returns: {
@@ -1841,6 +1952,7 @@ export type Database = {
           email: string
           id: string
           nom: string
+          onboarding_profile_completed_at: string | null
           platform_fee_basis_points: number
           pricing_version: string
           profil_agent_defaut: Database["public"]["Enums"]["profil_agent_defaut"]

@@ -3,6 +3,7 @@ import {
   createCreanceAction,
   updateCreanceDraftAction,
 } from "@/app/actions/clients-creances";
+import Link from "next/link";
 import { AppShell } from "@/components/app/app-shell";
 import { ArchiveButton } from "@/components/app/client-forms";
 import { CreanceForm } from "@/components/app/creance-forms";
@@ -11,6 +12,7 @@ import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
 import { listActiveCreances, listPaidAmountsByCreanceIds } from "@/lib/creances/creance";
+import { canArchiveReceivable } from "@/lib/receivables/archive-policy";
 import { getPrestataireStripeReadiness } from "@/lib/stripe/connect/readiness";
 import { createClient } from "@/lib/supabase/server";
 
@@ -88,9 +90,12 @@ export default async function PaiementsARecevoirPage() {
                 >
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="font-medium text-nuit">
+                      <Link
+                        href={`/app/paiements-a-recevoir/${creance.id}`}
+                        className="font-medium text-nuit underline-offset-4 hover:text-sidian-blue hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-sidian-blue"
+                      >
                         {creance.libelle || "Sans libellé"}
-                      </p>
+                      </Link>
                       <p className="mt-1 text-sm text-gris-500">
                         {clientNameById.get(creance.client_payeur_id) ??
                           "Client"}{" "}
@@ -103,11 +108,13 @@ export default async function PaiementsARecevoirPage() {
                         </p>
                       ) : null}
                     </div>
-                    <ArchiveButton
-                      action={archiveCreanceAction}
-                      id={creance.id}
-                      label="Archiver"
-                    />
+                    {canArchiveReceivable(creance.etat) ? (
+                      <ArchiveButton
+                        action={archiveCreanceAction}
+                        id={creance.id}
+                        label="Archiver"
+                      />
+                    ) : null}
                   </div>
                   {isDraft ? (
                     <CreanceForm

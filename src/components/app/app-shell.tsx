@@ -1,12 +1,5 @@
-import Link from "next/link";
-
+import { AppNavigation } from "@/components/app/app-navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-
-const NAV = [
-  { href: "/app", label: "Accueil" },
-  { href: "/app/clients", label: "Clients" },
-  { href: "/app/paiements-a-recevoir", label: "Paiements à recevoir" },
-] as const;
 
 type AppShellProps = {
   title: string;
@@ -22,47 +15,60 @@ export function AppShell({
   actions,
 }: AppShellProps) {
   return (
-    <div className="min-h-full bg-gris-50">
-      <header className="border-b border-gris-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-sidian-blue">
-              Sidian
-            </p>
-            <nav className="mt-2 flex flex-wrap gap-3 text-sm">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-gris-500 transition-colors hover:text-nuit"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <div className="max-w-xs">
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-dvh bg-gris-50 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <a
+        href="#contenu-principal"
+        className="sr-only z-50 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-nuit focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:outline focus:outline-2 focus:outline-sidian-blue"
+      >
+        Aller au contenu principal
+      </a>
 
-      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-nuit">
-              {title}
-            </h1>
-            {description ? (
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gris-500">
-                {description}
-              </p>
-            ) : null}
-          </div>
-          {actions}
+      <aside className="hidden min-h-dvh border-r border-gris-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
+        <div className="px-5 py-6">
+          <p className="text-lg font-semibold tracking-tight text-nuit">Sidian</p>
+          <p className="mt-1 text-xs text-gris-500">Suivi des règlements</p>
         </div>
-        <div className="mt-8">{children}</div>
-      </main>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3">
+          <AppNavigation />
+        </div>
+        <div className="border-t border-gris-100 p-4">
+          <SignOutButton />
+        </div>
+      </aside>
+
+      <div className="min-w-0">
+        <header className="border-b border-gris-200 bg-white lg:hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="font-semibold tracking-tight text-nuit">Sidian</p>
+            <div className="w-36">
+              <SignOutButton />
+            </div>
+          </div>
+          <div className="overflow-x-auto px-3 pb-3">
+            <AppNavigation compact />
+          </div>
+        </header>
+
+        <main
+          id="contenu-principal"
+          className="mx-auto w-full max-w-[90rem] px-4 py-8 sm:px-6 lg:px-8 lg:py-10"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-balance text-3xl font-semibold tracking-[-0.03em] text-nuit">
+                {title}
+              </h1>
+              {description ? (
+                <p className="mt-2 max-w-[70ch] text-pretty text-sm leading-relaxed text-gris-500">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            {actions ? <div className="shrink-0">{actions}</div> : null}
+          </div>
+          <div className="mt-6">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

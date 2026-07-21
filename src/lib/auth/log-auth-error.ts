@@ -2,6 +2,8 @@ import "server-only";
 
 import type { AuthError } from "@supabase/supabase-js";
 
+import { logServerEvent } from "@/lib/observability/server-logger";
+
 type AuthErrorLike = Pick<AuthError, "code" | "status" | "message" | "name">;
 
 export function logSupabaseAuthError(
@@ -9,15 +11,12 @@ export function logSupabaseAuthError(
   error: AuthErrorLike,
   context?: Record<string, string | number | boolean | null | undefined>,
 ): void {
-  console.error(
-    `[auth:${operation}]`,
-    JSON.stringify({
-      code: error.code ?? error.name ?? "unknown",
-      status: error.status ?? null,
-      message: error.message,
-      ...context,
-    }),
-  );
+  logServerEvent("error", "auth.supabase_error", {
+    operation,
+    errorCode: error.code ?? error.name ?? "unknown",
+    status: error.status ?? null,
+    ...context,
+  });
 }
 
 export function logSignUpInputPresence(formData: FormData): void {
@@ -25,16 +24,13 @@ export function logSignUpInputPresence(formData: FormData): void {
     return;
   }
 
-  console.error(
-    "[auth:signUp:input]",
-    JSON.stringify({
-      hasDisplayName: Boolean(formData.get("displayName")),
-      hasAgencyName: Boolean(formData.get("agencyName")),
-      hasEmail: Boolean(formData.get("email")),
-      hasPassword: Boolean(formData.get("password")),
-      hasPasswordConfirm: Boolean(formData.get("passwordConfirm")),
-      acceptCgu: formData.get("acceptCgu") === "on",
-      acceptPrivacy: formData.get("acceptPrivacy") === "on",
-    }),
-  );
+  logServerEvent("info", "auth.signup_input_presence", {
+    hasDisplayName: Boolean(formData.get("displayName")),
+    hasAgencyName: Boolean(formData.get("agencyName")),
+    hasEmail: Boolean(formData.get("email")),
+    hasPassword: Boolean(formData.get("password")),
+    hasPasswordConfirm: Boolean(formData.get("passwordConfirm")),
+    acceptCgu: formData.get("acceptCgu") === "on",
+    acceptPrivacy: formData.get("acceptPrivacy") === "on",
+  });
 }

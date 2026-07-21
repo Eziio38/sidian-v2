@@ -1111,6 +1111,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      attest_sidian_environment: { Args: never; Returns: Json }
       canonicalize_email: { Args: { p_email: string }; Returns: string }
       claim_checkout_provisioning: {
         Args: {
@@ -1322,6 +1323,32 @@ export type Database = {
         }
       }
       current_prestataire_id: { Args: never; Returns: string }
+      decide_current_approval_request: {
+        Args: {
+          p_approval_request_id: string
+          p_decision: Database["public"]["Enums"]["approval_request_status"]
+        }
+        Returns: {
+          approved_by: string | null
+          creance_id: string | null
+          created_at: string
+          decided_at: string | null
+          expires_at: string | null
+          id: string
+          payload: Json
+          prestataire_id: string
+          requested_by_actor_type: Database["public"]["Enums"]["actor_type"]
+          requested_by_provider: string | null
+          status: Database["public"]["Enums"]["approval_request_status"]
+          type: Database["public"]["Enums"]["approval_request_type"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "approval_request"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       ensure_prestataire_for_current_user: {
         Args: { p_nom: string }
         Returns: {
@@ -1659,6 +1686,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      service_role_healthcheck: { Args: never; Returns: boolean }
       set_default_payment_authorization: {
         Args: { p_authorization_id: string }
         Returns: {
@@ -1897,6 +1925,17 @@ export type Database = {
         | "link_resolution_token"
         | "checkout_creation_ip"
         | "checkout_new_operation_link"
+        | "auth_signup_ip"
+        | "auth_signup_email"
+        | "auth_signin_ip"
+        | "auth_signin_email"
+        | "auth_password_reset_ip"
+        | "auth_password_reset_email"
+        | "auth_password_update_ip"
+        | "auth_password_update_user"
+        | "auth_callback_ip"
+        | "auth_callback_code"
+        | "stripe_webhook_ip"
       regle_origine: "defaut" | "instruction_naturelle"
       regle_parametre:
         | "delai_grace"
@@ -2137,6 +2176,17 @@ export const Constants = {
         "link_resolution_token",
         "checkout_creation_ip",
         "checkout_new_operation_link",
+        "auth_signup_ip",
+        "auth_signup_email",
+        "auth_signin_ip",
+        "auth_signin_email",
+        "auth_password_reset_ip",
+        "auth_password_reset_email",
+        "auth_password_update_ip",
+        "auth_password_update_user",
+        "auth_callback_ip",
+        "auth_callback_code",
+        "stripe_webhook_ip",
       ],
       regle_origine: ["defaut", "instruction_naturelle"],
       regle_parametre: [

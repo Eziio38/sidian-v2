@@ -9,6 +9,15 @@ const supabaseServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 });
 
+const supabaseEnvironmentAttestationSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_ENVIRONMENT_ATTESTATION_JWT: z.string().min(1),
+  SIDIAN_ENVIRONMENT: z.enum(["local", "staging", "production"]),
+  SIDIAN_SUPABASE_PROJECT_REF: z.string().regex(/^[a-z0-9]{8,64}$/),
+});
+
 const stripeEnabledEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: z.literal("true"),
   SIDIAN_ENVIRONMENT: z.enum(["local", "staging", "production"]),
@@ -39,6 +48,9 @@ export type SupabaseServerEnv = SupabasePublicEnv & {
 };
 
 export type SidianEnvironment = "local" | "staging" | "production";
+export type SupabaseEnvironmentAttestationEnv = z.infer<
+  typeof supabaseEnvironmentAttestationSchema
+>;
 type StripeEnabledEnv = z.infer<typeof stripeEnabledEnvSchema>;
 export type StripeServerEnv = Omit<
   StripeEnabledEnv,
@@ -135,6 +147,78 @@ export function getSupabaseServerEnv(): SupabaseServerEnv {
   }
 
   return parsed.data;
+}
+
+export function validateSupabaseEnvironmentAttestation(
+  input: unknown,
+  expectedEnvironment: SidianEnvironment,
+): SupabaseEnvironmentAttestationEnv {
+  const parsed = supabaseEnvironmentAttestationSchema.safeParse(input);
+  if (!parsed.success || parsed.data.SIDIAN_ENVIRONMENT !== expectedEnvironment) {
+    throw new Error("Attestation Supabase manquante ou invalide.");
+  }
+
+  try {
+    const supabaseUrl = new URL(parsed.data.NEXT_PUBLIC_SUPABASE_URL);
+    if (
+      supabaseUrl.protocol !== "https:" ||
+      ![
+        `${parsed.data.SIDIAN_SUPABASE_PROJECT_REF}.supabase.co`,
+        `${parsed.data.SIDIAN_SUPABASE_PROJECT_REF}.supabase.in`,
+      ].includes(supabaseUrl.hostname) ||
+      supabaseUrl.pathname !== "/" ||
+      supabaseUrl.search ||
+      supabaseUrl.hash ||
+      supabaseUrl.username ||
+      supabaseUrl.password ||
+      supabaseUrl.port
+    ) {
+      throw new Error("supabase_project_mismatch");
+    }
+  } catch {
+    throw new Error("Attestation Supabase manquante ou invalide.");
+  }
+
+  let claims: {
+    role?: unknown;
+    sidian_environment?: unknown;
+    sidian_project_ref?: unknown;
+    exp?: unknown;
+  };
+  try {
+    const payload = parsed.data.SUPABASE_ENVIRONMENT_ATTESTATION_JWT.split(".")[1];
+    if (!payload) throw new Error("missing_payload");
+    claims = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    ) as typeof claims;
+  } catch {
+    throw new Error("Attestation Supabase manquante ou invalide.");
+  }
+
+  if (
+    claims.role !== "sidian_environment_attestor" ||
+    claims.sidian_environment !== expectedEnvironment ||
+    claims.sidian_project_ref !== parsed.data.SIDIAN_SUPABASE_PROJECT_REF ||
+    typeof claims.exp !== "number" ||
+    claims.exp <= Math.floor(Date.now() / 1000)
+  ) {
+    throw new Error("Attestation Supabase manquante ou invalide.");
+  }
+
+  return parsed.data;
+}
+
+export function getSupabaseEnvironmentAttestationEnv(): SupabaseEnvironmentAttestationEnv {
+  return validateSupabaseEnvironmentAttestation(
+    {
+      ...readSupabaseServerEnvInput(),
+      SUPABASE_ENVIRONMENT_ATTESTATION_JWT:
+        process.env.SUPABASE_ENVIRONMENT_ATTESTATION_JWT,
+      SIDIAN_ENVIRONMENT: process.env.SIDIAN_ENVIRONMENT,
+      SIDIAN_SUPABASE_PROJECT_REF: process.env.SIDIAN_SUPABASE_PROJECT_REF,
+    },
+    getApplicationEnvironment(),
+  );
 }
 
 export function getApplicationEnvironment(): SidianEnvironment {

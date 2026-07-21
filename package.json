@@ -21,9 +21,12 @@
     "test:stripe-002-a": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-a.mjs",
     "test:stripe-002-b": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-b.mjs",
     "test:stripe-002-c": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-c.mjs",
+    "test:security-trust-boundaries": "node scripts/test-local-supabase-guard.mjs && node scripts/test-security-trust-boundaries.mjs",
+    "test:security-rate-limits": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-sec-006.mjs",
+    "test:security-environment": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-sec-environment.mjs",
     "test:local-guard": "node scripts/test-local-supabase-guard.mjs",
     "test:forms": "vitest run",
-    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:forms"
+    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

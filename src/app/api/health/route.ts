@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 
 import { getAppEnvironment } from "@/config/env-shared";
-import { checkDatabaseHealth } from "@/lib/health/check-database";
+import {
+  checkDatabaseHealth,
+  type DatabaseHealthStatus,
+} from "@/lib/health/check-database";
+
+export function isHealthOperational(
+  database: DatabaseHealthStatus,
+  environment: string,
+): boolean {
+  return (
+    database === "connected" ||
+    (database === "not_configured" && environment === "local")
+  );
+}
 
 export async function GET() {
   const database = await checkDatabaseHealth();
   const environment = getAppEnvironment();
-  const isOperational =
-    database === "connected" || database === "not_configured";
+  const isOperational = isHealthOperational(database, environment);
 
   return NextResponse.json(
     {
@@ -16,6 +28,11 @@ export async function GET() {
       environment,
       database,
     },
-    { status: isOperational ? 200 : 503 },
+    {
+      status: isOperational ? 200 : 503,
+      headers: {
+        "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+      },
+    },
   );
 }

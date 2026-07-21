@@ -676,6 +676,30 @@ export type Database = {
         }
         Relationships: []
       }
+      public_rate_limit_event: {
+        Row: {
+          category: Database["public"]["Enums"]["public_rate_limit_category"]
+          expires_at: string
+          id: string
+          occurred_at: string
+          subject_hash: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["public_rate_limit_category"]
+          expires_at: string
+          id?: string
+          occurred_at?: string
+          subject_hash: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["public_rate_limit_category"]
+          expires_at?: string
+          id?: string
+          occurred_at?: string
+          subject_hash?: string
+        }
+        Relationships: []
+      }
       regle: {
         Row: {
           actif: boolean
@@ -842,6 +866,13 @@ export type Database = {
       }
       tentative_paiement: {
         Row: {
+          application_fee_amount: number | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
           creance_id: string
           created_at: string
           echec_code: string | null
@@ -849,12 +880,24 @@ export type Database = {
           etat: Database["public"]["Enums"]["tentative_paiement_etat"]
           id: string
           montant: number
-          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
           stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
           stripe_payment_intent_id: string | null
         }
         Insert: {
+          application_fee_amount?: number | null
+          checkout_lease_expires_at?: string | null
+          checkout_lease_token?: string | null
+          checkout_operation_key?: string | null
+          checkout_provisioning_attempts?: number
+          checkout_provisioning_error_code?: string | null
+          checkout_provisioning_status?: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
           creance_id: string
           created_at?: string
           echec_code?: string | null
@@ -862,12 +905,24 @@ export type Database = {
           etat?: Database["public"]["Enums"]["tentative_paiement_etat"]
           id?: string
           montant: number
-          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id?: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id?: string | null
+          stripe_checkout_idempotency_key?: string | null
+          stripe_checkout_session_expires_at?: string | null
           stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
           stripe_payment_intent_id?: string | null
         }
         Update: {
+          application_fee_amount?: number | null
+          checkout_lease_expires_at?: string | null
+          checkout_lease_token?: string | null
+          checkout_operation_key?: string | null
+          checkout_provisioning_attempts?: number
+          checkout_provisioning_error_code?: string | null
+          checkout_provisioning_status?: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
           creance_id?: string
           created_at?: string
           echec_code?: string | null
@@ -875,9 +930,14 @@ export type Database = {
           etat?: Database["public"]["Enums"]["tentative_paiement_etat"]
           id?: string
           montant?: number
-          moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id?: string | null
           source?: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id?: string | null
+          stripe_checkout_idempotency_key?: string | null
+          stripe_checkout_session_expires_at?: string | null
           stripe_checkout_session_id?: string | null
+          stripe_customer_id?: string | null
           stripe_payment_intent_id?: string | null
         }
         Relationships: [
@@ -886,6 +946,13 @@ export type Database = {
             columns: ["creance_id"]
             isOneToOne: false
             referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tentative_paiement_payment_link_id_fkey"
+            columns: ["payment_link_id"]
+            isOneToOne: false
+            referencedRelation: "payment_link"
             referencedColumns: ["id"]
           },
         ]
@@ -1056,6 +1123,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      consume_public_rate_limit: {
+        Args: {
+          p_category: Database["public"]["Enums"]["public_rate_limit_category"]
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
       create_current_client_payeur: {
         Args: { p_creation_key: string; p_email: string; p_nom: string }
         Returns: {
@@ -1105,24 +1179,6 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "creance"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      create_payment_link_for_creance: {
-        Args: { p_creance_id: string; p_token_hash: string }
-        Returns: {
-          creance_id: string
-          created_at: string
-          id: string
-          revoked_at: string | null
-          status: Database["public"]["Enums"]["payment_link_status"]
-          token_hash: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "payment_link"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1232,32 +1288,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      mark_creance_ready_for_collection: {
-        Args: { p_creance_id: string }
-        Returns: {
-          archived_at: string | null
-          client_payeur_id: string
-          created_at: string
-          creation_key: string
-          date_echeance: string
-          devise: string
-          etat: Database["public"]["Enums"]["creance_etat"]
-          id: string
-          libelle: string | null
-          montant: number
-          origine: Database["public"]["Enums"]["creance_origine"]
-          prestataire_id: string
-          ready_for_collection_at: string | null
-          reference_externe: string | null
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "creance"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       mark_stripe_webhook_event_status: {
         Args: {
           p_attempt: number
@@ -1293,6 +1323,11 @@ export type Database = {
         Returns: number
       }
       normalize_person_name: { Args: { p_nom: string }; Returns: string }
+      open_payment_receivable: { Args: { p_creance_id: string }; Returns: Json }
+      purge_expired_public_rate_limits: {
+        Args: { p_batch_size?: number }
+        Returns: number
+      }
       renew_stripe_webhook_event_lease: {
         Args: {
           p_attempt: number
@@ -1618,6 +1653,11 @@ export type Database = {
       payment_authorization_type: "card_off_session" | "sepa_core_mandate"
       payment_link_status: "active" | "revoked"
       profil_agent_defaut: "controle" | "delegation"
+      public_rate_limit_category:
+        | "link_resolution_ip"
+        | "link_resolution_token"
+        | "checkout_creation_ip"
+        | "checkout_new_operation_link"
       regle_origine: "defaut" | "instruction_naturelle"
       regle_parametre:
         | "delai_grace"
@@ -1630,6 +1670,12 @@ export type Database = {
         | "frequence_max_sollicitation"
         | "horaires_autorises"
       stripe_capability_status: "inactive" | "pending" | "active"
+      stripe_checkout_provisioning_status:
+        | "not_started"
+        | "creating"
+        | "created"
+        | "failed_retryable"
+        | "failed_terminal"
       stripe_connect_audit_outbox_status: "pending" | "delivered"
       stripe_connect_provisioning_status:
         | "not_started"
@@ -1847,6 +1893,12 @@ export const Constants = {
       payment_authorization_type: ["card_off_session", "sepa_core_mandate"],
       payment_link_status: ["active", "revoked"],
       profil_agent_defaut: ["controle", "delegation"],
+      public_rate_limit_category: [
+        "link_resolution_ip",
+        "link_resolution_token",
+        "checkout_creation_ip",
+        "checkout_new_operation_link",
+      ],
       regle_origine: ["defaut", "instruction_naturelle"],
       regle_parametre: [
         "delai_grace",
@@ -1860,6 +1912,13 @@ export const Constants = {
         "horaires_autorises",
       ],
       stripe_capability_status: ["inactive", "pending", "active"],
+      stripe_checkout_provisioning_status: [
+        "not_started",
+        "creating",
+        "created",
+        "failed_retryable",
+        "failed_terminal",
+      ],
       stripe_connect_audit_outbox_status: ["pending", "delivered"],
       stripe_connect_provisioning_status: [
         "not_started",

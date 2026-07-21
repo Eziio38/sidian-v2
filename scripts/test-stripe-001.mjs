@@ -620,17 +620,29 @@ await run("SID-STRIPE-001 un seul payment_link actif + révocation irréversible
     p_creation_key: randomUUID(),
   });
 
-  const { data: link1, error: l1 } = await admin.rpc(
-    "create_payment_link_for_creance",
-    { p_creance_id: creance.id, p_token_hash: tokenHash() },
+  const { data: opened, error: openError } = await client.rpc(
+    "open_payment_receivable",
+    { p_creance_id: creance.id },
   );
-  if (l1 || !link1) throw l1 ?? new Error("link1");
+  if (openError || !opened?.payment_link_id) {
+    throw openError ?? new Error("link1");
+  }
+  const link1 = { id: opened.payment_link_id };
 
-  const { data: link2, error: l2 } = await admin.rpc(
-    "create_payment_link_for_creance",
-    { p_creance_id: creance.id, p_token_hash: tokenHash() },
+  const { error: revokeError } = await admin.rpc("revoke_payment_link", {
+    p_payment_link_id: link1.id,
+  });
+  if (revokeError) throw revokeError;
+
+  const { data: replacement, error: replacementError } = await client.rpc(
+    "open_payment_receivable",
+    { p_creance_id: creance.id },
   );
-  if (l2 || !link2) throw l2 ?? new Error("link2");
+  if (replacementError || !replacement?.payment_link_id) {
+    throw replacementError ?? new Error("link2");
+  }
+  const link2 = { id: replacement.payment_link_id };
+  if (link1.id === link2.id) throw new Error("lien révoqué réactivé");
 
   const { data: first } = await admin
     .from("payment_link")
@@ -810,13 +822,11 @@ await run("SID-STRIPE-001 ready_for_collection via RPC uniquement", async () => 
     .from("creance")
     .update({ ready_for_collection_at: new Date().toISOString() })
     .eq("id", creance.id);
-  // authenticated may still have update on creance from older grants — prod-001 may have revoked
-  // Prefer RPC path
   const { data: marked, error: rpcErr } = await client.rpc(
-    "mark_creance_ready_for_collection",
+    "open_payment_receivable",
     { p_creance_id: creance.id },
   );
-  if (rpcErr || !marked?.ready_for_collection_at) {
+  if (rpcErr || !marked?.ready_for_collection_at || marked?.creance_state !== "OUVERTE") {
     throw rpcErr ?? new Error("RPC ready failed");
   }
   void direct;

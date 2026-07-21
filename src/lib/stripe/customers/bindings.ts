@@ -1,7 +1,5 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
-
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 
@@ -119,35 +117,6 @@ export async function revokeStripeCustomerBinding(params: {
     throw new StripeDomainError("stripe_customer_binding_revoke_failed");
   }
   return data as BindingRow;
-}
-
-export function hashPaymentLinkToken(rawToken: string): string {
-  return createHash("sha256").update(rawToken, "utf8").digest("hex");
-}
-
-export function generatePaymentLinkToken(): { rawToken: string; tokenHash: string } {
-  const rawToken = randomBytes(32).toString("base64url");
-  return { rawToken, tokenHash: hashPaymentLinkToken(rawToken) };
-}
-
-export async function createPaymentLinkForCreance(params: {
-  supabaseAdmin: SupabaseClient<Db>;
-  creanceId: string;
-}): Promise<{ link: PaymentLinkRow; rawToken: string }> {
-  const { rawToken, tokenHash } = generatePaymentLinkToken();
-  const { data, error } = await params.supabaseAdmin.rpc(
-    "create_payment_link_for_creance",
-    {
-      p_creance_id: params.creanceId,
-      p_token_hash: tokenHash,
-    },
-  );
-
-  if (error || !data) {
-    throw new StripeDomainError("payment_link_create_failed");
-  }
-
-  return { link: data as PaymentLinkRow, rawToken };
 }
 
 export async function revokePaymentLink(params: {

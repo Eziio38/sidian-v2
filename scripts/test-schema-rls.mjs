@@ -43,6 +43,8 @@ const EXPECTED_TABLES = [
   "stripe_connect_audit_outbox",
 ];
 
+const EXPECTED_RLS_TABLES = [...EXPECTED_TABLES, "public_rate_limit_event"];
+
 const FORBIDDEN_TABLES = [
   "facture",
   "contrat",
@@ -125,7 +127,7 @@ async function main() {
     if (error) throw error;
     const rows = data ?? [];
     const byName = new Map(rows.map((row) => [row.table_name, row.rls_enabled]));
-    for (const table of EXPECTED_TABLES) {
+    for (const table of EXPECTED_RLS_TABLES) {
       if (!byName.has(table)) {
         throw new Error(`table absente du helper RLS: ${table}`);
       }

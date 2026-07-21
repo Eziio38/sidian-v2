@@ -16,6 +16,7 @@ import {
   updateCreanceDraft,
 } from "@/lib/creances/creance";
 import { requireConfirmedUser } from "@/lib/auth/session";
+import { getPublicEnv } from "@/config/env-public";
 import { createClient } from "@/lib/supabase/server";
 import {
   archiveClientPayeur,
@@ -280,4 +281,58 @@ export async function archiveCreanceAction(
       ),
     };
   }
+}
+
+export type PrepareLinkResult =
+  | { ok: true; shareUrl: string | null; alreadyPrepared: boolean }
+  | { ok: false; message: string };
+
+function mapOpenReceivableError(message: string | undefined): string {
+  switch (message) {
+    case "payment_receivable_not_payable":
+      return "Ce paiement à recevoir n'est pas dans un état permettant de préparer un lien.";
+    case "payment_receivable_archived":
+      return "Ce paiement à recevoir est archivé.";
+    case "creance_not_found":
+      return "Paiement à recevoir introuvable.";
+    default:
+      return "Impossible de préparer le lien de paiement pour le moment.";
+  }
+}
+
+/**
+ * Ouvre le paiement à recevoir (BROUILLON → OUVERTE) et prépare le lien opaque.
+ * Le token brut n'est renvoyé qu'une seule fois, à la création du lien ; ensuite
+ * seul son état est connu (jamais récupérable). Le lien n'est « partageable » que
+ * lorsque le compte Stripe devient payable (revérifié à l'ouverture par le client).
+ */
+export async function openPaymentReceivableAction(
+  _prev: PrepareLinkResult | undefined,
+  formData: FormData,
+): Promise<PrepareLinkResult> {
+  await requireConfirmedUser();
+  const idParsed = uuidSchema.safeParse(formString(formData, "creanceId"));
+  if (!idParsed.success) {
+    return { ok: false, message: "Paiement à recevoir introuvable." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("open_payment_receivable", {
+    p_creance_id: idParsed.data,
+  });
+  if (error || !data) {
+    return { ok: false, message: mapOpenReceivableError(error?.message) };
+  }
+
+  const rawToken = (data as { raw_token?: string | null }).raw_token ?? null;
+  revalidatePath("/app/paiements-a-recevoir");
+
+  if (rawToken) {
+    return {
+      ok: true,
+      shareUrl: `${getPublicEnv().NEXT_PUBLIC_APP_URL}/p/${rawToken}`,
+      alreadyPrepared: false,
+    };
+  }
+  return { ok: true, shareUrl: null, alreadyPrepared: true };
 }

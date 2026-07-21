@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertConnectedAccountEligibleForPaymentRail,
   assertConnectedAccountPayable,
+  resolveConnectedAccountPaymentRails,
 } from "@/lib/stripe/connect/retrieve-and-sync";
 import { StripeDomainError } from "@/lib/stripe/shared/errors";
 import { dispatchStripeWebhookEvent } from "@/lib/stripe/webhooks/dispatch";
@@ -103,6 +104,30 @@ describe("éligibilité live par rail", () => {
         stripe: stripeWithSepa("active"),
       }),
     ).rejects.toMatchObject({ code: "stripe_account_scope_mismatch" });
+  });
+
+  it("dérive card uniquement lorsque card est active et SEPA inactive", async () => {
+    const stripe = {
+      accounts: {
+        retrieve: vi.fn(async () => ({
+          id: "acct_card_only",
+          charges_enabled: true,
+          capabilities: {
+            card_payments: "active",
+            sepa_debit_payments: "inactive",
+          },
+          requirements: {},
+        })),
+      },
+    } as unknown as Stripe;
+
+    await expect(
+      resolveConnectedAccountPaymentRails({
+        expectedAccountId: "acct_card_only",
+        stripeAccountId: "acct_card_only",
+        stripe,
+      }),
+    ).resolves.toMatchObject({ rails: ["card"] });
   });
 });
 
@@ -381,11 +406,11 @@ describe("webhook process / dispatch", () => {
     ).rejects.toMatchObject({ code: "webhook_lease_lost" });
   });
 
-  it("ignore un événement MVP non encore implémenté", async () => {
+  it("diffère un événement du chemin autorisation future (lot ultérieur)", async () => {
     const result = await dispatchStripeWebhookEvent({
       event: {
         id: "evt_2",
-        type: "checkout.session.completed",
+        type: "mandate.updated",
         data: { object: {} },
       } as Stripe.Event,
       supabaseAdmin: {} as never,
@@ -399,7 +424,7 @@ describe("webhook process / dispatch", () => {
     });
     expect(result).toEqual({
       outcome: "ignored",
-      reason: "deferred_to_sid_stripe_002",
+      reason: "deferred_to_authorization_lot",
     });
   });
 

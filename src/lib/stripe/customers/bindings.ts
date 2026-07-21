@@ -101,6 +101,37 @@ export async function replaceStripeCustomerBinding(params: {
   return data as BindingRow;
 }
 
+/**
+ * Lie un Customer Stripe vérifié via le rôle writer, sur le chemin serveur
+ * (public Checkout) où aucune session prestataire n'existe. Le scope
+ * (prestataire, client, compte connecté) est dérivé côté serveur depuis la
+ * créance, jamais du navigateur. La RPC writer revalide le rôle, l'environnement
+ * et le scope avant d'insérer un binding actif (l'ancien passe à superseded).
+ */
+export async function bindStripeCustomerForConnectedAccount(params: {
+  prestataireId: string;
+  clientPayeurId: string;
+  stripeAccountId: string;
+  stripeCustomerId: string;
+  sidianEnvironment: "local" | "staging" | "production";
+}): Promise<BindingRow> {
+  const writer = createStripeCustomerBindingWriterClient();
+  const { data, error } = await writer.rpc(
+    "replace_verified_stripe_customer_binding",
+    {
+      p_prestataire_id: params.prestataireId,
+      p_client_payeur_id: params.clientPayeurId,
+      p_stripe_account_id: params.stripeAccountId,
+      p_stripe_customer_id: params.stripeCustomerId,
+      p_sidian_environment: params.sidianEnvironment,
+    },
+  );
+  if (error || !data) {
+    throw new StripeDomainError("stripe_customer_binding_replace_failed");
+  }
+  return data as BindingRow;
+}
+
 export async function revokeStripeCustomerBinding(params: {
   supabaseAdmin: SupabaseClient<Db>;
   prestataireId: string;

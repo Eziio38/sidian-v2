@@ -124,12 +124,20 @@ export async function applyAccountUpdatedProjection(params: {
  */
 export type SidianPaymentRail = "card" | "sepa_core";
 
-export async function assertConnectedAccountEligibleForPaymentRail(params: {
+export type ConnectedAccountPaymentCapabilities = {
+  account: Stripe.Account;
+  rails: SidianPaymentRail[];
+};
+
+/**
+ * Relit une seule fois le compte Connect et dérive strictement les rails
+ * réellement actifs. L'ordre est stable et ne dépend jamais du montant.
+ */
+export async function resolveConnectedAccountPaymentRails(params: {
   expectedAccountId: string;
   stripeAccountId: string;
-  rail: SidianPaymentRail;
   stripe?: Stripe;
-}): Promise<Stripe.Account> {
+}): Promise<ConnectedAccountPaymentCapabilities> {
   const account = await retrieveConnectedAccount(
     params.stripeAccountId,
     params.stripe ?? getStripeClient(),
@@ -143,12 +151,29 @@ export async function assertConnectedAccountEligibleForPaymentRail(params: {
   const restricted =
     Boolean(requirements?.disabled_reason) ||
     (requirements?.past_due?.length ?? 0) > 0;
-  const capability =
-    params.rail === "sepa_core"
-      ? account.capabilities?.sepa_debit_payments
-      : account.capabilities?.card_payments;
+  if (account.charges_enabled !== true || restricted) {
+    return { account, rails: [] };
+  }
 
-  if (account.charges_enabled !== true || restricted || capability !== "active") {
+  const rails: SidianPaymentRail[] = [];
+  if (account.capabilities?.card_payments === "active") {
+    rails.push("card");
+  }
+  if (account.capabilities?.sepa_debit_payments === "active") {
+    rails.push("sepa_core");
+  }
+
+  return { account, rails };
+}
+
+export async function assertConnectedAccountEligibleForPaymentRail(params: {
+  expectedAccountId: string;
+  stripeAccountId: string;
+  rail: SidianPaymentRail;
+  stripe?: Stripe;
+}): Promise<Stripe.Account> {
+  const { account, rails } = await resolveConnectedAccountPaymentRails(params);
+  if (!rails.includes(params.rail)) {
     throw new StripeDomainError(
       "stripe_account_not_eligible_for_payment_rail",
       "Le compte Connect n'est pas éligible au moyen de paiement demandé.",

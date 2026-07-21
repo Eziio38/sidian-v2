@@ -982,6 +982,80 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_checkout_session_completed_payment: {
+        Args: {
+          p_checkout_session_id: string
+          p_connected_account_id: string
+          p_customer_id: string
+          p_lease_token: string
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_checkout_session_expired_payment: {
+        Args: {
+          p_checkout_session_id: string
+          p_connected_account_id: string
+          p_lease_token: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_eur_payment_intent_succeeded: {
+        Args: {
+          p_amount_received: number
+          p_connected_account_id: string
+          p_currency: string
+          p_lease_token: string
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
+      apply_payment_intent_payment_failed: {
+        Args: {
+          p_connected_account_id: string
+          p_echec_code: string
+          p_echec_message: string
+          p_lease_token: string
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
+      apply_payment_intent_processing: {
+        Args: {
+          p_connected_account_id: string
+          p_lease_token: string
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
+      apply_payment_intent_succeeded: {
+        Args: {
+          p_amount_received: number
+          p_connected_account_id: string
+          p_lease_token: string
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
       archive_current_client_payeur: {
         Args: { p_id: string }
         Returns: {
@@ -1027,7 +1101,28 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      assert_stripe_webhook_lease: {
+        Args: {
+          p_connected_account_id: string
+          p_event_id: string
+          p_expected_type: string
+          p_lease_token: string
+          p_processing_attempt: number
+        }
+        Returns: undefined
+      }
       canonicalize_email: { Args: { p_email: string }; Returns: string }
+      claim_checkout_provisioning: {
+        Args: {
+          p_creance_id: string
+          p_idempotency_key: string
+          p_lease_seconds?: number
+          p_operation_key: string
+          p_payment_link_id: string
+          p_stripe_account_id: string
+        }
+        Returns: Json
+      }
       claim_current_prestataire_connect_provisioning: {
         Args: { p_lease_seconds?: number }
         Returns: {
@@ -1077,6 +1172,49 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      complete_checkout_provisioning: {
+        Args: {
+          p_application_fee_amount: number
+          p_lease_token: string
+          p_session_expires_at: string
+          p_stripe_account_id: string
+          p_stripe_checkout_session_id: string
+          p_stripe_customer_id: string
+          p_stripe_payment_intent_id: string
+          p_tentative_id: string
+        }
+        Returns: {
+          application_fee_amount: number | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
+          creance_id: string
+          created_at: string
+          echec_code: string | null
+          echec_message: string | null
+          etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          id: string
+          montant: number
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id: string | null
+          source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       complete_prestataire_connect_provisioning: {
         Args: {
@@ -1224,6 +1362,45 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      fail_checkout_provisioning: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_retryable: boolean
+          p_tentative_id: string
+        }
+        Returns: {
+          application_fee_amount: number | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
+          creance_id: string
+          created_at: string
+          echec_code: string | null
+          echec_message: string | null
+          etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          id: string
+          montant: number
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id: string | null
+          source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fail_prestataire_connect_provisioning: {
         Args: {
           p_error_code: string
@@ -1328,6 +1505,22 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: number
       }
+      recalculate_creance_settlement: {
+        Args: { p_creance_id: string }
+        Returns: Json
+      }
+      record_charge_dispute_opened: {
+        Args: {
+          p_connected_account_id: string
+          p_dispute_id: string
+          p_lease_token: string
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_reason: string
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
       renew_stripe_webhook_event_lease: {
         Args: {
           p_attempt: number
@@ -1382,6 +1575,48 @@ export type Database = {
         }
       }
       require_current_prestataire_id: { Args: never; Returns: string }
+      resolve_payment_intent_tentative: {
+        Args: {
+          p_connected_account_id: string
+          p_payment_intent_id: string
+          p_tentative_id: string
+        }
+        Returns: {
+          application_fee_amount: number | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
+          creance_id: string
+          created_at: string
+          echec_code: string | null
+          echec_message: string | null
+          etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          id: string
+          montant: number
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_link_id: string | null
+          source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      resolve_payment_link_by_token_hash: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
       revoke_payment_link: {
         Args: { p_payment_link_id: string }
         Returns: {

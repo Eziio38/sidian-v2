@@ -6,6 +6,7 @@ import {
 import { AppShell } from "@/components/app/app-shell";
 import { ArchiveButton } from "@/components/app/client-forms";
 import { CreanceForm } from "@/components/app/creance-forms";
+import { PrepareLinkButton } from "@/components/app/prepare-link-button";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
@@ -121,6 +122,11 @@ export default async function PaiementsARecevoirPage() {
                       Seuls les brouillons sont modifiables ici.
                     </p>
                   )}
+                  {creance.etat === "BROUILLON" || creance.etat === "OUVERTE" ? (
+                    <div className="border-t border-gris-100 pt-4">
+                      <PrepareLinkButton creanceId={creance.id} />
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

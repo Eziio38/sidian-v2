@@ -14,6 +14,14 @@ import {
   isKnownStripeWebhookEvent,
   type SidianStripeWebhookEventType,
 } from "@/lib/stripe/webhooks/event-types";
+import {
+  handleChargeDisputeCreated,
+  handleCheckoutSessionCompletedPayment,
+  handleCheckoutSessionExpiredPayment,
+  handlePaymentIntentPaymentFailed,
+  handlePaymentIntentProcessing,
+  handlePaymentIntentSucceeded,
+} from "@/lib/stripe/webhooks/payment-effects";
 import type { Database } from "@/types/database.generated";
 import type { StripeWebhookLeaseIdentity } from "@/lib/stripe/webhooks/process";
 
@@ -128,48 +136,41 @@ async function handleAccountUpdated(
   return { outcome: "processed", detail: "projection_synced" };
 }
 
+// Adapte un effet du chemin paiement (event, {supabase, lease}) à la signature Handler.
+function paymentEffect(
+  effect: (
+    event: Stripe.Event,
+    context: { supabase: AdminClient; lease: StripeWebhookLeaseIdentity },
+  ) => Promise<WebhookDispatchResult>,
+): Handler {
+  return (event, supabase, context) =>
+    effect(event, { supabase, lease: context.lease });
+}
+
+// Le chemin AUTORISATION future (Setup Session, payment_authorization,
+// prélèvement auto) est un lot ultérieur : ces événements sont explicitement
+// différés, sans effet de bord (aucune ligne payment_authorization n'existe encore).
+const deferredToAuthorizationLot: Handler = async () => ({
+  outcome: "ignored",
+  reason: "deferred_to_authorization_lot",
+});
+
 const HANDLERS: Record<SidianStripeWebhookEventType, Handler> = {
   "account.updated": handleAccountUpdated,
-  "checkout.session.completed": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "checkout.session.expired": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "payment_intent.processing": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "payment_intent.succeeded": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "payment_intent.payment_failed": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "setup_intent.succeeded": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "setup_intent.setup_failed": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "payment_method.detached": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "mandate.updated": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
-  "charge.dispute.created": async () => ({
-    outcome: "ignored",
-    reason: "deferred_to_sid_stripe_002",
-  }),
+  "checkout.session.completed": paymentEffect(
+    handleCheckoutSessionCompletedPayment,
+  ),
+  "checkout.session.expired": paymentEffect(handleCheckoutSessionExpiredPayment),
+  "payment_intent.processing": paymentEffect(handlePaymentIntentProcessing),
+  "payment_intent.succeeded": paymentEffect(handlePaymentIntentSucceeded),
+  "payment_intent.payment_failed": paymentEffect(
+    handlePaymentIntentPaymentFailed,
+  ),
+  "setup_intent.succeeded": deferredToAuthorizationLot,
+  "setup_intent.setup_failed": deferredToAuthorizationLot,
+  "payment_method.detached": deferredToAuthorizationLot,
+  "mandate.updated": deferredToAuthorizationLot,
+  "charge.dispute.created": paymentEffect(handleChargeDisputeCreated),
 };
 
 export async function dispatchStripeWebhookEvent(params: {

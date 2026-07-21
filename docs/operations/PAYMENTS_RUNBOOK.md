@@ -109,7 +109,7 @@ Chaque événement :
 3. Claim atomique avec token de lease et tentative ; toute transition/extension exige les deux.
 4. Erreur classée `retryable`, `terminal` ou `lease_lost`, avec 8 tentatives maximum.
 5. Effet métier transactionnel/idempotent ; `account.updated` relit toujours Stripe live et vérifie le fencing du claim avant toute écriture. La projection peut être rafraîchie sous le claim courant même si le registre d'effet existe ; ne pas reprendre cette règle pour un effet financier.
-6. Mise à jour de la `tentative_paiement`, puis création du `paiement` si `RÉUSSIE`, puis mise à jour de la `creance` (SID-STRIPE-002, non implémenté dans ce lot).
+6. Mise à jour de la `tentative_paiement`, puis création idempotente du `paiement` si `RÉUSSIE`, puis recalcul de l'état de la `creance` (**SID-STRIPE-002-B, chemin paiement implémenté**). Effets financiers fencés par le lease du claim et le registre `stripe_webhook_effect` (appliqués au plus une fois), tolérants au désordre et aux doublons d'arrivée. Trop-perçu : créance `RÉGLÉE` + `audit_log` + `approval_request(depassement_seuil)` — jamais de perte de fonds ni d'état improvisé. Le chemin **autorisation future** (`setup_intent.*`, `mandate.updated`, `payment_method.detached`, branche `setup` des sessions Checkout) reste différé à un lot ultérieur et est explicitement ignoré (`deferred_to_authorization_lot`).
 
 ---
 

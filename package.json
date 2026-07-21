@@ -19,9 +19,10 @@
     "test:prod-001": "node scripts/test-local-supabase-guard.mjs && node --experimental-strip-types scripts/test-prod-001.mjs",
     "test:stripe-001": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-001.mjs",
     "test:stripe-002-a": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-a.mjs",
+    "test:stripe-002-b": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-b.mjs",
     "test:local-guard": "node scripts/test-local-supabase-guard.mjs",
     "test:forms": "vitest run",
-    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:forms"
+    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:forms"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

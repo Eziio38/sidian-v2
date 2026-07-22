@@ -9,6 +9,15 @@ const supabaseServerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 });
 
+/** Secret HMAC serveur dédié aux tokens d'autorisation publique (jamais NEXT_PUBLIC_). */
+const paymentAuthorizationTokenSecretSchema = z
+  .string()
+  .min(32, "SIDIAN_PAYMENT_AUTHORIZATION_TOKEN_SECRET trop court")
+  .refine(
+    (value) => !value.startsWith("eyJ") && !value.includes("SERVICE_ROLE"),
+    "SIDIAN_PAYMENT_AUTHORIZATION_TOKEN_SECRET invalide",
+  );
+
 const supabaseEnvironmentAttestationSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -146,6 +155,29 @@ export function getSupabaseServerEnv(): SupabaseServerEnv {
     );
   }
 
+  return parsed.data;
+}
+
+/**
+ * Secret HMAC dédié aux tokens d'autorisation future. Absent ou trop court :
+ * échec fermé — aucun repli sur SUPABASE_SERVICE_ROLE_KEY.
+ */
+export function getPaymentAuthorizationTokenSecret(): string {
+  const parsed = paymentAuthorizationTokenSecretSchema.safeParse(
+    process.env.SIDIAN_PAYMENT_AUTHORIZATION_TOKEN_SECRET,
+  );
+  if (!parsed.success) {
+    const message = formatEnvValidationError(
+      "server/payment-authorization-token",
+      parsed.error,
+    );
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(message);
+    }
+    throw new Error(
+      "Configuration du secret d’autorisation de paiement manquante ou invalide.",
+    );
+  }
   return parsed.data;
 }
 

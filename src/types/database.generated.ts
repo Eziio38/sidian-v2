@@ -1,3 +1,5 @@
+// NULLABLE_RPC_ARGS_PATCH: certains Args uuid/text acceptent NULL en SQL ;
+// le générateur Supabase omet parfois `| null`. Réappliquer après `pnpm supabase:types`.
 export type Json =
   | string
   | number
@@ -429,6 +431,7 @@ export type Database = {
       }
       payment_authorization: {
         Row: {
+          accepted_at: string | null
           authorization_channel: string | null
           authorization_text_version: string | null
           authorized_at: string | null
@@ -437,15 +440,35 @@ export type Database = {
           etat: Database["public"]["Enums"]["payment_authorization_etat"]
           id: string
           is_default: boolean
+          legacy_incomplete: boolean
           prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
           revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
           stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
           stripe_payment_method_id: string | null
           stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
           stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
           type: Database["public"]["Enums"]["payment_authorization_type"] | null
         }
         Insert: {
+          accepted_at?: string | null
           authorization_channel?: string | null
           authorization_text_version?: string | null
           authorized_at?: string | null
@@ -454,17 +477,37 @@ export type Database = {
           etat?: Database["public"]["Enums"]["payment_authorization_etat"]
           id?: string
           is_default?: boolean
+          legacy_incomplete?: boolean
           prestataire_id: string
+          proposal_neutralized_at?: string | null
+          public_token_expires_at?: string | null
+          public_token_hash?: string | null
+          reconsidered_from_authorization_id?: string | null
+          resume_as_default?: boolean
           revoked_at?: string | null
+          setup_lease_expires_at?: string | null
+          setup_lease_token?: string | null
+          setup_operation_key?: string | null
+          setup_provisioning_attempts?: number
+          setup_provisioning_error_code?: string | null
+          setup_provisioning_status?: string
+          source_tentative_paiement_id?: string | null
+          stripe_account_id?: string | null
+          stripe_customer_id?: string | null
           stripe_mandate_id?: string | null
+          stripe_mandate_status?: string | null
           stripe_payment_method_id?: string | null
           stripe_setup_checkout_session_id?: string | null
+          stripe_setup_idempotency_key?: string | null
           stripe_setup_intent_id?: string | null
+          stripe_setup_session_expires_at?: string | null
+          suspension_reason?: string | null
           type?:
             | Database["public"]["Enums"]["payment_authorization_type"]
             | null
         }
         Update: {
+          accepted_at?: string | null
           authorization_channel?: string | null
           authorization_text_version?: string | null
           authorized_at?: string | null
@@ -473,12 +516,31 @@ export type Database = {
           etat?: Database["public"]["Enums"]["payment_authorization_etat"]
           id?: string
           is_default?: boolean
+          legacy_incomplete?: boolean
           prestataire_id?: string
+          proposal_neutralized_at?: string | null
+          public_token_expires_at?: string | null
+          public_token_hash?: string | null
+          reconsidered_from_authorization_id?: string | null
+          resume_as_default?: boolean
           revoked_at?: string | null
+          setup_lease_expires_at?: string | null
+          setup_lease_token?: string | null
+          setup_operation_key?: string | null
+          setup_provisioning_attempts?: number
+          setup_provisioning_error_code?: string | null
+          setup_provisioning_status?: string
+          source_tentative_paiement_id?: string | null
+          stripe_account_id?: string | null
+          stripe_customer_id?: string | null
           stripe_mandate_id?: string | null
+          stripe_mandate_status?: string | null
           stripe_payment_method_id?: string | null
           stripe_setup_checkout_session_id?: string | null
+          stripe_setup_idempotency_key?: string | null
           stripe_setup_intent_id?: string | null
+          stripe_setup_session_expires_at?: string | null
+          suspension_reason?: string | null
           type?:
             | Database["public"]["Enums"]["payment_authorization_type"]
             | null
@@ -496,6 +558,20 @@ export type Database = {
             columns: ["prestataire_id"]
             isOneToOne: false
             referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_authorization_reconsidered_from_authorization_id_fkey"
+            columns: ["reconsidered_from_authorization_id"]
+            isOneToOne: false
+            referencedRelation: "payment_authorization"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_authorization_source_tentative_paiement_id_fkey"
+            columns: ["source_tentative_paiement_id"]
+            isOneToOne: false
+            referencedRelation: "tentative_paiement"
             referencedColumns: ["id"]
           },
         ]
@@ -534,6 +610,68 @@ export type Database = {
             columns: ["creance_id"]
             isOneToOne: false
             referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_reconciliation_issue: {
+        Row: {
+          approval_request_id: string | null
+          creance_id: string
+          created_at: string
+          id: string
+          prestataire_id: string
+          reason: string
+          reconciliation_key: string
+          tentative_paiement_id: string | null
+        }
+        Insert: {
+          approval_request_id?: string | null
+          creance_id: string
+          created_at?: string
+          id?: string
+          prestataire_id: string
+          reason: string
+          reconciliation_key: string
+          tentative_paiement_id?: string | null
+        }
+        Update: {
+          approval_request_id?: string | null
+          creance_id?: string
+          created_at?: string
+          id?: string
+          prestataire_id?: string
+          reason?: string
+          reconciliation_key?: string
+          tentative_paiement_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reconciliation_issue_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: true
+            referencedRelation: "approval_request"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_issue_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_issue_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reconciliation_issue_tentative_paiement_id_fkey"
+            columns: ["tentative_paiement_id"]
+            isOneToOne: false
+            referencedRelation: "tentative_paiement"
             referencedColumns: ["id"]
           },
         ]
@@ -870,6 +1008,7 @@ export type Database = {
       tentative_paiement: {
         Row: {
           application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
           checkout_lease_expires_at: string | null
           checkout_lease_token: string | null
           checkout_operation_key: string | null
@@ -884,6 +1023,7 @@ export type Database = {
           id: string
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
           payment_link_id: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id: string | null
@@ -895,6 +1035,7 @@ export type Database = {
         }
         Insert: {
           application_fee_amount?: number | null
+          automatic_execution_guard_version?: string | null
           checkout_lease_expires_at?: string | null
           checkout_lease_token?: string | null
           checkout_operation_key?: string | null
@@ -909,6 +1050,7 @@ export type Database = {
           id?: string
           montant: number
           moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id?: string | null
           payment_link_id?: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id?: string | null
@@ -920,6 +1062,7 @@ export type Database = {
         }
         Update: {
           application_fee_amount?: number | null
+          automatic_execution_guard_version?: string | null
           checkout_lease_expires_at?: string | null
           checkout_lease_token?: string | null
           checkout_operation_key?: string | null
@@ -934,6 +1077,7 @@ export type Database = {
           id?: string
           montant?: number
           moyen?: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id?: string | null
           payment_link_id?: string | null
           source?: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id?: string | null
@@ -949,6 +1093,13 @@ export type Database = {
             columns: ["creance_id"]
             isOneToOne: false
             referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tentative_paiement_payment_authorization_id_fkey"
+            columns: ["payment_authorization_id"]
+            isOneToOne: false
+            referencedRelation: "payment_authorization"
             referencedColumns: ["id"]
           },
           {
@@ -985,19 +1136,53 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_charge_dispute_created_effects: {
+        Args: {
+          p_connected_account_id: string
+          p_dispute_id: string
+          p_lease_token: string
+          p_payment_intent_id: string | null
+          p_processing_attempt: number
+          p_reason: string | null
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
       apply_checkout_session_completed_payment: {
         Args: {
           p_checkout_session_id: string
           p_connected_account_id: string
-          p_customer_id: string
+          p_customer_id: string | null
           p_lease_token: string
-          p_payment_intent_id: string
+          p_payment_intent_id: string | null
           p_processing_attempt: number
           p_stripe_event_id: string
         }
         Returns: Json
       }
+      apply_checkout_session_completed_setup: {
+        Args: {
+          p_checkout_session_id: string
+          p_connected_account_id: string
+          p_customer_id: string
+          p_lease_token: string
+          p_processing_attempt: number
+          p_setup_intent_id: string
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
       apply_checkout_session_expired_payment: {
+        Args: {
+          p_checkout_session_id: string
+          p_connected_account_id: string
+          p_lease_token: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_checkout_session_expired_setup: {
         Args: {
           p_checkout_session_id: string
           p_connected_account_id: string
@@ -1013,11 +1198,24 @@ export type Database = {
           p_connected_account_id: string
           p_currency: string
           p_lease_token: string
-          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string
+          p_tentative_id: string | null
+        }
+        Returns: Json
+      }
+      apply_mandate_updated_authorization: {
+        Args: {
+          p_connected_account_id: string
+          p_customer_id: string
+          p_lease_token: string
+          p_mandate_id: string
+          p_mandate_status: string
+          p_payment_method_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
         }
         Returns: Json
       }
@@ -1025,12 +1223,12 @@ export type Database = {
         Args: {
           p_connected_account_id: string
           p_echec_code: string
-          p_echec_message: string
+          p_echec_message: string | null
           p_lease_token: string
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string
+          p_tentative_id: string | null
         }
         Returns: Json
       }
@@ -1038,11 +1236,11 @@ export type Database = {
         Args: {
           p_connected_account_id: string
           p_lease_token: string
-          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string
+          p_tentative_id: string | null
         }
         Returns: Json
       }
@@ -1056,6 +1254,58 @@ export type Database = {
           p_processing_attempt: number
           p_stripe_event_id: string
           p_tentative_id: string
+        }
+        Returns: Json
+      }
+      apply_payment_method_detached_authorization: {
+        Args: {
+          p_connected_account_id: string
+          p_lease_token: string
+          p_payment_method_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_safe_eur_payment_reconciliation: {
+        Args: {
+          p_creance_id: string
+          p_effect_type: string
+          p_observation: Json
+          p_requester_user_id: string
+          p_sidian_environment: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
+      apply_setup_intent_failed_authorization: {
+        Args: {
+          p_authorization_id: string
+          p_authorization_text_version: string
+          p_connected_account_id: string
+          p_customer_id: string
+          p_failure_code: string
+          p_lease_token: string
+          p_processing_attempt: number
+          p_setup_intent_id: string
+          p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_setup_intent_succeeded_authorization: {
+        Args: {
+          p_authorization_id: string
+          p_authorization_text_version: string
+          p_connected_account_id: string
+          p_customer_id: string
+          p_lease_token: string
+          p_mandate_id: string | null
+          p_mandate_status: string | null
+          p_payment_method_id: string
+          p_payment_method_type: string
+          p_processing_attempt: number
+          p_setup_intent_id: string
+          p_stripe_event_id: string
         }
         Returns: Json
       }
@@ -1172,6 +1422,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_payment_authorization_setup: {
+        Args: {
+          p_authorization_text_version: string
+          p_lease_seconds?: number
+          p_public_token_hash: string
+          p_source_checkout_session_id: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+        }
+        Returns: Json
+      }
       claim_stripe_webhook_event: {
         Args: {
           p_event_id: string
@@ -1195,6 +1456,7 @@ export type Database = {
         }
         Returns: {
           application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
           checkout_lease_expires_at: string | null
           checkout_lease_token: string | null
           checkout_operation_key: string | null
@@ -1209,6 +1471,7 @@ export type Database = {
           id: string
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
           payment_link_id: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id: string | null
@@ -1221,6 +1484,60 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_payment_authorization_setup: {
+        Args: {
+          p_authorization_id: string
+          p_lease_token: string
+          p_session_expires_at: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+          p_stripe_setup_checkout_session_id: string
+          p_stripe_setup_intent_id: string | null
+        }
+        Returns: {
+          accepted_at: string | null
+          authorization_channel: string | null
+          authorization_text_version: string | null
+          authorized_at: string | null
+          client_payeur_id: string
+          created_at: string
+          etat: Database["public"]["Enums"]["payment_authorization_etat"]
+          id: string
+          is_default: boolean
+          legacy_incomplete: boolean
+          prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
+          revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
+          stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
+          stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_authorization"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1402,6 +1719,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      decline_payment_authorization_proposal: {
+        Args: {
+          p_public_token_hash: string
+          p_source_checkout_session_id: string
+        }
+        Returns: Json
+      }
       ensure_current_dossier_suivi: {
         Args: { p_creance_id: string }
         Returns: {
@@ -1473,6 +1797,7 @@ export type Database = {
         }
         Returns: {
           application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
           checkout_lease_expires_at: string | null
           checkout_lease_token: string | null
           checkout_operation_key: string | null
@@ -1487,6 +1812,7 @@ export type Database = {
           id: string
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
           payment_link_id: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id: string | null
@@ -1499,6 +1825,57 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fail_payment_authorization_setup: {
+        Args: {
+          p_authorization_id: string
+          p_error_code: string
+          p_lease_token: string
+          p_retryable: boolean
+        }
+        Returns: {
+          accepted_at: string | null
+          authorization_channel: string | null
+          authorization_text_version: string | null
+          authorized_at: string | null
+          client_payeur_id: string
+          created_at: string
+          etat: Database["public"]["Enums"]["payment_authorization_etat"]
+          id: string
+          is_default: boolean
+          legacy_incomplete: boolean
+          prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
+          revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
+          stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
+          stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_authorization"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1568,6 +1945,56 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      invalidate_payment_authorization_setup_session: {
+        Args: {
+          p_authorization_id: string
+          p_reason: string
+          p_stripe_setup_checkout_session_id: string
+        }
+        Returns: {
+          accepted_at: string | null
+          authorization_channel: string | null
+          authorization_text_version: string | null
+          authorized_at: string | null
+          client_payeur_id: string
+          created_at: string
+          etat: Database["public"]["Enums"]["payment_authorization_etat"]
+          id: string
+          is_default: boolean
+          legacy_incomplete: boolean
+          prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
+          revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
+          stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
+          stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_authorization"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       is_dossier_suivi_transition_allowed: {
         Args: {
           p_creance_etat: Database["public"]["Enums"]["creance_etat"]
@@ -1605,6 +2032,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      neutralize_unexposed_authorization_proposal: {
+        Args: {
+          p_checkout_lease_token: string
+          p_public_token_hash: string
+          p_reason: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
       normalize_creance_devise: { Args: { p_devise: string }; Returns: string }
       normalize_creance_montant: {
         Args: { p_montant: number }
@@ -1612,6 +2048,29 @@ export type Database = {
       }
       normalize_person_name: { Args: { p_nom: string }; Returns: string }
       open_payment_receivable: { Args: { p_creance_id: string }; Returns: Json }
+      prepare_payment_authorization_proposal: {
+        Args: {
+          p_authorization_text_version: string
+          p_public_token_expires_at: string
+          p_public_token_hash: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+          p_tentative_id: string
+        }
+        Returns: Json
+      }
+      prepare_reconsidered_authorization_proposal: {
+        Args: {
+          p_authorization_text_version: string
+          p_payment_link_token_hash: string
+          p_public_token_expires_at: string
+          p_public_token_hash: string
+          p_refused_authorization_id: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+        }
+        Returns: Json
+      }
       purge_expired_public_rate_limits: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -1629,6 +2088,16 @@ export type Database = {
           p_processing_attempt: number
           p_reason: string
           p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      register_payment_reconciliation_human_required: {
+        Args: {
+          p_creance_id: string
+          p_reason: string
+          p_reconciliation_key: string
+          p_requester_user_id: string
+          p_tentative_id: string | null
         }
         Returns: Json
       }
@@ -1686,6 +2155,25 @@ export type Database = {
         }
       }
       require_current_prestataire_id: { Args: never; Returns: string }
+      resolve_authorization_reconsideration_context: {
+        Args: { p_payment_link_token_hash: string }
+        Returns: Json
+      }
+      resolve_payment_authorization_public: {
+        Args: {
+          p_public_token_hash: string
+          p_setup_checkout_session_id?: string
+          p_source_checkout_session_id: string
+        }
+        Returns: Json
+      }
+      resolve_payment_authorization_setup_context: {
+        Args: {
+          p_public_token_hash: string
+          p_source_checkout_session_id: string
+        }
+        Returns: Json
+      }
       resolve_payment_intent_tentative: {
         Args: {
           p_connected_account_id: string
@@ -1694,6 +2182,7 @@ export type Database = {
         }
         Returns: {
           application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
           checkout_lease_expires_at: string | null
           checkout_lease_token: string | null
           checkout_operation_key: string | null
@@ -1708,6 +2197,7 @@ export type Database = {
           id: string
           montant: number
           moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
           payment_link_id: string | null
           source: Database["public"]["Enums"]["tentative_paiement_source"]
           stripe_account_id: string | null
@@ -1731,6 +2221,58 @@ export type Database = {
       resolve_payment_status_by_checkout_session_id: {
         Args: { p_checkout_session_id: string }
         Returns: Json
+      }
+      resolve_setup_authorization: {
+        Args: {
+          p_authorization_id: string
+          p_authorization_text_version: string
+          p_connected_account_id: string
+          p_customer_id: string
+          p_setup_intent_id: string
+        }
+        Returns: {
+          accepted_at: string | null
+          authorization_channel: string | null
+          authorization_text_version: string | null
+          authorized_at: string | null
+          client_payeur_id: string
+          created_at: string
+          etat: Database["public"]["Enums"]["payment_authorization_etat"]
+          id: string
+          is_default: boolean
+          legacy_incomplete: boolean
+          prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
+          revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
+          stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
+          stripe_payment_method_id: string | null
+          stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
+          stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
+          type: Database["public"]["Enums"]["payment_authorization_type"] | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_authorization"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       revoke_payment_link: {
         Args: { p_payment_link_id: string }
@@ -1774,6 +2316,7 @@ export type Database = {
       set_default_payment_authorization: {
         Args: { p_authorization_id: string }
         Returns: {
+          accepted_at: string | null
           authorization_channel: string | null
           authorization_text_version: string | null
           authorized_at: string | null
@@ -1782,12 +2325,31 @@ export type Database = {
           etat: Database["public"]["Enums"]["payment_authorization_etat"]
           id: string
           is_default: boolean
+          legacy_incomplete: boolean
           prestataire_id: string
+          proposal_neutralized_at: string | null
+          public_token_expires_at: string | null
+          public_token_hash: string | null
+          reconsidered_from_authorization_id: string | null
+          resume_as_default: boolean
           revoked_at: string | null
+          setup_lease_expires_at: string | null
+          setup_lease_token: string | null
+          setup_operation_key: string | null
+          setup_provisioning_attempts: number
+          setup_provisioning_error_code: string | null
+          setup_provisioning_status: string
+          source_tentative_paiement_id: string | null
+          stripe_account_id: string | null
+          stripe_customer_id: string | null
           stripe_mandate_id: string | null
+          stripe_mandate_status: string | null
           stripe_payment_method_id: string | null
           stripe_setup_checkout_session_id: string | null
+          stripe_setup_idempotency_key: string | null
           stripe_setup_intent_id: string | null
+          stripe_setup_session_expires_at: string | null
+          suspension_reason: string | null
           type: Database["public"]["Enums"]["payment_authorization_type"] | null
         }
         SetofOptions: {
@@ -1810,6 +2372,17 @@ export type Database = {
       }
       sidian_table_authenticated_privileges: {
         Args: { p_table: string }
+        Returns: Json
+      }
+      suspend_payment_authorization_for_dispute: {
+        Args: {
+          p_connected_account_id: string
+          p_dispute_id: string
+          p_lease_token: string
+          p_payment_intent_id: string
+          p_processing_attempt: number
+          p_stripe_event_id: string
+        }
         Returns: Json
       }
       sync_prestataire_stripe_projection: {

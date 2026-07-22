@@ -57,4 +57,25 @@ describe("détail d’un paiement à recevoir", () => {
     expect(events[0].description).toContain("solde confirmé reste inchangé");
     expect(events[0].tone).toBe("danger");
   });
+
+  it("présente les audits de réconciliation sans identifiant technique", () => {
+    const events = buildReceivableTimeline(
+      [],
+      [],
+      [
+        {
+          id: "reconciliation",
+          action: "PAYMENT_RECONCILIATION_REPAIR_APPLIED",
+          actor_type: "system",
+          created_at: "2026-07-21T12:00:00.000Z",
+        },
+      ],
+    );
+
+    expect(events[0]).toMatchObject({
+      title: "Situation Stripe rapprochée",
+      description: "Action enregistrée par un service contrôlé.",
+    });
+    expect(JSON.stringify(events[0])).not.toMatch(/(?:acct_|cs_|pi_|cus_)/);
+  });
 });

@@ -5,6 +5,7 @@
  * Le service role est réservé à la préparation des fixtures et aux contrôles d'intégrité SQL.
  */
 
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 import {
@@ -518,32 +519,68 @@ async function main() {
   });
 
   await runTest("plusieurs autorisations ACTIVE sans is_default sont autorisées", async () => {
-    const { error: firstError } = await admin.from("payment_authorization").insert({
-      client_payeur_id: clientPayeurA.id,
-      prestataire_id: prestA.id,
-      type: "card_off_session",
+    async function insertActiveAuthorization(overrides) {
+      const { data: creance, error: creanceError } = await admin
+        .from("creance")
+        .insert({
+          prestataire_id: prestA.id,
+          client_payeur_id: clientPayeurA.id,
+          montant: 1000,
+          origine: "import_manuel",
+          date_echeance: "2026-08-01",
+          etat: "OUVERTE",
+        })
+        .select("id")
+        .single();
+      if (creanceError) throw creanceError;
+      const { data: tentative, error: tentativeError } = await admin
+        .from("tentative_paiement")
+        .insert({
+          creance_id: creance.id,
+          montant: 1000,
+          moyen: "carte",
+          source: "lien_agent",
+          etat: "CREEE",
+        })
+        .select("id")
+        .single();
+      if (tentativeError) throw tentativeError;
+      return admin.from("payment_authorization").insert({
+        client_payeur_id: clientPayeurA.id,
+        prestataire_id: prestA.id,
+        type: "card_off_session",
+        stripe_payment_method_id: `pm_${randomUUID()}`,
+        etat: "ACTIVE",
+        authorized_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(),
+        authorization_text_version: "test-v1",
+        authorization_channel: "schema-test",
+        is_default: false,
+        source_tentative_paiement_id: tentative.id,
+        stripe_account_id: "acct_schema_test",
+        stripe_customer_id: `cus_${randomUUID()}`,
+        stripe_setup_idempotency_key: `setup_${randomUUID()}`,
+        setup_operation_key: randomUUID(),
+        ...overrides,
+      });
+    }
+
+    const { error: firstError } = await insertActiveAuthorization({
       stripe_payment_method_id: "pm_active_1",
-      etat: "ACTIVE",
-      authorized_at: new Date().toISOString(),
-      authorization_text_version: "test-v1",
-      authorization_channel: "schema-test",
-      is_default: false,
     });
     if (firstError) throw firstError;
 
-    const { error: secondError } = await admin.from("payment_authorization").insert({
-      client_payeur_id: clientPayeurA.id,
-      prestataire_id: prestA.id,
+    const { error: secondError } = await insertActiveAuthorization({
       type: "sepa_core_mandate",
       stripe_payment_method_id: "pm_active_2",
       stripe_mandate_id: "mandate_active_2",
-      etat: "ACTIVE",
-      authorized_at: new Date().toISOString(),
-      authorization_text_version: "test-v1",
-      authorization_channel: "schema-test",
-      is_default: false,
+      stripe_mandate_status: "active",
     });
-    if (secondError) throw new Error("plusieurs ACTIVE non-default refusées");
+    if (secondError) {
+      throw new Error(
+        `plusieurs ACTIVE non-default refusées: ${secondError.message ?? secondError}`,
+      );
+    }
   });
 
   await runTest("autorisation is_default non ACTIVE refusée (contrainte SQL)", async () => {
@@ -559,30 +596,62 @@ async function main() {
   });
 
   await runTest("deux autorisations par défaut pour le même couple sont refusées", async () => {
-    const { error: firstError } = await admin.from("payment_authorization").insert({
-      client_payeur_id: clientPayeurA.id,
-      prestataire_id: prestA.id,
-      type: "card_off_session",
+    async function insertDefaultCandidate(overrides) {
+      const { data: creance, error: creanceError } = await admin
+        .from("creance")
+        .insert({
+          prestataire_id: prestA.id,
+          client_payeur_id: clientPayeurA.id,
+          montant: 1000,
+          origine: "import_manuel",
+          date_echeance: "2026-08-01",
+          etat: "OUVERTE",
+        })
+        .select("id")
+        .single();
+      if (creanceError) throw creanceError;
+      const { data: tentative, error: tentativeError } = await admin
+        .from("tentative_paiement")
+        .insert({
+          creance_id: creance.id,
+          montant: 1000,
+          moyen: "carte",
+          source: "lien_agent",
+          etat: "CREEE",
+        })
+        .select("id")
+        .single();
+      if (tentativeError) throw tentativeError;
+      return admin.from("payment_authorization").insert({
+        client_payeur_id: clientPayeurA.id,
+        prestataire_id: prestA.id,
+        type: "card_off_session",
+        stripe_payment_method_id: `pm_${randomUUID()}`,
+        etat: "ACTIVE",
+        authorized_at: new Date().toISOString(),
+        accepted_at: new Date().toISOString(),
+        authorization_text_version: "test-v1",
+        authorization_channel: "schema-test",
+        is_default: true,
+        source_tentative_paiement_id: tentative.id,
+        stripe_account_id: "acct_schema_test",
+        stripe_customer_id: `cus_${randomUUID()}`,
+        stripe_setup_idempotency_key: `setup_${randomUUID()}`,
+        setup_operation_key: randomUUID(),
+        ...overrides,
+      });
+    }
+
+    const { error: firstError } = await insertDefaultCandidate({
       stripe_payment_method_id: "pm_default_1",
-      etat: "ACTIVE",
-      authorized_at: new Date().toISOString(),
-      authorization_text_version: "test-v1",
-      authorization_channel: "schema-test",
-      is_default: true,
     });
     if (firstError) throw firstError;
 
-    const { error: secondError } = await admin.from("payment_authorization").insert({
-      client_payeur_id: clientPayeurA.id,
-      prestataire_id: prestA.id,
+    const { error: secondError } = await insertDefaultCandidate({
       type: "sepa_core_mandate",
       stripe_payment_method_id: "pm_default_2",
       stripe_mandate_id: "mandate_default_2",
-      etat: "ACTIVE",
-      authorized_at: new Date().toISOString(),
-      authorization_text_version: "test-v1",
-      authorization_channel: "schema-test",
-      is_default: true,
+      stripe_mandate_status: "active",
     });
     if (!secondError) throw new Error("double is_default autorisé");
   });

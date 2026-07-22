@@ -175,7 +175,7 @@ async function provisionTentative(tenant, {
   if (claim.error || claim.data?.status !== "claimed") {
     throw claim.error ?? new Error(`claim inattendu: ${JSON.stringify(claim.data)}`);
   }
-  const sessionId = `cs_test_${randomUUID()}`;
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
   const complete = await admin.rpc("complete_checkout_provisioning", {
     p_tentative_id: claim.data.tentative_id,
     p_lease_token: claim.data.lease_token,
@@ -307,7 +307,7 @@ await run("paiement en cours (SEPA EN_TRAITEMENT) → pending_payment=true", asy
 await run("session Checkout inconnue → found=false", async () => {
   const { data, error } = await admin.rpc(
     "resolve_payment_status_by_checkout_session_id",
-    { p_checkout_session_id: `cs_test_${randomUUID()}` },
+    { p_checkout_session_id: `cs_test_${randomUUID().replaceAll("-", "")}` },
   );
   if (error) throw error;
   assert(data.found === false, "session introuvable");
@@ -404,14 +404,13 @@ await run("annulation (session expirée) → etat ANNULEE, aucun changement fina
   assert(pmt[0].n === 0, "aucun paiement créé par une annulation");
 });
 
-await run("identifiant vide → erreur explicite plutôt qu'un scan silencieux", async () => {
-  const { error } = await admin.rpc("resolve_payment_status_by_checkout_session_id", {
-    p_checkout_session_id: "   ",
-  });
-  assert(
-    Boolean(error) && /checkout_session_id_required/.test(error.message),
-    "rejet explicite",
+await run("identifiant vide → rejet fermé sans scan", async () => {
+  const { data, error } = await admin.rpc(
+    "resolve_payment_status_by_checkout_session_id",
+    { p_checkout_session_id: "   " },
   );
+  assert(!error, "RPC service_role ne doit pas échouer sur entrée invalide");
+  assert(data?.found === false, "identifiant vide → found=false");
 });
 
 await run("ACL public : anon et authenticated n'ont aucun accès direct", async () => {

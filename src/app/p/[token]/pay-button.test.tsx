@@ -1,8 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PayButton } from "./pay-button";
+import {
+  PayButton,
+  PUBLIC_PAYMENT_RESUME_STORAGE_KEY,
+  resumePathForToken,
+} from "./pay-button";
 import type { PayActionState } from "./pay-action";
 
 function deferred<T>() {
@@ -14,6 +18,10 @@ function deferred<T>() {
 }
 
 describe("PayButton — empêche les doubles clics", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
   it("désactive le bouton pendant la soumission, jusqu'à résolution du serveur", async () => {
     const user = userEvent.setup();
     const gate = deferred<PayActionState>();
@@ -29,6 +37,9 @@ describe("PayButton — empêche les doubles clics", () => {
     await waitFor(() => {
       expect(button).toBeDisabled();
     });
+    expect(sessionStorage.getItem(PUBLIC_PAYMENT_RESUME_STORAGE_KEY)).toBe(
+      `/p/${"A".repeat(43)}`,
+    );
     expect(screen.getByRole("button")).toHaveTextContent("Redirection…");
 
     // Un second clic pendant que le bouton est désactivé n'invoque jamais
@@ -82,5 +93,11 @@ describe("PayButton — empêche les doubles clics", () => {
         "Ce paiement n’est pas disponible pour le moment.",
       );
     });
+  });
+
+  it("ne mémorise qu’un chemin public strictement valide", () => {
+    expect(resumePathForToken("A".repeat(43))).toBe(`/p/${"A".repeat(43)}`);
+    expect(resumePathForToken("../../app")).toBeNull();
+    expect(resumePathForToken("A".repeat(42))).toBeNull();
   });
 });

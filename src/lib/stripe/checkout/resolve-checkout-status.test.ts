@@ -15,6 +15,17 @@ describe("resolveCheckoutReturnStatus", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it.each([
+    "not-a-checkout-session",
+    `cs_${"A".repeat(253)}`,
+  ])("session_id invalide ou surdimensionné → unknown sans RPC", async (sessionId) => {
+    const rpc = vi.fn();
+    const admin = { rpc } as never;
+
+    expect(await resolveCheckoutReturnStatus(admin, sessionId)).toBe("unknown");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("REUSSIE → confirmed", async () => {
     const admin = adminWith({ data: { found: true, etat: "REUSSIE" }, error: null });
     expect(await resolveCheckoutReturnStatus(admin, "cs_test_1")).toBe("confirmed");
@@ -31,6 +42,20 @@ describe("resolveCheckoutReturnStatus", () => {
   it.each(["ECHOUEE", "ANNULEE"])("%s → not_confirmed", async (etat) => {
     const admin = adminWith({ data: { found: true, etat }, error: null });
     expect(await resolveCheckoutReturnStatus(admin, "cs_test_1")).toBe("not_confirmed");
+  });
+
+  it("ANNULEE par expiration Checkout → expired", async () => {
+    const admin = adminWith({
+      data: {
+        found: true,
+        etat: "ANNULEE",
+        checkout_provisioning_error_code: "checkout_session_expired",
+      },
+      error: null,
+    });
+    expect(await resolveCheckoutReturnStatus(admin, "cs_test_1")).toBe(
+      "expired",
+    );
   });
 
   it("session inconnue (found=false) → unknown", async () => {

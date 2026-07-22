@@ -20,16 +20,19 @@
     "test:prod-002": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-002.mjs",
     "test:prod-002-p1": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-002-p1-state-guards.mjs",
     "test:prod-003": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-003.mjs",
+    "test:prod-004": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-prod-004.mjs",
     "test:stripe-001": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-001.mjs",
     "test:stripe-002-a": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-a.mjs",
     "test:stripe-002-b": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-b.mjs",
     "test:stripe-002-c": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-002-c.mjs",
+    "test:stripe-003": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-003.mjs",
+    "test:stripe-003-orphan-audit": "node scripts/test-local-supabase-guard.mjs && node scripts/test-stripe-003-orphan-audit.mjs",
     "test:security-trust-boundaries": "node scripts/test-local-supabase-guard.mjs && node scripts/test-security-trust-boundaries.mjs",
     "test:security-rate-limits": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-sec-006.mjs",
     "test:security-environment": "node scripts/test-local-supabase-guard.mjs && node scripts/test-sid-sec-environment.mjs",
     "test:local-guard": "node scripts/test-local-supabase-guard.mjs",
     "test:forms": "vitest run",
-    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:prod-002 && pnpm test:prod-002-p1 && pnpm test:prod-003 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
+    "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:prod-002 && pnpm test:prod-002-p1 && pnpm test:prod-003 && pnpm test:prod-004 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:stripe-003 && pnpm test:stripe-003-orphan-audit && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

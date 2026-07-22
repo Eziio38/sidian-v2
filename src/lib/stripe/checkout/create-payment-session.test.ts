@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   eligibleThrows: null as unknown,
   eligibleRails: ["card", "sepa_core"] as Array<"card" | "sepa_core">,
   ensureResult: { customerId: "cus_x", created: true },
+  proposalThrows: false,
+  neutralize: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/stripe/checkout/rate-limit", () => ({
@@ -16,6 +18,14 @@ vi.mock("@/lib/stripe/checkout/rate-limit", () => ({
 
 vi.mock("@/lib/stripe/customers/ensure-customer", () => ({
   ensureStripeCustomerForClient: vi.fn(async () => mocks.ensureResult),
+}));
+
+vi.mock("@/lib/stripe/authorizations/create-setup-session", () => ({
+  prepareAuthorizationProposalForPayment: vi.fn(async () => {
+    if (mocks.proposalThrows) throw new Error("proposal unavailable");
+    return { rawToken: "Z".repeat(43) };
+  }),
+  neutralizeUnexposedAuthorizationProposal: mocks.neutralize,
 }));
 
 vi.mock("@/lib/stripe/connect/retrieve-and-sync", () => ({
@@ -41,6 +51,7 @@ function resolvedPayable(overrides: Record<string, unknown> = {}) {
     stripe_account_id: "acct_1",
     montant: 12000,
     devise: "EUR",
+    amount_paid: 0,
     remaining: 12000,
     creance_etat: "OUVERTE",
     creance_archived: false,
@@ -72,10 +83,46 @@ function makeStripe(overrides: Record<string, unknown> = {}) {
           status: "open",
           url: "https://checkout.stripe/existing",
         })),
+        expire: vi.fn(async () => ({ id: "cs_existing", status: "expired" })),
       },
     },
     ...overrides,
   } as never;
+}
+
+function reusablePaymentSession(overrides: Record<string, unknown> = {}) {
+  return {
+    object: "checkout.session",
+    id: "cs_existing",
+    mode: "payment",
+    status: "open",
+    payment_status: "unpaid",
+    url: "https://checkout.stripe/existing",
+    client_reference_id: "t1",
+    metadata: {
+      sidian_creance_id: resolvedPayable().creance_id,
+      sidian_tentative_id: "t1",
+    },
+    currency: "eur",
+    amount_total: 12000,
+    customer: "cus_x",
+    payment_method_types: ["card", "sepa_debit"],
+    ...overrides,
+  };
+}
+
+function alreadyCreatedClaim(overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      status: "already_created",
+      tentative_id: "t1",
+      montant: 12000,
+      stripe_customer_id: "cus_x",
+      stripe_checkout_session_id: "cs_existing",
+      ...overrides,
+    },
+    error: null,
+  };
 }
 
 const base = {
@@ -90,6 +137,8 @@ beforeEach(() => {
   mocks.eligibleThrows = null;
   mocks.eligibleRails = ["card", "sepa_core"];
   mocks.ensureResult = { customerId: "cus_x", created: true };
+  mocks.proposalThrows = false;
+  mocks.neutralize.mockClear();
 });
 
 describe("createPaymentCheckoutSession", () => {
@@ -123,6 +172,9 @@ describe("createPaymentCheckoutSession", () => {
         customer: "cus_x",
         payment_method_types: ["card", "sepa_debit"],
         metadata: { sidian_creance_id: resolvedPayable().creance_id, sidian_tentative_id: "t1" },
+        success_url:
+          "https://app.sidian.test/p/retour?session_id={CHECKOUT_SESSION_ID}&authorization_token=" +
+          "Z".repeat(43),
       }),
       expect.objectContaining({ stripeAccount: "acct_1", idempotencyKey: "sidian_checkout_x" }),
     );
@@ -159,6 +211,42 @@ describe("createPaymentCheckoutSession", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({ payment_method_types: ["card"] }),
       expect.anything(),
+    );
+  });
+
+  it("préparation d'autorisation indisponible → paiement ready sans proposition", async () => {
+    mocks.proposalThrows = true;
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+      claim_checkout_provisioning: () => ({
+        data: {
+          status: "claimed",
+          tentative_id: "t1",
+          montant: 12000,
+          idempotency_key: "sidian_checkout_x",
+          lease_token: "lease-1",
+        },
+        error: null,
+      }),
+      complete_checkout_provisioning: () => ({ data: {}, error: null }),
+    });
+    const stripe = makeStripe();
+
+    await expect(
+      createPaymentCheckoutSession({ ...base, supabaseAdmin: admin, stripe }),
+    ).resolves.toMatchObject({ status: "ready" });
+
+    const create = (stripe as { checkout: { sessions: { create: ReturnType<typeof vi.fn> } } })
+      .checkout.sessions.create;
+    expect(create.mock.calls[0][0].success_url).toBe(
+      "https://app.sidian.test/p/retour?session_id={CHECKOUT_SESSION_ID}",
+    );
+    expect(mocks.neutralize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tentativeId: "t1",
+        checkoutLeaseToken: "lease-1",
+        reason: "authorization_proposal_unavailable",
+      }),
     );
   });
 
@@ -281,6 +369,168 @@ describe("createPaymentCheckoutSession", () => {
     expect(result).toEqual({ status: "retry" });
   });
 
+  it("réutilise une Session PAYMENT dont l'identité et l'ensemble de rails sont identiques", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+      claim_checkout_provisioning: () => alreadyCreatedClaim(),
+    });
+    const retrieve = vi.fn(async () => reusablePaymentSession());
+    const expire = vi.fn();
+    const stripe = makeStripe({
+      checkout: { sessions: { create: vi.fn(), retrieve, expire } },
+    });
+
+    const result = await createPaymentCheckoutSession({
+      ...base,
+      supabaseAdmin: admin,
+      stripe,
+    });
+
+    expect(result).toEqual({
+      status: "ready",
+      url: "https://checkout.stripe/existing",
+      tentativeId: "t1",
+    });
+    expect(retrieve).toHaveBeenCalledWith(
+      "cs_existing",
+      {},
+      { stripeAccount: "acct_1" },
+    );
+    expect(expire).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      label: "retrait de SEPA",
+      liveRails: ["card"] as Array<"card" | "sepa_core">,
+      sessionRails: ["card", "sepa_debit"],
+    },
+    {
+      label: "ajout de SEPA",
+      liveRails: ["card", "sepa_core"] as Array<"card" | "sepa_core">,
+      sessionRails: ["card"],
+    },
+  ])(
+    "$label : expire la Session ouverte obsolète sans jamais la réexposer",
+    async ({ liveRails, sessionRails }) => {
+      mocks.eligibleRails = liveRails;
+      const { admin } = makeAdmin({
+        resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+        claim_checkout_provisioning: () => alreadyCreatedClaim(),
+      });
+      const expire = vi.fn(async () => ({ id: "cs_existing", status: "expired" }));
+      const stripe = makeStripe({
+        checkout: {
+          sessions: {
+            create: vi.fn(),
+            retrieve: vi.fn(async () =>
+              reusablePaymentSession({ payment_method_types: sessionRails }),
+            ),
+            expire,
+          },
+        },
+      });
+
+      const result = await createPaymentCheckoutSession({
+        ...base,
+        supabaseAdmin: admin,
+        stripe,
+      });
+
+      expect(result).toEqual({ status: "retry" });
+      expect(expire).toHaveBeenCalledWith(
+        "cs_existing",
+        {},
+        {
+          stripeAccount: "acct_1",
+          idempotencyKey: "sidian_checkout_rails_changed_cs_existing",
+        },
+      );
+    },
+  );
+
+  it.each([
+    ["objet", { object: "payment_intent" }],
+    ["identifiant", { id: "cs_other" }],
+    ["mode", { mode: "setup" }],
+    ["référence tentative", { client_reference_id: "t-other" }],
+    [
+      "métadonnée tentative",
+      {
+        metadata: {
+          sidian_creance_id: resolvedPayable().creance_id,
+          sidian_tentative_id: "t-other",
+        },
+      },
+    ],
+    [
+      "métadonnée créance",
+      {
+        metadata: {
+          sidian_creance_id: "55555555-5555-4555-8555-555555555555",
+          sidian_tentative_id: "t1",
+        },
+      },
+    ],
+    ["devise", { currency: "usd" }],
+    ["montant", { amount_total: 11999 }],
+    ["Customer figé", { customer: "cus_other" }],
+    ["statut financier", { payment_status: "paid" }],
+  ])(
+    "identité divergente (%s) : fail-closed sans URL ni expiration",
+    async (_label, sessionOverride) => {
+      // Des rails volontairement divergents prouvent que l'identité est bien
+      // contrôlée avant toute expiration de l'objet Stripe ambigu.
+      mocks.eligibleRails = ["card"];
+      const { admin } = makeAdmin({
+        resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+        claim_checkout_provisioning: () => alreadyCreatedClaim(),
+      });
+      const expire = vi.fn();
+      const stripe = makeStripe({
+        checkout: {
+          sessions: {
+            create: vi.fn(),
+            retrieve: vi.fn(async () => reusablePaymentSession(sessionOverride)),
+            expire,
+          },
+        },
+      });
+
+      const result = await createPaymentCheckoutSession({
+        ...base,
+        supabaseAdmin: admin,
+        stripe,
+      });
+
+      expect(result).toEqual({ status: "retry" });
+      expect(expire).not.toHaveBeenCalled();
+    },
+  );
+
+  it("snapshot Customer local absent : refuse toute réutilisation de Session", async () => {
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+      claim_checkout_provisioning: () =>
+        alreadyCreatedClaim({ stripe_customer_id: null }),
+    });
+    const expire = vi.fn();
+    const stripe = makeStripe({
+      checkout: {
+        sessions: {
+          create: vi.fn(),
+          retrieve: vi.fn(async () => reusablePaymentSession()),
+          expire,
+        },
+      },
+    });
+
+    await expect(
+      createPaymentCheckoutSession({ ...base, supabaseAdmin: admin, stripe }),
+    ).resolves.toEqual({ status: "retry" });
+    expect(expire).not.toHaveBeenCalled();
+  });
+
   it("paiement déjà en traitement (SEPA) → not_payable sans appel Stripe live", async () => {
     const { admin, rpc } = makeAdmin({
       resolve_payment_link_by_token_hash: () => ({
@@ -373,6 +623,53 @@ describe("createPaymentCheckoutSession", () => {
       "fail_checkout_provisioning",
       expect.objectContaining({ p_tentative_id: "t1", p_retryable: false }),
     );
+    expect(mocks.neutralize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tentativeId: "t1",
+        checkoutLeaseToken: "lease-1",
+        reason: "checkout_creation_failed_terminal",
+      }),
+    );
+  });
+
+  it("échec Stripe retryable → conserve la proposition stable pour le retry", async () => {
+    const { admin, rpc } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({ data: resolvedPayable(), error: null }),
+      claim_checkout_provisioning: () => ({
+        data: {
+          status: "claimed",
+          tentative_id: "t1",
+          montant: 12000,
+          idempotency_key: "idem",
+          lease_token: "lease-1",
+        },
+        error: null,
+      }),
+      fail_checkout_provisioning: () => ({ data: {}, error: null }),
+    });
+    const stripe = makeStripe({
+      checkout: {
+        sessions: {
+          create: vi.fn(async () => {
+            throw new StripeDomainError(
+              "stripe_network_error",
+              undefined,
+              "retryable",
+            );
+          }),
+          retrieve: vi.fn(),
+        },
+      },
+    });
+
+    await expect(
+      createPaymentCheckoutSession({ ...base, supabaseAdmin: admin, stripe }),
+    ).rejects.toMatchObject({ code: "stripe_network_error" });
+    expect(rpc).toHaveBeenCalledWith(
+      "fail_checkout_provisioning",
+      expect.objectContaining({ p_tentative_id: "t1", p_retryable: true }),
+    );
+    expect(mocks.neutralize).not.toHaveBeenCalled();
   });
 });
 
@@ -386,7 +683,14 @@ describe("resolvePaymentLinkForDisplay", () => {
       rawToken: RAW_TOKEN,
       clientIp: "203.0.113.1",
     });
-    expect(result).toMatchObject({ status: "display", payable: true, montant: 12000 });
+    expect(result).toMatchObject({
+      status: "display",
+      payable: true,
+      montant: 12000,
+      amountPaid: 0,
+      devise: "EUR",
+      availableRails: ["card", "sepa_core"],
+    });
     expect(rpc).not.toHaveBeenCalledWith(
       "claim_checkout_provisioning",
       expect.anything(),
@@ -416,6 +720,78 @@ describe("resolvePaymentLinkForDisplay", () => {
       libelle: "Mission juillet",
       referenceExterne: "FA-2026-042",
       dateEcheance: "2026-08-01",
+    });
+  });
+
+  it("card active / SEPA inactive → affiche uniquement la carte", async () => {
+    mocks.eligibleRails = ["card"];
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable(),
+        error: null,
+      }),
+    });
+
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+
+    expect(result).toMatchObject({
+      status: "display",
+      payable: true,
+      availableRails: ["card"],
+    });
+  });
+
+  it("aucun rail actif → affichage non payable avant toute action", async () => {
+    mocks.eligibleRails = [];
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable(),
+        error: null,
+      }),
+    });
+
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+
+    expect(result).toMatchObject({
+      status: "display",
+      payable: false,
+      reason: "account_not_payable",
+      availableRails: [],
+    });
+  });
+
+  it("revérification Stripe indisponible → fail-closed avec état explicite", async () => {
+    mocks.eligibleThrows = new StripeDomainError(
+      "stripe_account_retrieve_failed",
+      undefined,
+      "retryable",
+    );
+    const { admin } = makeAdmin({
+      resolve_payment_link_by_token_hash: () => ({
+        data: resolvedPayable(),
+        error: null,
+      }),
+    });
+
+    const result = await resolvePaymentLinkForDisplay({
+      supabaseAdmin: admin,
+      rawToken: RAW_TOKEN,
+      clientIp: "203.0.113.1",
+    });
+
+    expect(result).toMatchObject({
+      status: "display",
+      payable: false,
+      reason: "account_check_unavailable",
+      availableRails: [],
     });
   });
 

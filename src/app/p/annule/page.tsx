@@ -1,17 +1,21 @@
+import { PublicPaymentShell } from "../public-payment-shell";
+import { ResumePaymentLink } from "./resume-payment-link";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Parcours Checkout annulé : aucun débit, le lien reste utilisable. */
+/** Lecture pure : cet écran ne déduit aucun état financier de la redirection. */
 export default function CheckoutCancelPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gris-50 p-6">
-      <div className="w-full max-w-md rounded-2xl border border-gris-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-lg font-semibold text-gris-900">Paiement annulé</h1>
-        <p className="mt-2 text-sm text-gris-600">
-          Aucun montant n’a été débité. Vous pouvez reprendre le paiement à tout
-          moment depuis votre lien.
-        </p>
-      </div>
-    </main>
+    <PublicPaymentShell centred>
+      <h1 className="text-xl font-semibold tracking-[-0.02em] text-nuit">
+        Parcours de paiement quitté
+      </h1>
+      <p className="mt-3 text-sm leading-relaxed text-gris-500">
+        Cette page ne modifie aucun paiement et ne confirme aucun débit. L’état
+        réel sera revérifié côté serveur lorsque vous reprendrez.
+      </p>
+      <ResumePaymentLink />
+    </PublicPaymentShell>
   );
 }

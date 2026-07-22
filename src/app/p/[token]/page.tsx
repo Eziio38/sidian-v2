@@ -2,53 +2,20 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { isStripePaymentsEnabled } from "@/config/env-server";
+import { isAuthorizationReconsiderationAvailable } from "@/lib/stripe/authorizations/create-setup-session";
 import { resolvePaymentLinkForDisplay } from "@/lib/stripe/checkout/create-payment-session";
 import { clientIpFromHeaders } from "@/lib/stripe/checkout/client-ip";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { PublicPaymentShell } from "../public-payment-shell";
+import { authorizationReconsiderationAction } from "./authorization-reconsideration-action";
+import { AuthorizationReconsideration } from "./authorization-reconsideration";
+import { buildPublicPaymentView } from "./payment-view";
 import { payAction } from "./pay-action";
 import { PayButton } from "./pay-button";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function formatMoney(cents: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(cents / 100);
-}
-
-function formatDateEcheance(dateEcheance: string | null): string | null {
-  if (!dateEcheance) return null;
-  const parsed = new Date(`${dateEcheance}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(parsed);
-}
-
-const NOT_PAYABLE_MESSAGES: Record<string, string> = {
-  settled: "Ce paiement a déjà été réglé. Merci !",
-  not_open: "Ce paiement n’est plus disponible.",
-  archived: "Ce paiement n’est plus disponible.",
-  account_not_configured:
-    "Le paiement en ligne n’est pas encore activé pour ce prestataire. Réessayez un peu plus tard.",
-  pending_payment:
-    "Un paiement est déjà en cours de traitement pour ce montant. Vous recevrez une confirmation dès qu’il sera validé.",
-};
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-gris-50 p-6">
-      <div className="w-full max-w-md rounded-2xl border border-gris-200 bg-white p-8 shadow-sm">
-        {children}
-      </div>
-    </main>
-  );
-}
 
 export default async function PublicPaymentPage({
   params,
@@ -74,51 +41,112 @@ export default async function PublicPaymentPage({
 
   if (result.status === "rate_limited") {
     return (
-      <Shell>
-        <h1 className="text-lg font-semibold text-gris-900">Un instant</h1>
-        <p className="mt-2 text-sm text-gris-600">
+      <PublicPaymentShell centred>
+        <h1 className="text-xl font-semibold tracking-[-0.02em] text-nuit">
+          Merci de patienter
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-gris-500">
           Trop de tentatives. Merci de patienter quelques minutes avant de réessayer.
         </p>
-      </Shell>
+      </PublicPaymentShell>
     );
   }
 
-  if (!result.payable) {
-    return (
-      <Shell>
-        <h1 className="text-lg font-semibold text-gris-900">Paiement</h1>
-        <p className="mt-2 text-sm text-gris-600">
-          {NOT_PAYABLE_MESSAGES[result.reason ?? "not_open"] ??
-            NOT_PAYABLE_MESSAGES.not_open}
-        </p>
-      </Shell>
-    );
+  const view = buildPublicPaymentView(result);
+  const showEuroAmounts = result.devise === "EUR";
+  let reconsiderationAvailable = false;
+  try {
+    reconsiderationAvailable = await isAuthorizationReconsiderationAvailable({
+      supabaseAdmin: admin,
+      rawPaymentLinkToken: token,
+    });
+  } catch {
+    // Option secondaire fail-closed ; le paiement principal reste utilisable.
   }
-
-  const label = result.libelle || result.referenceExterne;
-  const echeance = formatDateEcheance(result.dateEcheance);
 
   return (
-    <Shell>
-      <p className="text-sm font-medium uppercase tracking-wide text-gris-500">
-        {result.prestataireNom
-          ? `Paiement à régler · ${result.prestataireNom}`
-          : "Paiement à régler"}
-      </p>
-      <p className="mt-2 text-3xl font-semibold text-gris-900">
-        {formatMoney(result.remaining)}
-      </p>
-      {label ? <p className="mt-1 text-sm text-gris-600">{label}</p> : null}
-      {echeance ? (
-        <p className="mt-1 text-xs text-gris-500">Échéance : {echeance}</p>
+    <PublicPaymentShell>
+      <p className="text-sm text-gris-500">Demande de paiement de</p>
+      <h1 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-nuit">
+        {view.providerName}
+      </h1>
+      <p className="mt-4 text-base font-medium text-nuit">{view.label}</p>
+      {view.reference ? (
+        <p className="mt-1 text-sm text-gris-500">
+          Référence&nbsp;: {view.reference}
+        </p>
       ) : null}
-      <p className="mt-3 text-sm text-gris-600">
-        Paiement simplifié et sécurisé. L’argent va directement à{" "}
-        {result.prestataireNom || "votre prestataire"}.
-      </p>
-      <div className="mt-6">
-        <PayButton token={token} action={payAction} />
+
+      <div className="mt-5 flex items-center justify-between gap-4 border-y border-gris-100 py-4">
+        <span className="text-sm text-gris-500">Statut</span>
+        <span className="rounded-full bg-gris-100 px-3 py-1 text-sm font-medium text-nuit">
+          {view.statusLabel}
+        </span>
       </div>
-    </Shell>
+
+      {showEuroAmounts ? (
+        <dl className="mt-5 space-y-3 text-sm">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-gris-500">Montant total</dt>
+            <dd className="font-medium tabular-nums text-nuit">{view.total}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-gris-500">Déjà réglé</dt>
+            <dd className="font-medium tabular-nums text-nuit">{view.paid}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4 border-t border-gris-100 pt-3">
+            <dt className="font-medium text-nuit">Reste à régler</dt>
+            <dd className="text-xl font-semibold tabular-nums text-nuit">
+              {view.remaining}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
+
+      {view.dueDate ? (
+        <p className="mt-5 text-sm text-gris-500">
+          Échéance&nbsp;: <span className="font-medium text-nuit">{view.dueDate}</span>
+        </p>
+      ) : null}
+
+      {result.payable ? (
+        <>
+          <section className="mt-6" aria-labelledby="payment-methods-title">
+            <h2 id="payment-methods-title" className="text-sm font-medium text-nuit">
+              Moyens disponibles maintenant
+            </h2>
+            <ul className="mt-2 flex flex-wrap gap-2" aria-label="Moyens de paiement disponibles">
+              {view.railLabels.map((rail) => (
+                <li
+                  key={rail}
+                  className="rounded-full border border-gris-200 px-3 py-1.5 text-sm text-gris-500"
+                >
+                  {rail}
+                </li>
+              ))}
+            </ul>
+          </section>
+          <p className="mt-5 text-sm leading-relaxed text-gris-500">
+            Le règlement sera versé directement à {view.providerName}.
+          </p>
+          <div className="mt-6">
+            <PayButton token={token} action={payAction} />
+          </div>
+        </>
+      ) : (
+        <div className="mt-6" role="status">
+          <h2 className="text-base font-semibold text-nuit">{view.stateTitle}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-gris-500">
+            {view.stateDescription}
+          </p>
+        </div>
+      )}
+      {reconsiderationAvailable ? (
+        <AuthorizationReconsideration
+          paymentToken={token}
+          action={authorizationReconsiderationAction}
+        />
+      ) : null}
+    </PublicPaymentShell>
   );
 }

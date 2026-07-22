@@ -7,9 +7,11 @@ import {
   ensureFollowUpCaseAction,
   updateFollowUpCaseAction,
 } from "@/app/actions/receivable-workflows";
+import { reconcilePaymentReceivableAction } from "@/app/actions/payment-reconciliation";
 import { AppShell } from "@/components/app/app-shell";
 import { CancelReceivableButton } from "@/components/app/cancel-receivable-button";
 import { FollowUpControls } from "@/components/app/follow-up-controls";
+import { PaymentReconciliationButton } from "@/components/app/payment-reconciliation-button";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { loadPaymentReceivableDetail } from "@/lib/receivables/detail";
@@ -207,6 +209,20 @@ export default async function PaymentReceivableDetailPage({ params }: PageProps)
               Ce paiement à recevoir est archivé et reste visible uniquement
               pour son historique.
             </p>
+          ) : null}
+
+          {detail.state !== "BROUILLON" ? (
+            <div className="mt-5 border-t border-gris-100 pt-5">
+              <h2 className="mb-2 font-semibold text-nuit">Vérification Stripe</h2>
+              <p className="mb-3 text-xs leading-relaxed text-gris-500">
+                Sidian relit les objets Stripe dans votre compte connecté. Un
+                écart ambigu reste sans effet et demande un examen humain.
+              </p>
+              <PaymentReconciliationButton
+                receivableId={detail.id}
+                action={reconcilePaymentReceivableAction}
+              />
+            </div>
           ) : null}
 
           {!detail.archived && detail.state !== "BROUILLON" ? (

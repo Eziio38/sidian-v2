@@ -24,9 +24,17 @@ const NOT_PAYABLE_REASON_MESSAGES: Record<string, string> = {
     "Le paiement en ligne n’est pas encore activé pour ce prestataire. Réessayez un peu plus tard.",
   account_not_payable:
     "Aucun moyen de paiement n’est disponible pour le moment. Réessayez plus tard ou contactez l’émetteur.",
+  account_check_unavailable:
+    "La disponibilité du paiement ne peut pas être vérifiée maintenant. Réessayez dans quelques instants.",
   pending_payment:
-    "Un paiement est déjà en cours de traitement pour ce montant. Vous recevrez une confirmation dès qu’il sera validé.",
+    "Un paiement est déjà en cours de traitement. Revenez sur ce lien pour vérifier son état.",
 };
+
+export const PUBLIC_PAYMENT_RESUME_STORAGE_KEY = "sidian.public-payment.resume-path";
+
+export function resumePathForToken(token: string): string | null {
+  return /^[A-Za-z0-9_-]{43}$/.test(token) ? `/p/${token}` : null;
+}
 
 function messageFor(state: PayActionState): string {
   if (!state) return "";
@@ -50,15 +58,28 @@ export function PayButton({
     action,
     null,
   );
+  const resumePath = resumePathForToken(token);
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form
+      action={formAction}
+      className="space-y-3"
+      onSubmit={() => {
+        if (!resumePath) return;
+        try {
+          sessionStorage.setItem(PUBLIC_PAYMENT_RESUME_STORAGE_KEY, resumePath);
+        } catch {
+          // La reprise reste optionnelle ; le serveur revérifie toujours le lien.
+        }
+      }}
+    >
       <input type="hidden" name="token" value={token} />
       <button
         type="submit"
         disabled={pending}
         aria-disabled={pending}
-        className="w-full rounded-xl bg-gris-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-gris-700 disabled:opacity-60"
+        aria-busy={pending}
+        className="min-h-11 w-full rounded-lg bg-sidian-blue px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Redirection…" : "Régler maintenant"}
       </button>

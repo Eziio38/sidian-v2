@@ -112,6 +112,8 @@ const AUDIT_TITLES: Record<string, string> = {
   FOLLOW_UP_CASE_UPDATED: "Dossier de suivi mis à jour",
   PAYMENT_DISPUTE_OPENED: "Contestation bancaire signalée",
   PAYMENT_SUCCEEDED_RECONCILIATION_REQUIRED: "Rapprochement humain demandé",
+  PAYMENT_RECONCILIATION_HUMAN_REQUIRED: "Vérification humaine demandée",
+  PAYMENT_RECONCILIATION_REPAIR_APPLIED: "Situation Stripe rapprochée",
 };
 
 export function buildReceivableTimeline(

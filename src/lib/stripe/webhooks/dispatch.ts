@@ -22,6 +22,14 @@ import {
   handlePaymentIntentProcessing,
   handlePaymentIntentSucceeded,
 } from "@/lib/stripe/webhooks/payment-effects";
+import {
+  handleCheckoutSessionCompletedSetup,
+  handleCheckoutSessionExpiredSetup,
+  handleMandateUpdatedAuthorization,
+  handlePaymentMethodDetachedAuthorization,
+  handleSetupIntentFailedAuthorization,
+  handleSetupIntentSucceededAuthorization,
+} from "@/lib/stripe/webhooks/authorization-effects";
 import type { Database } from "@/types/database.generated";
 import type { StripeWebhookLeaseIdentity } from "@/lib/stripe/webhooks/process";
 
@@ -147,29 +155,67 @@ function paymentEffect(
     effect(event, { supabase, lease: context.lease });
 }
 
-// Le chemin AUTORISATION future (Setup Session, payment_authorization,
-// prélèvement auto) est un lot ultérieur : ces événements sont explicitement
-// différés, sans effet de bord (aucune ligne payment_authorization n'existe encore).
-const deferredToAuthorizationLot: Handler = async () => ({
-  outcome: "ignored",
-  reason: "deferred_to_authorization_lot",
-});
+const checkoutSessionCompleted: Handler = (event, supabase, context) => {
+  const session = event.data.object as Stripe.Checkout.Session;
+  return session.mode === "setup"
+    ? handleCheckoutSessionCompletedSetup(event, {
+        supabase,
+        stripe: context.stripe,
+        lease: context.lease,
+        renewLease: context.renewLease,
+      })
+    : handleCheckoutSessionCompletedPayment(event, {
+        supabase,
+        lease: context.lease,
+      });
+};
+
+const checkoutSessionExpired: Handler = (event, supabase, context) => {
+  const session = event.data.object as Stripe.Checkout.Session;
+  return session.mode === "setup"
+    ? handleCheckoutSessionExpiredSetup(event, {
+        supabase,
+        stripe: context.stripe,
+        lease: context.lease,
+        renewLease: context.renewLease,
+      })
+    : handleCheckoutSessionExpiredPayment(event, {
+        supabase,
+        lease: context.lease,
+      });
+};
+
+function authorizationEffect(
+  effect: typeof handleSetupIntentSucceededAuthorization,
+): Handler {
+  return (event, supabase, context) =>
+    effect(event, {
+      supabase,
+      stripe: context.stripe,
+      lease: context.lease,
+      renewLease: context.renewLease,
+    });
+}
 
 const HANDLERS: Record<SidianStripeWebhookEventType, Handler> = {
   "account.updated": handleAccountUpdated,
-  "checkout.session.completed": paymentEffect(
-    handleCheckoutSessionCompletedPayment,
-  ),
-  "checkout.session.expired": paymentEffect(handleCheckoutSessionExpiredPayment),
+  "checkout.session.completed": checkoutSessionCompleted,
+  "checkout.session.expired": checkoutSessionExpired,
   "payment_intent.processing": paymentEffect(handlePaymentIntentProcessing),
   "payment_intent.succeeded": paymentEffect(handlePaymentIntentSucceeded),
   "payment_intent.payment_failed": paymentEffect(
     handlePaymentIntentPaymentFailed,
   ),
-  "setup_intent.succeeded": deferredToAuthorizationLot,
-  "setup_intent.setup_failed": deferredToAuthorizationLot,
-  "payment_method.detached": deferredToAuthorizationLot,
-  "mandate.updated": deferredToAuthorizationLot,
+  "setup_intent.succeeded": authorizationEffect(
+    handleSetupIntentSucceededAuthorization,
+  ),
+  "setup_intent.setup_failed": authorizationEffect(
+    handleSetupIntentFailedAuthorization,
+  ),
+  "payment_method.detached": authorizationEffect(
+    handlePaymentMethodDetachedAuthorization,
+  ),
+  "mandate.updated": authorizationEffect(handleMandateUpdatedAuthorization),
   "charge.dispute.created": paymentEffect(handleChargeDisputeCreated),
 };
 

@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { StripeDomainError } from "@/lib/stripe/shared/errors";
+import { resolveAndAssertPaymentIntentIdentity } from "@/lib/stripe/webhooks/payment-intent-identity";
 import type { Database } from "@/types/database.generated";
 import type { StripeWebhookLeaseIdentity } from "@/lib/stripe/webhooks/process";
 import type { WebhookDispatchResult } from "@/lib/stripe/webhooks/dispatch";
@@ -88,15 +89,20 @@ function deriveMoyen(pi: Stripe.PaymentIntent): Moyen | null {
   return null;
 }
 
-async function callEffect(
+async function callEffect<
+  Name extends
+    | "apply_checkout_session_completed_payment"
+    | "apply_checkout_session_expired_payment"
+    | "apply_payment_intent_processing"
+    | "apply_eur_payment_intent_succeeded"
+    | "apply_payment_intent_payment_failed"
+    | "apply_charge_dispute_created_effects",
+>(
   context: PaymentEffectContext,
-  rpc: Parameters<AdminClient["rpc"]>[0],
-  args: Record<string, unknown>,
+  rpc: Name,
+  args: Database["public"]["Functions"][Name]["Args"],
 ): Promise<Record<string, unknown>> {
-  const { data, error } = await context.supabase.rpc(
-    rpc as never,
-    args as never,
-  );
+  const { data, error } = await context.supabase.rpc(rpc, args);
   if (error) {
     const message = error.message ?? "";
     if (message.includes("webhook_lease_lost")) {
@@ -119,7 +125,10 @@ async function callEffect(
       "retryable",
     );
   }
-  return (data ?? {}) as Record<string, unknown>;
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {};
+  }
+  return data as Record<string, unknown>;
 }
 
 export async function handleCheckoutSessionCompletedPayment(
@@ -169,13 +178,18 @@ export async function handlePaymentIntentProcessing(
   const pi = event.data.object as Stripe.PaymentIntent;
   const account = requireConnectedAccount(event);
   requireEurPaymentIntent(pi);
+  const attempt = await resolveAndAssertPaymentIntentIdentity({
+    supabase: context.supabase,
+    paymentIntent: pi,
+    connectedAccountId: account,
+  });
   await callEffect(context, "apply_payment_intent_processing", {
     p_stripe_event_id: context.lease.eventId,
     p_processing_attempt: context.lease.attempt,
     p_lease_token: context.lease.leaseToken,
     p_connected_account_id: account,
     p_payment_intent_id: pi.id,
-    p_tentative_id: tentativeIdFromMetadata(pi.metadata),
+    p_tentative_id: attempt?.id ?? tentativeIdFromMetadata(pi.metadata),
     p_moyen: deriveMoyen(pi),
   });
   return { outcome: "processed", detail: "payment_intent_processing" };
@@ -188,6 +202,11 @@ export async function handlePaymentIntentSucceeded(
   const pi = event.data.object as Stripe.PaymentIntent;
   const account = requireConnectedAccount(event);
   const currency = requireEurPaymentIntent(pi);
+  const attempt = await resolveAndAssertPaymentIntentIdentity({
+    supabase: context.supabase,
+    paymentIntent: pi,
+    connectedAccountId: account,
+  });
   const amountReceived =
     typeof pi.amount_received === "number" && pi.amount_received > 0
       ? pi.amount_received
@@ -198,7 +217,7 @@ export async function handlePaymentIntentSucceeded(
     p_lease_token: context.lease.leaseToken,
     p_connected_account_id: account,
     p_payment_intent_id: pi.id,
-    p_tentative_id: tentativeIdFromMetadata(pi.metadata),
+    p_tentative_id: attempt?.id ?? tentativeIdFromMetadata(pi.metadata),
     p_amount_received: amountReceived,
     p_currency: currency,
     p_moyen: deriveMoyen(pi),
@@ -213,6 +232,11 @@ export async function handlePaymentIntentPaymentFailed(
   const pi = event.data.object as Stripe.PaymentIntent;
   const account = requireConnectedAccount(event);
   requireEurPaymentIntent(pi);
+  const attempt = await resolveAndAssertPaymentIntentIdentity({
+    supabase: context.supabase,
+    paymentIntent: pi,
+    connectedAccountId: account,
+  });
   const failure = pi.last_payment_error;
   await callEffect(context, "apply_payment_intent_payment_failed", {
     p_stripe_event_id: context.lease.eventId,
@@ -220,7 +244,7 @@ export async function handlePaymentIntentPaymentFailed(
     p_lease_token: context.lease.leaseToken,
     p_connected_account_id: account,
     p_payment_intent_id: pi.id,
-    p_tentative_id: tentativeIdFromMetadata(pi.metadata),
+    p_tentative_id: attempt?.id ?? tentativeIdFromMetadata(pi.metadata),
     p_echec_code: failure?.code ?? failure?.decline_code ?? "payment_failed",
     p_echec_message: failure?.message ?? null,
   });
@@ -233,7 +257,7 @@ export async function handleChargeDisputeCreated(
 ): Promise<WebhookDispatchResult> {
   const dispute = event.data.object as Stripe.Dispute;
   const account = requireConnectedAccount(event);
-  await callEffect(context, "record_charge_dispute_opened", {
+  await callEffect(context, "apply_charge_dispute_created_effects", {
     p_stripe_event_id: context.lease.eventId,
     p_processing_attempt: context.lease.attempt,
     p_lease_token: context.lease.leaseToken,

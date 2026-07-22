@@ -6,7 +6,12 @@ import type { Database } from "@/types/database.generated";
 
 type Db = Database;
 
-export type CheckoutReturnStatus = "confirmed" | "processing" | "not_confirmed" | "unknown";
+export type CheckoutReturnStatus =
+  | "confirmed"
+  | "processing"
+  | "expired"
+  | "not_confirmed"
+  | "unknown";
 
 type StatusResult = {
   found?: boolean;
@@ -14,10 +19,12 @@ type StatusResult = {
   montant?: number;
   moyen?: string | null;
   echec_code?: string | null;
+  checkout_provisioning_error_code?: string | null;
 };
 
 const PROCESSING_STATES = new Set(["CREEE", "NECESSITE_ACTION_CLIENT", "EN_TRAITEMENT"]);
 const NOT_CONFIRMED_STATES = new Set(["ECHOUEE", "ANNULEE"]);
+const CHECKOUT_SESSION_ID_RE = /^cs_[A-Za-z0-9_]+$/;
 
 /**
  * Revérifie côté serveur le statut d'un paiement à partir de l'identifiant de
@@ -29,7 +36,13 @@ export async function resolveCheckoutReturnStatus(
   supabaseAdmin: SupabaseClient<Db>,
   checkoutSessionId: string | null | undefined,
 ): Promise<CheckoutReturnStatus> {
-  if (!checkoutSessionId) return "unknown";
+  if (
+    !checkoutSessionId ||
+    checkoutSessionId.length > 255 ||
+    !CHECKOUT_SESSION_ID_RE.test(checkoutSessionId)
+  ) {
+    return "unknown";
+  }
 
   const { data, error } = await supabaseAdmin.rpc(
     "resolve_payment_status_by_checkout_session_id",
@@ -41,6 +54,12 @@ export async function resolveCheckoutReturnStatus(
   if (!result.found || !result.etat) return "unknown";
   if (result.etat === "REUSSIE") return "confirmed";
   if (PROCESSING_STATES.has(result.etat)) return "processing";
+  if (
+    result.etat === "ANNULEE" &&
+    result.checkout_provisioning_error_code === "checkout_session_expired"
+  ) {
+    return "expired";
+  }
   if (NOT_CONFIRMED_STATES.has(result.etat)) return "not_confirmed";
   return "unknown";
 }

@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# G1 gate execution reports (keep directory marker only)
+/artifacts/g1/*
+!/artifacts/g1/.gitkeep
+
 # next.js
 /.next/
 /out/

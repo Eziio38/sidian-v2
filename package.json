@@ -34,6 +34,7 @@
     "test:forms": "vitest run",
     "test:g1-a": "node scripts/test-g1-harness.mjs",
     "test:g1-a:strict": "node scripts/test-g1-harness.mjs --strict-inventory",
+    "test:g1-b": "vitest run src/lib/agent/tools",
     "test": "pnpm test:local-guard && pnpm test:schema && pnpm test:auth && pnpm test:prod-001 && pnpm test:prod-002 && pnpm test:prod-002-p1 && pnpm test:prod-003 && pnpm test:prod-004 && pnpm test:stripe-001 && pnpm test:stripe-002-a && pnpm test:stripe-002-b && pnpm test:stripe-002-c && pnpm test:stripe-003 && pnpm test:stripe-003-orphan-audit && pnpm test:security-trust-boundaries && pnpm test:security-rate-limits && pnpm test:security-environment && pnpm test:forms"
   },
   "dependencies": {

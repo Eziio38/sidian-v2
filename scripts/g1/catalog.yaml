@@ -1,11 +1,11 @@
-# Index d’exécution G1-A — NON NORMATIF
+# Index d’exécution G1 — NON NORMATIF
 # Sources normatives: docs/agent/09_AGENT_EVALUATIONS.md, docs/agent/governance/REQUIREMENTS_MATRIX.md
 # Ce fichier ne crée aucune exigence ni évaluation.
-catalog_version: "1.0.0"
+catalog_version: 1.0.0
 gate: G1
 lot: G1-A
 normative: false
-scope: "Harness G1 + inventaire des preuves existantes (sans Workflow Engine ni Memory Core)"
+scope: Harness G1 + inventaire des preuves existantes (sans Workflow Engine ni Memory Core)
 g1_pillars:
   - unit
   - schemas
@@ -38,7 +38,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-002
     g1_pillars:
       - audit
@@ -72,7 +73,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-004
     g1_pillars:
       - audit
@@ -97,7 +99,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-006
     g1_pillars:
       - audit
@@ -108,7 +111,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-007
     g1_pillars:
       - audit
@@ -118,7 +122,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-008
     g1_pillars:
       - audit
@@ -128,7 +133,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-009
     g1_pillars:
       - audit
@@ -138,7 +144,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-010
     g1_pillars:
       - audit
@@ -148,7 +155,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-011
     g1_pillars:
       - audit
@@ -160,7 +168,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-012
     g1_pillars:
       - audit
@@ -171,7 +180,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-013
     g1_pillars:
       - audit
@@ -183,7 +193,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-014
     g1_pillars:
       - audit
@@ -193,7 +204,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-015
     g1_pillars:
       - audit
@@ -203,7 +215,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-OBS-016
     g1_pillars:
       - audit
@@ -227,7 +240,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-001
     g1_pillars:
       - transitions
@@ -289,7 +303,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-005
     g1_pillars:
       - transitions
@@ -301,7 +316,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-006
     g1_pillars:
       - transitions
@@ -313,7 +329,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-007
     g1_pillars:
       - transitions
@@ -324,7 +341,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-008
     g1_pillars:
       - idempotence
@@ -354,7 +372,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-010
     g1_pillars:
       - transitions
@@ -365,7 +384,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-011
     g1_pillars:
       - idempotence
@@ -424,7 +444,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-015
     g1_pillars:
       - transitions
@@ -435,7 +456,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-016
     g1_pillars:
       - transitions
@@ -446,7 +468,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-017
     g1_pillars:
       - transitions
@@ -458,7 +481,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-018
     g1_pillars:
       - transitions
@@ -469,7 +493,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-019
     g1_pillars:
       - transitions
@@ -480,7 +505,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-PAY-020
     g1_pillars:
       - transitions
@@ -492,7 +518,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-001
     g1_pillars:
       - permissions
@@ -521,7 +548,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-003
     g1_pillars:
       - rls
@@ -574,7 +602,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-006
     g1_pillars:
       - permissions
@@ -585,7 +614,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-007
     g1_pillars:
       - schemas
@@ -615,7 +645,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-009
     g1_pillars:
       - schemas
@@ -681,7 +712,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-013
     g1_pillars:
       - permissions
@@ -694,7 +726,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-014
     g1_pillars:
       - permissions
@@ -706,7 +739,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-015
     g1_pillars:
       - permissions
@@ -719,7 +753,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-016
     g1_pillars:
       - permissions
@@ -730,7 +765,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-017
     g1_pillars:
       - permissions
@@ -745,7 +781,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-018
     g1_pillars:
       - permissions
@@ -756,7 +793,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-019
     g1_pillars:
       - permissions
@@ -767,7 +805,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-020
     g1_pillars:
       - permissions
@@ -779,7 +818,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-021
     g1_pillars:
       - schemas
@@ -820,17 +860,20 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-024
     g1_pillars:
       - permissions
       - rls
-    requirements: []
+    requirements:
+      []
     coverage:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-025
     g1_pillars:
       - permissions
@@ -844,7 +887,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-026
     g1_pillars:
       - permissions
@@ -855,7 +899,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-SEC-027
     g1_pillars:
       - permissions
@@ -868,7 +913,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-001
     g1_pillars:
       - schemas
@@ -876,10 +922,13 @@ entries:
     requirements:
       - REQ-TOL-001
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-001 reproduites — fiche regroupant lecture+paiement+email via effect_family hors allowlist refusée à la validation de définition (une seule effect_family autorisée). Preuve: definition-schema.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/definition-schema.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-002
     g1_pillars:
       - schemas
@@ -890,7 +939,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-003
     g1_pillars:
       - schemas
@@ -901,7 +951,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-004
     g1_pillars:
       - permissions
@@ -915,7 +966,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-005
     g1_pillars:
       - schemas
@@ -924,10 +976,13 @@ entries:
       - REQ-TOL-003
       - REQ-TOL-014
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-005 reproduites — appel payment.create_attempt sans amount_cents → validation Zod refuse (INVALID_ARGUMENT). Aucun effet de bord. Preuve: src/lib/agent/tools/validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-006
     g1_pillars:
       - schemas
@@ -936,10 +991,13 @@ entries:
       - REQ-TOL-003
       - REQ-TOL-014
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-006 reproduites — amount_cents fourni comme string ambiguë → refus de schéma. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-007
     g1_pillars:
       - schemas
@@ -947,10 +1005,13 @@ entries:
     requirements:
       - REQ-TOL-014
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-007 reproduites — currency absente, aucun default EUR/.default sensible dans le schéma → refus. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-008
     g1_pillars:
       - schemas
@@ -961,7 +1022,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-009
     g1_pillars:
       - schemas
@@ -973,7 +1035,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-010
     g1_pillars:
       - schemas
@@ -985,7 +1048,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-011
     g1_pillars:
       - schemas
@@ -996,7 +1060,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-012
     g1_pillars:
       - schemas
@@ -1010,7 +1075,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-013
     g1_pillars:
       - idempotence
@@ -1043,7 +1109,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-015
     g1_pillars:
       - idempotence
@@ -1074,7 +1141,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-017
     g1_pillars:
       - permissions
@@ -1086,7 +1154,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-018
     g1_pillars:
       - permissions
@@ -1096,7 +1165,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-019
     g1_pillars:
       - schemas
@@ -1104,10 +1174,13 @@ entries:
     requirements:
       - REQ-ARC-001
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-019 reproduites — resolve d’un tool_id absent du registre → TOOL_UNKNOWN, aucun effet. Preuve: registry.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/registry.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-020
     g1_pillars:
       - schemas
@@ -1115,10 +1188,13 @@ entries:
     requirements:
       - REQ-TOL-019
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-020 reproduites — assertCallable sur payment.create_attempt@0.9.0 Deprecated → TOOL_DEPRECATED ; Disabled via registre de test-fixtures → TOOL_DISABLED. Preuve: registry.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/registry.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-021
     g1_pillars:
       - schemas
@@ -1131,7 +1207,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-022
     g1_pillars:
       - audit
@@ -1144,7 +1221,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-023
     g1_pillars:
       - schemas
@@ -1153,10 +1231,13 @@ entries:
       - REQ-PER-005
       - REQ-TOL-010
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-023 reproduites — notification.generate_draft avec ledger_entries/full_accounting → PAYLOAD_NOT_MINIMAL / contrat refusé. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-024
     g1_pillars:
       - schemas
@@ -1167,7 +1248,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-025
     g1_pillars:
       - schemas
@@ -1178,7 +1260,8 @@ entries:
       kind: none
       rationale: |
         Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+    bindings:
+      []
   - evaluation_id: EVAL-TOOL-026
     g1_pillars:
       - schemas
@@ -1186,10 +1269,13 @@ entries:
     requirements:
       - REQ-PER-003
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: partial
+      rationale: "G1-B: INVALID_ARGUMENT est une convention de contrat de schéma ; EVAL-TOOL-026 exige la taxonomie runtime complète (technical vs business vs permission à l’exécution Tool Router) — non reproduite. Conservé partial."
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-027
     g1_pillars:
       - schemas
@@ -1197,10 +1283,13 @@ entries:
     requirements:
       - REQ-TOL-001
     coverage:
-      kind: none
-      rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
-    bindings: []
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-027 reproduites — familles decide/approve/arbitrate/grant_refund rejetées structurellement (allowlist effect_family), pas un simple booléen déclaratif. Preuve: definition-schema.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/definition-schema.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-DOC-007
     g1_pillars:
       - transitions

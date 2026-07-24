@@ -963,11 +963,14 @@ entries:
       - REQ-SEC-002
       - REQ-TOL-002
     coverage:
-      kind: none
+      kind: partial
       rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+        G1-C: authorize() refuse une écriture sans grant explicite (PERMISSION_MISSING / PERMISSION_DENIED) sans exécuter l’outil. Le scénario 09 exige le refus avant effet de bord par le Tool Router — non présent. Conservé partial.
     bindings:
-      []
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-005
     g1_pillars:
       - schemas
@@ -1151,22 +1154,28 @@ entries:
       - REQ-PER-002
       - REQ-PER-006
     coverage:
-      kind: none
+      kind: exact
       rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+        G1-C: préconditions EVAL-TOOL-017 reproduites — validation humaine status=expired ou expires_at<=now injecté → deny VALIDATION_EXPIRED (distinct de PERMISSION_DENIED) ; hash paramètres modifié → VALIDATION_EXPIRED. Preuve: src/lib/agent/permissions/service.test.ts
     bindings:
-      []
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-018
     g1_pillars:
       - permissions
     requirements:
       - REQ-PER-007
     coverage:
-      kind: none
+      kind: exact
       rationale: |
-        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+        G1-C: préconditions EVAL-TOOL-018 reproduites — grants vides ou permission absente → deny PERMISSION_MISSING avec error_code PERMISSION_DENIED, distinct de VALIDATION_EXPIRED ; aucun appel d’outil. Preuve: src/lib/agent/permissions/service.test.ts
     bindings:
-      []
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
   - evaluation_id: EVAL-TOOL-019
     g1_pillars:
       - schemas

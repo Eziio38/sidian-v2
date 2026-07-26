@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+
+/** Racine projet — évite l’inférence via un lockfile parent (ex. ~/package-lock.json). */
+const projectRoot = path.resolve(__dirname);
 
 type DeploymentAppUrlInput = {
   appUrl: string | undefined;
@@ -316,6 +320,12 @@ export const publicPaymentRouteHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Pin explicit : un package-lock.json vide existe dans le home parent et
+  // ferait sinon inférer /Users/... comme workspace root (Turbopack + tracing).
+  outputFileTracingRoot: projectRoot,
+  turbopack: {
+    root: projectRoot,
+  },
   async headers() {
     return [
       {

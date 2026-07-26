@@ -18,5 +18,10 @@ export {
   listRegisteredSchemaIds,
 } from "./schema-registry";
 export { validateToolCallArguments } from "./validate-arguments";
-export type { PermissionService } from "./interfaces/permission-service";
+export type {
+  PermissionDecision,
+  PermissionEvaluationContext,
+  PermissionRequest,
+  PermissionService,
+} from "./interfaces/permission-service";
 export type { ToolRouter } from "./interfaces/tool-router";

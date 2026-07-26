@@ -6,6 +6,11 @@ import { invoiceGetV1 } from "./definitions/invoice.get.1.0.0";
 import { notificationGenerateDraftV1 } from "./definitions/notification.generate_draft.1.0.0";
 import { paymentCreateAttemptV09 } from "./definitions/payment.create_attempt.0.9.0";
 import { paymentCreateAttemptV1 } from "./definitions/payment.create_attempt.1.0.0";
+import { protectionDraftAdvanceV1 } from "./definitions/protection.draft.advance.1.0.0";
+import { protectionDraftCancelV1 } from "./definitions/protection.draft.cancel.1.0.0";
+import { protectionDraftConfirmV1 } from "./definitions/protection.draft.confirm.1.0.0";
+import { protectionDraftConverseV1 } from "./definitions/protection.draft.converse.1.0.0";
+import { protectionDraftGetV1 } from "./definitions/protection.draft.get.1.0.0";
 import { ToolRegistryError } from "./errors";
 import { assertSchemasRegistered } from "./schema-registry";
 
@@ -93,6 +98,11 @@ const productionDefinitions: ToolDefinition[] = [
   paymentCreateAttemptV09,
   invoiceGetV1,
   notificationGenerateDraftV1,
+  protectionDraftAdvanceV1,
+  protectionDraftGetV1,
+  protectionDraftCancelV1,
+  protectionDraftConfirmV1,
+  protectionDraftConverseV1,
 ];
 
 let cachedProduction: ToolRegistry | null = null;

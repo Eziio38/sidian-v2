@@ -7,6 +7,10 @@ export const EFFECT_FAMILIES = [
   "read_invoice",
   "create_payment_attempt",
   "generate_notification_draft",
+  "advance_protection_draft",
+  "read_protection_draft",
+  "cancel_protection_draft",
+  "confirm_protection_draft",
 ] as const;
 
 export type EffectFamily = (typeof EFFECT_FAMILIES)[number];

@@ -618,31 +618,235 @@ await run("catégories et sujets sont isolés sans données brutes persistées",
   if (rawRows[0].count !== 0) throw new Error("IP ou token brut persisté");
 });
 
-await run("les événements expirés sont purgeables par lot", async () => {
-  const expiredHash = subjectHash("expired", randomUUID());
-  await postgres.query(
-    `insert into public.public_rate_limit_event (
-       category, subject_hash, occurred_at, expires_at
-     ) values (
-       'link_resolution_ip', $1,
-       timezone('utc', now()) - interval '20 minutes',
-       timezone('utc', now()) - interval '10 minutes'
-     )`,
-    [expiredHash],
-  );
-  const purged = await admin.rpc("purge_expired_public_rate_limits", {
-    p_batch_size: 100,
-  });
-  if (purged.error || purged.data < 1) {
-    throw purged.error ?? new Error("aucun événement purgé");
-  }
+async function countByHashes(hashes) {
   const { rows } = await postgres.query(
     `select count(*)::integer as count
      from public.public_rate_limit_event
-     where subject_hash = $1`,
-    [expiredHash],
+     where subject_hash = any($1::text[])`,
+    [hashes],
   );
-  if (rows[0].count !== 0) throw new Error("événement expiré encore présent");
+  return rows[0].count;
+}
+
+async function insertRateLimitEvent({
+  hash,
+  occurredAt,
+  expiresAt,
+  category = "link_resolution_ip",
+}) {
+  await postgres.query(
+    `insert into public.public_rate_limit_event (
+       category, subject_hash, occurred_at, expires_at
+     ) values ($1::public.public_rate_limit_category, $2, $3::timestamptz, $4::timestamptz)`,
+    [category, hash, occurredAt, expiresAt],
+  );
+}
+
+async function purgeBatch(batchSize, now = undefined) {
+  const payload = { p_batch_size: batchSize };
+  if (now !== undefined) payload.p_now = now;
+  const purged = await admin.rpc("purge_expired_public_rate_limits", payload);
+  if (purged.error) throw purged.error;
+  return purged.data;
+}
+
+async function drainExpired(batchSize = 1000, maxPasses = 50) {
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const deleted = await purgeBatch(batchSize);
+    if (deleted === 0) return pass;
+  }
+  throw new Error("drainExpired: backlog non vidé");
+}
+
+await run("ACL de purge_expired_public_rate_limits", async () => {
+  const { rows } = await postgres.query(
+    `select
+      count(*)::integer as overload_count,
+      bool_and(has_function_privilege('service_role', p.oid, 'EXECUTE'))
+        as service_execute,
+      bool_or(has_function_privilege('authenticated', p.oid, 'EXECUTE'))
+        as auth_execute,
+      bool_or(has_function_privilege('anon', p.oid, 'EXECUTE'))
+        as anon_execute,
+      bool_or(has_function_privilege('public', p.oid, 'EXECUTE'))
+        as public_execute,
+      bool_or(pg_get_function_identity_arguments(p.oid)
+        like '%timestamp with time zone%') as has_p_now
+     from pg_catalog.pg_proc p
+     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.proname = 'purge_expired_public_rate_limits'`,
+  );
+  const acl = rows[0];
+  if (
+    acl.overload_count !== 1 ||
+    !acl.has_p_now ||
+    !acl.service_execute ||
+    acl.auth_execute ||
+    acl.anon_execute ||
+    acl.public_execute
+  ) {
+    throw new Error(
+      `ACL purge inattendues: ${JSON.stringify(acl)}`,
+    );
+  }
+
+  const anonCall = await anon.rpc("purge_expired_public_rate_limits", {
+    p_batch_size: 10,
+  });
+  if (!anonCall.error) throw new Error("anon peut purger");
+  const authCall = await tenantA.client.rpc("purge_expired_public_rate_limits", {
+    p_batch_size: 10,
+  });
+  if (!authCall.error) throw new Error("authenticated peut purger");
+
+  const invalid = await admin.rpc("purge_expired_public_rate_limits", {
+    p_batch_size: 0,
+  });
+  if (!invalid.error) throw new Error("batch_size=0 accepté");
+});
+
+await run("cutoff before/at/after pour la purge", async () => {
+  const cutoff = "2020-01-15T12:00:00.000Z";
+  const beforeHash = subjectHash("cutoff-before", randomUUID());
+  const atHash = subjectHash("cutoff-at", randomUUID());
+  const afterHash = subjectHash("cutoff-after", randomUUID());
+
+  await insertRateLimitEvent({
+    hash: beforeHash,
+    occurredAt: "2020-01-15T11:00:00.000Z",
+    expiresAt: "2020-01-15T11:59:59.999Z",
+  });
+  await insertRateLimitEvent({
+    hash: atHash,
+    occurredAt: "2020-01-15T11:00:00.000Z",
+    expiresAt: cutoff,
+  });
+  await insertRateLimitEvent({
+    hash: afterHash,
+    occurredAt: "2020-01-15T11:00:00.000Z",
+    expiresAt: "2020-01-15T12:00:00.001Z",
+  });
+
+  // Appel SQL direct avec p_now pour un cutoff déterministe (évite la course
+  // horloge et valide l'inclusivité <= indépendamment du cache PostgREST).
+  const { rows: purgedRows } = await postgres.query(
+    `select public.purge_expired_public_rate_limits(100, $1::timestamptz) as deleted`,
+    [cutoff],
+  );
+  const deleted = purgedRows[0].deleted;
+  if (deleted < 2) throw new Error(`cutoff: attendu >=2 purgés, got ${deleted}`);
+
+  if ((await countByHashes([beforeHash])) !== 0) {
+    throw new Error("expires_at < cutoff encore présent");
+  }
+  if ((await countByHashes([atHash])) !== 0) {
+    throw new Error("expires_at = cutoff encore présent (inclusivité <=)");
+  }
+  if ((await countByHashes([afterHash])) !== 1) {
+    throw new Error("expires_at > cutoff indûment purgé");
+  }
+
+  await postgres.query(
+    `delete from public.public_rate_limit_event where subject_hash = $1`,
+    [afterHash],
+  );
+});
+
+await run("les événements expirés sont purgeables par lot", async () => {
+  // Isole le scénario du backlog global : la purge ordonne par expires_at et
+  // limite le lot — un seul appel ne purge pas forcément un événement récent.
+  await drainExpired();
+
+  const recentHash = subjectHash("recent-kept", randomUUID());
+  await insertRateLimitEvent({
+    hash: recentHash,
+    occurredAt: new Date(Date.now() - 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+  });
+
+  const expiredHashes = Array.from({ length: 7 }, (_, index) =>
+    subjectHash(`expired-batch-${index}`, randomUUID()),
+  );
+  const base = Date.parse("2019-06-01T00:00:00.000Z");
+  for (let index = 0; index < expiredHashes.length; index += 1) {
+    const expiresAt = new Date(base + index * 60_000).toISOString();
+    const occurredAt = new Date(base + index * 60_000 - 60_000).toISOString();
+    await insertRateLimitEvent({
+      hash: expiredHashes[index],
+      occurredAt,
+      expiresAt,
+    });
+  }
+
+  const first = await purgeBatch(3);
+  if (first !== 3) throw new Error(`limite de lot: attendu 3, got ${first}`);
+  if ((await countByHashes(expiredHashes)) !== 4) {
+    throw new Error("premier lot n'a pas laissé 4 expirés");
+  }
+
+  const second = await purgeBatch(3);
+  if (second !== 3) throw new Error(`second lot: attendu 3, got ${second}`);
+  if ((await countByHashes(expiredHashes)) !== 1) {
+    throw new Error("second lot incorrect");
+  }
+
+  const third = await purgeBatch(3);
+  if (third !== 1) throw new Error(`dernier lot: attendu 1, got ${third}`);
+  if ((await countByHashes(expiredHashes)) !== 0) {
+    throw new Error("événement expiré encore présent après multi-lots");
+  }
+
+  const idempotent = await purgeBatch(3);
+  if (idempotent !== 0) {
+    throw new Error(`seconde passe non idempotente: ${idempotent}`);
+  }
+
+  if ((await countByHashes([recentHash])) !== 1) {
+    throw new Error("événement récent non expiré indûment purgé");
+  }
+
+  await postgres.query(
+    `delete from public.public_rate_limit_event where subject_hash = $1`,
+    [recentHash],
+  );
+});
+
+await run("purge concurrente sans perte ni double effet", async () => {
+  await drainExpired();
+
+  const hashes = Array.from({ length: 20 }, (_, index) =>
+    subjectHash(`concurrent-purge-${index}`, randomUUID()),
+  );
+  const base = Date.parse("2018-01-01T00:00:00.000Z");
+  for (let index = 0; index < hashes.length; index += 1) {
+    await insertRateLimitEvent({
+      hash: hashes[index],
+      occurredAt: new Date(base + index * 1000 - 1000).toISOString(),
+      expiresAt: new Date(base + index * 1000).toISOString(),
+    });
+  }
+
+  const passes = await Promise.all(
+    Array.from({ length: 8 }, () => purgeBatch(5)),
+  );
+  if (passes.some((count) => typeof count !== "number" || count < 0)) {
+    throw new Error("purge concurrente a échoué");
+  }
+  const totalDeleted = passes.reduce((sum, count) => sum + count, 0);
+  if (totalDeleted !== 20) {
+    throw new Error(
+      `concurrence: attendu 20 suppressions, got ${totalDeleted} (${passes.join(",")})`,
+    );
+  }
+  if ((await countByHashes(hashes)) !== 0) {
+    throw new Error("événements encore présents après purge concurrente");
+  }
+
+  const idle = await Promise.all(Array.from({ length: 4 }, () => purgeBatch(5)));
+  if (idle.some((count) => count !== 0)) {
+    throw new Error("passe idle concurrente non nulle");
+  }
 });
 
 await postgres.end();

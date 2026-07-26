@@ -1,5 +1,3 @@
-// NULLABLE_RPC_ARGS_PATCH: certains Args uuid/text acceptent NULL en SQL ;
-// le générateur Supabase omet parfois `| null`. Réappliquer après `pnpm supabase:types`.
 export type Json =
   | string
   | number
@@ -36,6 +34,340 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_audit_events: {
+        Row: {
+          actor_id: string
+          actor_type: string
+          audit_id: string
+          correlation_id: string
+          decision: string
+          event_payload: Json
+          executor_id: string | null
+          mode: string | null
+          occurred_at: string
+          output_hash: string | null
+          params_hash: string | null
+          reason_code: string | null
+          recorded_at: string
+          requested_autonomy_level: number | null
+          resource_id: string | null
+          resource_kind: string | null
+          result_status: string
+          schema_version: string
+          tenant_id: string
+          tool_id: string | null
+          tool_version: string | null
+        }
+        Insert: {
+          actor_id: string
+          actor_type: string
+          audit_id: string
+          correlation_id: string
+          decision: string
+          event_payload: Json
+          executor_id?: string | null
+          mode?: string | null
+          occurred_at: string
+          output_hash?: string | null
+          params_hash?: string | null
+          reason_code?: string | null
+          recorded_at?: string
+          requested_autonomy_level?: number | null
+          resource_id?: string | null
+          resource_kind?: string | null
+          result_status: string
+          schema_version: string
+          tenant_id: string
+          tool_id?: string | null
+          tool_version?: string | null
+        }
+        Update: {
+          actor_id?: string
+          actor_type?: string
+          audit_id?: string
+          correlation_id?: string
+          decision?: string
+          event_payload?: Json
+          executor_id?: string | null
+          mode?: string | null
+          occurred_at?: string
+          output_hash?: string | null
+          params_hash?: string | null
+          reason_code?: string | null
+          recorded_at?: string
+          requested_autonomy_level?: number | null
+          resource_id?: string | null
+          resource_kind?: string | null
+          result_status?: string
+          schema_version?: string
+          tenant_id?: string
+          tool_id?: string | null
+          tool_version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_audit_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_human_approvals: {
+        Row: {
+          approval_id: string
+          consumed_at: string | null
+          consumed_by_correlation_id: string | null
+          consumed_idempotency_key_hash: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by_actor_id: string | null
+          decision_reason_code: string | null
+          expires_at: string
+          mode: string
+          params_hash: string
+          request_fingerprint: string
+          requested_at: string
+          requested_autonomy_level: number
+          requester_actor_id: string
+          requester_actor_type: string
+          resource_id: string | null
+          resource_kind: string | null
+          status: string
+          tenant_id: string
+          tool_id: string
+          tool_version: string
+          updated_at: string
+        }
+        Insert: {
+          approval_id?: string
+          consumed_at?: string | null
+          consumed_by_correlation_id?: string | null
+          consumed_idempotency_key_hash?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by_actor_id?: string | null
+          decision_reason_code?: string | null
+          expires_at: string
+          mode: string
+          params_hash: string
+          request_fingerprint: string
+          requested_at: string
+          requested_autonomy_level: number
+          requester_actor_id: string
+          requester_actor_type: string
+          resource_id?: string | null
+          resource_kind?: string | null
+          status: string
+          tenant_id: string
+          tool_id: string
+          tool_version: string
+          updated_at?: string
+        }
+        Update: {
+          approval_id?: string
+          consumed_at?: string | null
+          consumed_by_correlation_id?: string | null
+          consumed_idempotency_key_hash?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by_actor_id?: string | null
+          decision_reason_code?: string | null
+          expires_at?: string
+          mode?: string
+          params_hash?: string
+          request_fingerprint?: string
+          requested_at?: string
+          requested_autonomy_level?: number
+          requester_actor_id?: string
+          requester_actor_type?: string
+          resource_id?: string | null
+          resource_kind?: string | null
+          status?: string
+          tenant_id?: string
+          tool_id?: string
+          tool_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_human_approvals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_idempotency_records: {
+        Row: {
+          completed_at: string | null
+          correlation_id: string
+          created_at: string
+          expires_at: string
+          failure_code: string | null
+          id: string
+          idempotency_key: string
+          mode: string
+          owner_token_hash: string | null
+          request_fingerprint: string
+          resource_id: string | null
+          resource_kind: string | null
+          started_at: string
+          status: string
+          tenant_id: string
+          terminal_result: Json | null
+          terminal_result_hash: string | null
+          tool_id: string
+          tool_version: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          correlation_id: string
+          created_at?: string
+          expires_at: string
+          failure_code?: string | null
+          id?: string
+          idempotency_key: string
+          mode: string
+          owner_token_hash?: string | null
+          request_fingerprint: string
+          resource_id?: string | null
+          resource_kind?: string | null
+          started_at: string
+          status: string
+          tenant_id: string
+          terminal_result?: Json | null
+          terminal_result_hash?: string | null
+          tool_id: string
+          tool_version: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          expires_at?: string
+          failure_code?: string | null
+          id?: string
+          idempotency_key?: string
+          mode?: string
+          owner_token_hash?: string | null
+          request_fingerprint?: string
+          resource_id?: string | null
+          resource_kind?: string | null
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          terminal_result?: Json | null
+          terminal_result_hash?: string | null
+          tool_id?: string
+          tool_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_idempotency_records_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_protection_drafts: {
+        Row: {
+          actor_id: string
+          attachments: Json
+          cancelled_at: string | null
+          client_creation_key: string | null
+          client_payeur_id: string | null
+          confirmation_nonce: string | null
+          confirmed_at: string | null
+          conversation_id: string | null
+          creance_creation_key: string | null
+          creance_id: string | null
+          created_at: string
+          draft_id: string
+          expires_at: string
+          fields: Json
+          missing_fields: string[]
+          open_ambiguities: Json
+          pending_question: string | null
+          state: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id: string
+          attachments?: Json
+          cancelled_at?: string | null
+          client_creation_key?: string | null
+          client_payeur_id?: string | null
+          confirmation_nonce?: string | null
+          confirmed_at?: string | null
+          conversation_id?: string | null
+          creance_creation_key?: string | null
+          creance_id?: string | null
+          created_at?: string
+          draft_id?: string
+          expires_at: string
+          fields?: Json
+          missing_fields?: string[]
+          open_ambiguities?: Json
+          pending_question?: string | null
+          state: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string
+          attachments?: Json
+          cancelled_at?: string | null
+          client_creation_key?: string | null
+          client_payeur_id?: string | null
+          confirmation_nonce?: string | null
+          confirmed_at?: string | null
+          conversation_id?: string | null
+          creance_creation_key?: string | null
+          creance_id?: string | null
+          created_at?: string
+          draft_id?: string
+          expires_at?: string
+          fields?: Json
+          missing_fields?: string[]
+          open_ambiguities?: Json
+          pending_question?: string | null
+          state?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_protection_drafts_client_payeur_id_fkey"
+            columns: ["client_payeur_id"]
+            isOneToOne: false
+            referencedRelation: "client_payeur"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_protection_drafts_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_protection_drafts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_request: {
         Row: {
           approved_by: string | null
@@ -180,6 +512,391 @@ export type Database = {
             columns: ["prestataire_id"]
             isOneToOne: false
             referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_channel: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          display_name: string
+          id: string
+          is_default: boolean
+          prestataire_id: string
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_ref: string
+          public_metadata: Json
+          revoked_at: string | null
+          status: Database["public"]["Enums"]["communication_channel_status"]
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          is_default?: boolean
+          prestataire_id: string
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_ref: string
+          public_metadata?: Json
+          revoked_at?: string | null
+          status?: Database["public"]["Enums"]["communication_channel_status"]
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_default?: boolean
+          prestataire_id?: string
+          provider_kind?: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_ref?: string
+          public_metadata?: Json
+          revoked_at?: string | null
+          status?: Database["public"]["Enums"]["communication_channel_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_channel_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_inbound_messages: {
+        Row: {
+          action_key: string | null
+          business_command_id: string | null
+          channel_id: string | null
+          correlated_outbound_message_id: string | null
+          created_at: string
+          failed_at: string | null
+          failure_code: string | null
+          failure_message: string | null
+          id: string
+          interaction_kind: string
+          normalized_text: string | null
+          payload_snapshot: Json
+          processed_at: string | null
+          processing_status: Database["public"]["Enums"]["communication_inbound_processing_status"]
+          provider_event_id: string
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string
+          received_at: string
+          reply_to_provider_message_id: string | null
+          sender_reference: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_key?: string | null
+          business_command_id?: string | null
+          channel_id?: string | null
+          correlated_outbound_message_id?: string | null
+          created_at?: string
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          interaction_kind: string
+          normalized_text?: string | null
+          payload_snapshot?: Json
+          processed_at?: string | null
+          processing_status?: Database["public"]["Enums"]["communication_inbound_processing_status"]
+          provider_event_id: string
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string
+          received_at?: string
+          reply_to_provider_message_id?: string | null
+          sender_reference: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_key?: string | null
+          business_command_id?: string | null
+          channel_id?: string | null
+          correlated_outbound_message_id?: string | null
+          created_at?: string
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          id?: string
+          interaction_kind?: string
+          normalized_text?: string | null
+          payload_snapshot?: Json
+          processed_at?: string | null
+          processing_status?: Database["public"]["Enums"]["communication_inbound_processing_status"]
+          provider_event_id?: string
+          provider_kind?: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id?: string
+          received_at?: string
+          reply_to_provider_message_id?: string | null
+          sender_reference?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_inbound_message_correlated_outbound_message__fkey"
+            columns: ["correlated_outbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_inbound_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "communication_channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_inbound_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_interaction_sessions: {
+        Row: {
+          attempt_count: number
+          business_entity_id: string
+          business_entity_type: string
+          cancelled_at: string | null
+          channel_id: string
+          completed_at: string | null
+          created_at: string
+          expected_input_kind: string
+          expires_at: string
+          guide_id: string
+          id: string
+          inbound_message_id: string
+          max_attempts: number
+          outbound_message_id: string
+          session_kind: Database["public"]["Enums"]["communication_interaction_session_kind"]
+          status: Database["public"]["Enums"]["communication_interaction_session_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          business_entity_id: string
+          business_entity_type: string
+          cancelled_at?: string | null
+          channel_id: string
+          completed_at?: string | null
+          created_at?: string
+          expected_input_kind: string
+          expires_at: string
+          guide_id: string
+          id?: string
+          inbound_message_id: string
+          max_attempts?: number
+          outbound_message_id: string
+          session_kind: Database["public"]["Enums"]["communication_interaction_session_kind"]
+          status?: Database["public"]["Enums"]["communication_interaction_session_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          business_entity_id?: string
+          business_entity_type?: string
+          cancelled_at?: string | null
+          channel_id?: string
+          completed_at?: string | null
+          created_at?: string
+          expected_input_kind?: string
+          expires_at?: string
+          guide_id?: string
+          id?: string
+          inbound_message_id?: string
+          max_attempts?: number
+          outbound_message_id?: string
+          session_kind?: Database["public"]["Enums"]["communication_interaction_session_kind"]
+          status?: Database["public"]["Enums"]["communication_interaction_session_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_interaction_sessions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "communication_channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_interaction_sessions_inbound_message_id_fkey"
+            columns: ["inbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_inbound_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_interaction_sessions_outbound_message_id_fkey"
+            columns: ["outbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_interaction_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_messages: {
+        Row: {
+          attempt_count: number
+          channel_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          message_kind: string
+          payload_snapshot: Json
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          recipient_reference: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_message_status"]
+          template_key: string | null
+          template_locale: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          channel_id: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          message_kind: string
+          payload_snapshot?: Json
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          recipient_reference: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_message_status"]
+          template_key?: string | null
+          template_locale?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          channel_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          message_kind?: string
+          payload_snapshot?: Json
+          provider_kind?: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          recipient_reference?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_message_status"]
+          template_key?: string | null
+          template_locale?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "communication_channel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_webhook_events: {
+        Row: {
+          communication_message_id: string | null
+          created_at: string
+          dedupe_key: string
+          id: string
+          payload_snapshot: Json
+          processed_at: string | null
+          processing_error: string | null
+          processing_status: Database["public"]["Enums"]["communication_webhook_processing_status"]
+          provider_event_id: string | null
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          received_at: string
+        }
+        Insert: {
+          communication_message_id?: string | null
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          payload_snapshot?: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_status?: Database["public"]["Enums"]["communication_webhook_processing_status"]
+          provider_event_id?: string | null
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          received_at?: string
+        }
+        Update: {
+          communication_message_id?: string | null
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          payload_snapshot?: Json
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_status?: Database["public"]["Enums"]["communication_webhook_processing_status"]
+          provider_event_id?: string | null
+          provider_kind?: Database["public"]["Enums"]["communication_provider_kind"]
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_webhook_events_communication_message_id_fkey"
+            columns: ["communication_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -345,6 +1062,88 @@ export type Database = {
             columns: ["creance_id"]
             isOneToOne: true
             referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guide_payment_confirmation_state: {
+        Row: {
+          amount_due_cents: number
+          amount_received_cents: number
+          auto_debit_neutralized: boolean
+          confirmed_at: string | null
+          confirmed_by_guide_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          last_business_command_id: string | null
+          last_inbound_message_id: string | null
+          occurrence_id: string
+          protection_id: string
+          source_outbound_message_id: string | null
+          state: Database["public"]["Enums"]["guide_payment_confirmation_status"]
+          tenant_id: string
+          updated_at: string
+          verification_initiated_at: string | null
+        }
+        Insert: {
+          amount_due_cents: number
+          amount_received_cents?: number
+          auto_debit_neutralized?: boolean
+          confirmed_at?: string | null
+          confirmed_by_guide_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_business_command_id?: string | null
+          last_inbound_message_id?: string | null
+          occurrence_id: string
+          protection_id: string
+          source_outbound_message_id?: string | null
+          state?: Database["public"]["Enums"]["guide_payment_confirmation_status"]
+          tenant_id: string
+          updated_at?: string
+          verification_initiated_at?: string | null
+        }
+        Update: {
+          amount_due_cents?: number
+          amount_received_cents?: number
+          auto_debit_neutralized?: boolean
+          confirmed_at?: string | null
+          confirmed_by_guide_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          last_business_command_id?: string | null
+          last_inbound_message_id?: string | null
+          occurrence_id?: string
+          protection_id?: string
+          source_outbound_message_id?: string | null
+          state?: Database["public"]["Enums"]["guide_payment_confirmation_status"]
+          tenant_id?: string
+          updated_at?: string
+          verification_initiated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guide_payment_confirmation_stat_source_outbound_message_id_fkey"
+            columns: ["source_outbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guide_payment_confirmation_state_last_inbound_message_id_fkey"
+            columns: ["last_inbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "communication_inbound_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guide_payment_confirmation_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
             referencedColumns: ["id"]
           },
         ]
@@ -1116,6 +1915,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_human_approval_row_payload: {
+        Args: {
+          p_row: Database["public"]["Tables"]["agent_human_approvals"]["Row"]
+        }
+        Returns: Json
+      }
+      agent_idempotency_json_has_forbidden_key: {
+        Args: { p_value: Json }
+        Returns: boolean
+      }
+      agent_idempotency_terminal_result_is_sanitized: {
+        Args: { p_value: Json }
+        Returns: boolean
+      }
       apply_account_updated_projection: {
         Args: {
           p_charges_enabled: boolean
@@ -1365,6 +2178,42 @@ export type Database = {
         Returns: undefined
       }
       attest_sidian_environment: { Args: never; Returns: Json }
+      cancel_agent_protection_draft: {
+        Args: {
+          p_actor_id: string
+          p_draft_id: string
+          p_now?: string
+          p_tenant_id: string
+        }
+        Returns: {
+          actor_id: string
+          attachments: Json
+          cancelled_at: string | null
+          client_creation_key: string | null
+          client_payeur_id: string | null
+          confirmation_nonce: string | null
+          confirmed_at: string | null
+          conversation_id: string | null
+          creance_creation_key: string | null
+          creance_id: string | null
+          created_at: string
+          draft_id: string
+          expires_at: string
+          fields: Json
+          missing_fields: string[]
+          open_ambiguities: Json
+          pending_question: string | null
+          state: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "agent_protection_drafts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_current_payment_receivable: {
         Args: { p_creance_id: string }
         Returns: Json
@@ -1421,6 +2270,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_idempotency_key: {
+        Args: {
+          p_correlation_id: string
+          p_idempotency_key: string
+          p_mode: string
+          p_now?: string
+          p_owner_token_hash: string
+          p_request_fingerprint: string
+          p_resource_id: string
+          p_resource_kind: string
+          p_tenant_id: string
+          p_tool_id: string
+          p_tool_version: string
+          p_ttl_seconds?: number
+        }
+        Returns: Json
       }
       claim_payment_authorization_setup: {
         Args: {
@@ -1487,6 +2353,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      complete_idempotency_record: {
+        Args: {
+          p_completed_at?: string
+          p_owner_token_hash: string
+          p_record_id: string
+          p_terminal_result: Json
+          p_terminal_result_hash: string
+        }
+        Returns: Json
       }
       complete_payment_authorization_setup: {
         Args: {
@@ -1632,6 +2508,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      confirm_agent_protection_draft: {
+        Args: {
+          p_actor_id: string
+          p_confirmation_nonce: string
+          p_draft_id: string
+          p_now?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      consume_human_approval: {
+        Args: {
+          p_approval_id: string
+          p_correlation_id: string
+          p_idempotency_key_hash?: string
+          p_mode: string
+          p_now?: string
+          p_params_hash: string
+          p_request_fingerprint: string
+          p_requested_autonomy_level: number
+          p_resource_id: string
+          p_resource_kind: string
+          p_tenant_id: string
+          p_tool_id: string
+          p_tool_version: string
+        }
+        Returns: Json
+      }
       consume_public_rate_limit: {
         Args: {
           p_category: Database["public"]["Enums"]["public_rate_limit_category"]
@@ -1692,6 +2596,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_human_approval: {
+        Args: {
+          p_expires_at?: string
+          p_mode: string
+          p_now?: string
+          p_params_hash: string
+          p_request_fingerprint: string
+          p_requested_autonomy_level: number
+          p_requester_actor_id: string
+          p_requester_actor_type: string
+          p_resource_id: string
+          p_resource_kind: string
+          p_tenant_id: string
+          p_tool_id: string
+          p_tool_version: string
+          p_ttl_seconds?: number
+        }
+        Returns: Json
+      }
       current_prestataire_id: { Args: never; Returns: string }
       decide_current_approval_request: {
         Args: {
@@ -1718,6 +2641,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      decide_human_approval: {
+        Args: {
+          p_approval_id: string
+          p_decided_by_actor_id: string
+          p_decision: string
+          p_decision_reason_code?: string
+          p_now?: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       decline_payment_authorization_proposal: {
         Args: {
@@ -1788,6 +2722,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_whatsapp_sidian_channel: {
+        Args: { p_prestataire_id: string }
+        Returns: {
+          activated_at: string | null
+          created_at: string
+          display_name: string
+          id: string
+          is_default: boolean
+          prestataire_id: string
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_ref: string
+          public_metadata: Json
+          revoked_at: string | null
+          status: Database["public"]["Enums"]["communication_channel_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "communication_channel"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fail_checkout_provisioning: {
         Args: {
           p_error_code: string
@@ -1828,6 +2785,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fail_idempotency_record: {
+        Args: {
+          p_completed_at?: string
+          p_failure_code: string
+          p_owner_token_hash: string
+          p_record_id: string
+          p_terminal_result: Json
+          p_terminal_result_hash: string
+        }
+        Returns: Json
       }
       fail_payment_authorization_setup: {
         Args: {
@@ -1944,6 +2912,41 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_agent_protection_draft: {
+        Args: { p_draft_id: string; p_now?: string; p_tenant_id: string }
+        Returns: {
+          actor_id: string
+          attachments: Json
+          cancelled_at: string | null
+          client_creation_key: string | null
+          client_payeur_id: string | null
+          confirmation_nonce: string | null
+          confirmed_at: string | null
+          conversation_id: string | null
+          creance_creation_key: string | null
+          creance_id: string | null
+          created_at: string
+          draft_id: string
+          expires_at: string
+          fields: Json
+          missing_fields: string[]
+          open_ambiguities: Json
+          pending_question: string | null
+          state: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "agent_protection_drafts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_human_approval_status: {
+        Args: { p_approval_id: string; p_now?: string; p_tenant_id: string }
+        Returns: Json
       }
       invalidate_payment_authorization_setup_session: {
         Args: {
@@ -2072,7 +3075,7 @@ export type Database = {
         Returns: Json
       }
       purge_expired_public_rate_limits: {
-        Args: { p_batch_size?: number }
+        Args: { p_batch_size?: number; p_now?: string }
         Returns: number
       }
       recalculate_creance_settlement: {
@@ -2558,6 +3561,53 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      upsert_agent_protection_draft: {
+        Args: {
+          p_actor_id: string
+          p_attachments: Json
+          p_client_creation_key: string
+          p_confirmation_nonce: string
+          p_conversation_id: string
+          p_creance_creation_key: string
+          p_draft_id: string
+          p_expires_at: string
+          p_fields: Json
+          p_missing_fields: string[]
+          p_now?: string
+          p_open_ambiguities: Json
+          p_pending_question: string
+          p_state: string
+          p_tenant_id: string
+        }
+        Returns: {
+          actor_id: string
+          attachments: Json
+          cancelled_at: string | null
+          client_creation_key: string | null
+          client_payeur_id: string | null
+          confirmation_nonce: string | null
+          confirmed_at: string | null
+          conversation_id: string | null
+          creance_creation_key: string | null
+          creance_id: string | null
+          created_at: string
+          draft_id: string
+          expires_at: string
+          fields: Json
+          missing_fields: string[]
+          open_ambiguities: Json
+          pending_question: string | null
+          state: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "agent_protection_drafts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       actor_type: "human" | "sidian_agent" | "system" | "external_integration"
@@ -2567,6 +3617,45 @@ export type Database = {
         | "rule_change"
         | "depassement_seuil"
         | "autre"
+      communication_channel_status:
+        | "inactive"
+        | "active"
+        | "degraded"
+        | "revoked"
+      communication_inbound_processing_status:
+        | "received"
+        | "validated"
+        | "correlated"
+        | "processing"
+        | "processed"
+        | "unresolved"
+        | "rejected"
+        | "failed"
+      communication_interaction_session_kind: "payment_partial_amount_collection"
+      communication_interaction_session_status:
+        | "awaiting_input"
+        | "completed"
+        | "expired"
+        | "cancelled"
+        | "failed"
+      communication_message_direction: "outbound" | "inbound"
+      communication_message_status:
+        | "queued"
+        | "sending"
+        | "accepted"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+        | "cancelled"
+      communication_provider_kind:
+        | "whatsapp_sidian"
+        | "whatsapp_business_personal"
+      communication_webhook_processing_status:
+        | "received"
+        | "processed"
+        | "ignored"
+        | "failed"
       creance_etat:
         | "BROUILLON"
         | "OUVERTE"
@@ -2590,7 +3679,13 @@ export type Database = {
         | "ATTENTE_PRESTATAIRE"
         | "ESCALADE_HUMAINE"
         | "CLOS"
-      message_canal: "email" | "interface"
+      guide_payment_confirmation_status:
+        | "awaiting_guide_response"
+        | "confirmed_received"
+        | "confirmed_not_received"
+        | "verification_in_progress"
+        | "partially_received"
+      message_canal: "email" | "interface" | "whatsapp"
       message_emetteur: "agent" | "prestataire" | "client"
       paiement_source: "lien_agent" | "prelevement_auto" | "detecte_hors_sidian"
       payment_authorization_etat:
@@ -2810,6 +3905,53 @@ export const Constants = {
         "depassement_seuil",
         "autre",
       ],
+      communication_channel_status: [
+        "inactive",
+        "active",
+        "degraded",
+        "revoked",
+      ],
+      communication_inbound_processing_status: [
+        "received",
+        "validated",
+        "correlated",
+        "processing",
+        "processed",
+        "unresolved",
+        "rejected",
+        "failed",
+      ],
+      communication_interaction_session_kind: [
+        "payment_partial_amount_collection",
+      ],
+      communication_interaction_session_status: [
+        "awaiting_input",
+        "completed",
+        "expired",
+        "cancelled",
+        "failed",
+      ],
+      communication_message_direction: ["outbound", "inbound"],
+      communication_message_status: [
+        "queued",
+        "sending",
+        "accepted",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
+        "cancelled",
+      ],
+      communication_provider_kind: [
+        "whatsapp_sidian",
+        "whatsapp_business_personal",
+      ],
+      communication_webhook_processing_status: [
+        "received",
+        "processed",
+        "ignored",
+        "failed",
+      ],
       creance_etat: [
         "BROUILLON",
         "OUVERTE",
@@ -2836,7 +3978,14 @@ export const Constants = {
         "ESCALADE_HUMAINE",
         "CLOS",
       ],
-      message_canal: ["email", "interface"],
+      guide_payment_confirmation_status: [
+        "awaiting_guide_response",
+        "confirmed_received",
+        "confirmed_not_received",
+        "verification_in_progress",
+        "partially_received",
+      ],
+      message_canal: ["email", "interface", "whatsapp"],
       message_emetteur: ["agent", "prestataire", "client"],
       paiement_source: [
         "lien_agent",

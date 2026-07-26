@@ -50,8 +50,13 @@ export type HumanValidationRecord = {
 };
 
 /**
- * Requête d’autorisation — identifiants et éléments fournis par l’appelant uniquement.
+ * Requête d’autorisation — identifiants et éléments fournis par l’orchestrateur.
  * Jamais de ToolDefinition arbitraire ici.
+ *
+ * `human_validation` : **record de confiance uniquement**, injecté par un
+ * orchestrateur de confiance (Router G1-H via `inspect` → `toTrustedHumanValidation`).
+ * Ce service reste pur (pas de Supabase) et **ne consomme jamais** l’approbation.
+ * Un appelant non fiable ne doit pas fournir un snapshot HV déclaratif comme preuve.
  */
 export type PermissionRequest = {
   actor_id: string;
@@ -64,6 +69,10 @@ export type PermissionRequest = {
   requested_autonomy_level: AutonomyLevel;
   grants: PermissionGrant[];
   resource?: PermissionResource;
+  /**
+   * Validation humaine de confiance — jamais une preuve déclarative arbitraire
+   * de l’appelant final. Voir Router G1-H (`approval_id` → inspect).
+   */
   human_validation?: HumanValidationRecord;
   /** Empreinte des paramètres actuels (obligatoire si validation humaine requise). */
   current_params_hash?: string;

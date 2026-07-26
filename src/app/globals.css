@@ -2,24 +2,53 @@
 
 :root {
   --sidian-nuit: #0d1117;
+  --sidian-ardoise: #1d2535;
   --sidian-blue: #3b6df8;
+  --sidian-ciel: #6b96fa;
   --sidian-gris-50: #f7f8fb;
   --sidian-gris-100: #eef0f4;
   --sidian-gris-200: #e3e6ec;
+  --sidian-gris-300: #cbd0da;
+  --sidian-gris-400: #9aa1ae;
   --sidian-gris-500: #6b7280;
+  --sidian-gris-600: #4b5563;
   --background: #ffffff;
   --foreground: var(--sidian-nuit);
+
+  /* Assistant premium dark surface */
+  --assistant-bg: #0b0b0c;
+  --assistant-sidebar: #101113;
+  --assistant-composer: #151618;
+  --assistant-panel: #121315;
+  --assistant-bubble: #18191c;
+  --assistant-text: #f5f5f7;
+  --assistant-muted: #8f939a;
+  --assistant-line: rgba(255, 255, 255, 0.06);
+  --assistant-hover: rgba(255, 255, 255, 0.04);
+  --assistant-accent: #3b6df8;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-nuit: var(--sidian-nuit);
+  --color-ardoise: var(--sidian-ardoise);
   --color-sidian-blue: var(--sidian-blue);
+  --color-ciel: var(--sidian-ciel);
   --color-gris-50: var(--sidian-gris-50);
   --color-gris-100: var(--sidian-gris-100);
   --color-gris-200: var(--sidian-gris-200);
+  --color-gris-300: var(--sidian-gris-300);
+  --color-gris-400: var(--sidian-gris-400);
   --color-gris-500: var(--sidian-gris-500);
+  --color-gris-600: var(--sidian-gris-600);
+  --color-assistant-bg: var(--assistant-bg);
+  --color-assistant-sidebar: var(--assistant-sidebar);
+  --color-assistant-composer: var(--assistant-composer);
+  --color-assistant-panel: var(--assistant-panel);
+  --color-assistant-bubble: var(--assistant-bubble);
+  --color-assistant-text: var(--assistant-text);
+  --color-assistant-muted: var(--assistant-muted);
   --font-sans: var(--font-outfit), system-ui, sans-serif;
 }
 
@@ -27,4 +56,94 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+@keyframes assistant-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes assistant-welcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes assistant-field-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes assistant-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes assistant-panel-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-welcome-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-field-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-message-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

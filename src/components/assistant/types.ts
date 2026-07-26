@@ -1,6 +1,29 @@
 import type { ReactNode } from "react";
 
+import type {
+  ProtectionPanelData,
+  ProtectionPanelStatus,
+} from "./protection-panel/types";
+
 export type AssistantMessageRole = "user" | "assistant";
+
+export type AssistantMessageStatus =
+  | "sent"
+  | "streaming"
+  | "error"
+  | "pending";
+
+export type AssistantMessageActionKind =
+  | "retry"
+  | "confirm_protection"
+  | "open_protection";
+
+export type AssistantMessageAction = {
+  id: string;
+  label: string;
+  kind: AssistantMessageActionKind;
+  href?: string;
+};
 
 export type AssistantMessage = {
   id: string;
@@ -8,6 +31,12 @@ export type AssistantMessage = {
   content: string;
   createdAt?: string;
   suggestions?: string[];
+  actions?: AssistantMessageAction[];
+  status?: AssistantMessageStatus;
+  errorMessage?: string;
+  retryContent?: string;
+  /** Référence opaque protection créée (creance_id) — navigation uniquement. */
+  protectionId?: string;
 };
 
 export type ActiveContextType =
@@ -17,18 +46,10 @@ export type ActiveContextType =
   | "payment"
   | "client";
 
-export type ProtectionPanelStatus = "draft" | "active" | "analyzing";
+export type { ProtectionPanelStatus };
 
-export type ProtectionContextData = {
-  clientName: string;
-  statusLabel: string;
-  status: ProtectionPanelStatus;
-  amountLabel: string;
-  subject?: string;
-  dueDateLabel?: string;
-  nextStepLabel?: string;
-  primaryActionLabel?: string;
-};
+/** Alias stable pour le workspace — même modèle que ProtectionPanelData. */
+export type ProtectionContextData = ProtectionPanelData;
 
 export type ActiveContextData = {
   id: string;

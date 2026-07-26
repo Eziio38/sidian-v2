@@ -68,7 +68,7 @@ export function ProfileForm({
           {AGENT_PROFILES.map((profile) => (
             <label
               key={profile.value}
-              className="flex cursor-pointer gap-3 rounded-xl border border-gris-200 bg-white p-4 transition-colors hover:border-sidian-blue has-[:checked]:border-sidian-blue has-[:checked]:bg-blue-50"
+              className="flex cursor-pointer gap-3 rounded-xl border border-gris-200 bg-white p-4 transition-colors hover:border-sidian-blue has-[:checked]:border-sidian-blue has-[:checked]:bg-brume"
             >
               <input
                 type="radio"

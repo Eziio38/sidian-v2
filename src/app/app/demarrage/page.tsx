@@ -1,6 +1,11 @@
 import Link from "next/link";
 
 import { AppShell } from "@/components/app/app-shell";
+import {
+  DisabledHint,
+  MissingConfigBanner,
+  StatusBanner,
+} from "@/components/feedback";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
@@ -12,17 +17,20 @@ import {
 import { getCurrentPrestataireProfile } from "@/lib/profile/profile";
 import { getPrestataireStripeReadiness } from "@/lib/stripe/connect/readiness";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspaceConfigStatus } from "@/lib/ux/config-status";
+import { UX_COPY } from "@/lib/ux/microcopy";
 
 export default async function DemarragePage() {
   const user = await requireConfirmedUser();
   const supabase = await createClient();
   const prestataire = await ensurePrestataireForUser(supabase, user);
 
-  const [profile, clients, payments, stripe] = await Promise.all([
+  const [profile, clients, payments, stripe, configStatus] = await Promise.all([
     getCurrentPrestataireProfile(supabase),
     listActiveClientPayeurs(supabase),
     listActiveCreances(supabase),
     getPrestataireStripeReadiness(supabase, prestataire.id),
+    getWorkspaceConfigStatus(supabase, prestataire.id),
   ]);
 
   const steps = buildOnboardingSteps({
@@ -38,11 +46,15 @@ export default async function DemarragePage() {
   const completion = getOnboardingCompletion(steps);
   const paymentCreated = steps.find((step) => step.id === "payment")?.completed;
   const stripeReady = steps.find((step) => step.id === "stripe")?.completed;
+  const stripeChannel = configStatus.channels.find((c) => c.kind === "stripe");
+  const autoDebitChannel = configStatus.channels.find(
+    (c) => c.kind === "auto_debit_ceiling",
+  );
 
   return (
     <AppShell
       title="Bien démarrer"
-      description="Quatre étapes courtes pour préparer votre premier suivi, sans configuration inutile."
+      description={UX_COPY.onboardingProgress.description}
     >
       <div className="max-w-4xl space-y-6">
         <section
@@ -52,10 +64,11 @@ export default async function DemarragePage() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 id="onboarding-progress-title" className="font-semibold text-nuit">
-                Votre progression
+                {UX_COPY.onboardingProgress.title}
               </h2>
               <p className="mt-1 text-sm text-gris-500">
-                {completion.completed} étape{completion.completed > 1 ? "s" : ""} sur {completion.total}
+                {completion.completed} étape{completion.completed > 1 ? "s" : ""} sur{" "}
+                {completion.total}
               </p>
             </div>
             <p className="text-sm font-semibold tabular-nums text-nuit">
@@ -77,14 +90,21 @@ export default async function DemarragePage() {
           </div>
         </section>
 
-        {paymentCreated && !stripeReady ? (
-          <div className="rounded-xl bg-blue-50 p-5 text-sm text-nuit" role="status">
-            <p className="font-semibold">Votre premier paiement est prêt.</p>
-            <p className="mt-1 max-w-2xl leading-relaxed text-gris-500">
-              Son échéance est suivie. Il reste à sécuriser l’encaissement avec
-              Stripe avant que le lien puisse être présenté comme partageable.
-            </p>
-          </div>
+        {paymentCreated && !stripeReady && stripeChannel ? (
+          <MissingConfigBanner channel={stripeChannel} />
+        ) : null}
+
+        {paymentCreated && stripeReady ? (
+          <StatusBanner
+            tone="success"
+            badge="Prêt"
+            title="Ton premier paiement est prêt"
+            description="L’encaissement est finalisé. Tu peux partager le lien quand tu veux."
+          />
+        ) : null}
+
+        {autoDebitChannel && autoDebitChannel.state !== "ready" ? (
+          <MissingConfigBanner channel={autoDebitChannel} />
         ) : null}
 
         <ol className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
@@ -114,7 +134,7 @@ export default async function DemarragePage() {
                   {step.actionLabel}
                 </Link>
               ) : (
-                <span className="text-sm text-gris-500">Étape précédente requise</span>
+                <DisabledHint className="max-w-[14rem] sm:text-right" />
               )}
             </li>
           ))}

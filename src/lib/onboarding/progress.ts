@@ -21,9 +21,9 @@ export function buildOnboardingSteps(
   return [
     {
       id: "profile",
-      title: "Présentez votre activité",
+      title: "Présente ton activité",
       description:
-        "Confirmez le nom présenté à vos clients et choisissez le niveau d’accompagnement de l’agent.",
+        "Confirme le nom vu par tes clients et choisis le niveau d’accompagnement de l’agent.",
       href: "/app/parametres",
       actionLabel: facts.profileConfigured ? "Modifier le profil" : "Configurer le profil",
       completed: facts.profileConfigured,
@@ -31,7 +31,7 @@ export function buildOnboardingSteps(
     },
     {
       id: "client",
-      title: "Ajoutez votre premier client",
+      title: "Ajoute ton premier client",
       description:
         "Un nom et un email suffisent pour préparer le suivi de son règlement.",
       href: "/app/clients",
@@ -41,9 +41,9 @@ export function buildOnboardingSteps(
     },
     {
       id: "payment",
-      title: "Créez un paiement à recevoir",
+      title: "Crée un paiement à recevoir",
       description:
-        "Indiquez le montant en euros et l’échéance. Stripe n’est pas encore nécessaire.",
+        "Indique le montant en euros et l’échéance. Stripe n’est pas encore nécessaire.",
       href: "/app/paiements-a-recevoir",
       actionLabel: facts.hasPaymentReceivable
         ? "Voir les paiements"
@@ -53,9 +53,9 @@ export function buildOnboardingSteps(
     },
     {
       id: "stripe",
-      title: "Finalisez l’encaissement avec Stripe",
+      title: "Finalise l’encaissement avec Stripe",
       description:
-        "Cette étape devient utile maintenant : Stripe vérifie votre activité avant que le lien puisse être partagé.",
+        "Cette étape devient utile maintenant : Stripe vérifie ton activité avant que le lien puisse être partagé.",
       href: "/app/connexion-stripe",
       actionLabel: facts.stripeReady ? "Vérifier Stripe" : "Finaliser Stripe",
       completed: facts.stripeReady,

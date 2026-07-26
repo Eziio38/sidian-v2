@@ -93,5 +93,10 @@ describe("assistant shortcuts helpers", () => {
     expect(getComposerShortcuts("created").map((s) => s.action)).toContain(
       "view_protection",
     );
+    expect(
+      getComposerShortcuts("draft", { includeReopenPanel: true }).map(
+        (s) => s.action,
+      ),
+    ).toContain("reopen_protection_panel");
   });
 });

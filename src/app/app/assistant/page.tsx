@@ -1,7 +1,12 @@
 import { ConversationalWorkspace } from "@/components/assistant";
 import { isDemoStateId } from "@/components/assistant/demo-states";
+import {
+  buildWelcomeSummaryLines,
+  FALLBACK_WELCOME_SUMMARY,
+} from "@/components/assistant/welcome-summary";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
+import { loadDashboard } from "@/lib/dashboard/load-dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 type AssistantPageProps = {
@@ -12,6 +17,30 @@ function firstNameFrom(value: string | null | undefined, fallback: string): stri
   if (!value) return fallback;
   const token = value.trim().split(/\s+/)[0];
   return token || fallback;
+}
+
+async function loadWelcomeSummary(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  prestataireId: string,
+): Promise<string[]> {
+  try {
+    const dashboard = await loadDashboard(supabase, prestataireId);
+    const todayItems = dashboard.deadlines.filter(
+      (deadline) => deadline.status === "today",
+    );
+    const todayOutstandingCents = todayItems.reduce(
+      (sum, item) => sum + item.outstandingCents,
+      0,
+    );
+    return buildWelcomeSummaryLines({
+      todayOutstandingCents,
+      todayCount: todayItems.length,
+      overdueCount: dashboard.totals.overdueCount,
+      attentionCount: dashboard.actions.length,
+    });
+  } catch {
+    return [...FALLBACK_WELCOME_SUMMARY];
+  }
 }
 
 export default async function AssistantPage({ searchParams }: AssistantPageProps) {
@@ -28,12 +57,20 @@ export default async function AssistantPage({ searchParams }: AssistantPageProps
     "Lucie",
   );
 
+  const summaryLines = demoState
+    ? [
+        "3 650 € sont attendus aujourd’hui.",
+        "Aucun ne nécessite ton intervention.",
+      ]
+    : await loadWelcomeSummary(supabase, prestataire.id);
+
   return (
     <ConversationalWorkspace
       key={demoState ?? "live"}
       userFirstName={userFirstName}
       userDisplayName={prestataire.nom || userFirstName}
       demoState={demoState}
+      summaryLines={summaryLines}
     />
   );
 }

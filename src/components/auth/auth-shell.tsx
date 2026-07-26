@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+
+import { BrandLockup } from "@/components/brand/brand-lockup";
 
 type AuthShellProps = {
   title: string;
@@ -13,19 +14,12 @@ export function AuthShell({ title, description, children, footer }: AuthShellPro
     <div className="flex min-h-full flex-col bg-gris-50">
       <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
         <div className="w-full max-w-md">
-          <div className="mb-8 text-center">
-            <Link
+          <div className="mb-8 flex justify-center">
+            <BrandLockup
               href="/"
-              className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight text-nuit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
-            >
-              <span
-                aria-hidden
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sidian-blue text-sm font-bold text-white"
-              >
-                S
-              </span>
-              Sidian
-            </Link>
+              size={28}
+              wordmarkClassName="text-lg font-extrabold tracking-[-0.02em] text-nuit"
+            />
           </div>
 
           <div className="rounded-2xl border border-gris-200 bg-white p-6 shadow-sm sm:p-8">

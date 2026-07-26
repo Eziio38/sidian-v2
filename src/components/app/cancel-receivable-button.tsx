@@ -2,6 +2,8 @@
 
 import { useActionState, useId } from "react";
 
+import { ConfirmIrreversible } from "@/components/feedback";
+import { UX_COPY } from "@/lib/ux/microcopy";
 import type { WorkflowActionResult } from "@/app/actions/receivable-workflows";
 
 type WorkflowAction = (
@@ -18,25 +20,21 @@ export function CancelReceivableButton({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const id = useId();
+  const copy = UX_COPY.irreversibleCancelPayment;
 
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (!window.confirm("Annuler ce paiement à recevoir ? Cette action révoquera son lien actif.")) {
-          event.preventDefault();
+    <div aria-describedby={state ? `${id}-status` : undefined}>
+      <ConfirmIrreversible
+        title={copy.title}
+        description={copy.description}
+        confirmLabel={pending ? "Annulation…" : "Annuler le paiement à recevoir"}
+        useNativeConfirm
+        formAction={formAction}
+        pending={pending}
+        formChildren={
+          <input type="hidden" name="receivableId" value={receivableId} />
         }
-      }}
-      aria-describedby={state ? `${id}-status` : undefined}
-    >
-      <input type="hidden" name="receivableId" value={receivableId} />
-      <button
-        type="submit"
-        disabled={pending}
-        className="text-sm font-medium text-red-700 underline-offset-4 hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
-      >
-        {pending ? "Annulation…" : "Annuler le paiement à recevoir"}
-      </button>
+      />
       {state ? (
         <p
           id={`${id}-status`}
@@ -46,6 +44,6 @@ export function CancelReceivableButton({
           {state.message}
         </p>
       ) : null}
-    </form>
+    </div>
   );
 }

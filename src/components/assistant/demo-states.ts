@@ -1,3 +1,4 @@
+import { CONSEQUENCE_COPY } from "./protection-panel/microcopy";
 import type {
   ActiveContext,
   ActiveContextData,
@@ -18,8 +19,13 @@ const DRAFT_CONTEXT: ActiveContextData = {
     amountLabel: "2 400 €",
     subject: "Site internet",
     dueDateLabel: "24 août 2026",
+    paymentMethodLabel: "Le client choisira au moment du paiement",
+    authorizationLabel: "Pas encore proposée",
+    autoDebitRuleLabel: "Pas encore activé",
     nextStepLabel: "Vérification à l’échéance",
+    consequenceLabel: CONSEQUENCE_COPY.draft,
     primaryActionLabel: "Créer la protection",
+    secondaryActionLabel: "Annuler le brouillon",
   },
 };
 
@@ -33,7 +39,11 @@ const ACTIVE_CONTEXT: ActiveContextData = {
     amountLabel: "2 400 €",
     subject: "Site internet",
     dueDateLabel: "24 août 2026",
+    paymentMethodLabel: "Carte ou prélèvement — au choix du client",
+    authorizationLabel: "Sera proposée au premier paiement",
+    autoDebitRuleLabel: "Activable après autorisation du client",
     nextStepLabel: "Suivi à l’échéance",
+    consequenceLabel: CONSEQUENCE_COPY.active,
     primaryActionLabel: "Voir le détail",
   },
 };

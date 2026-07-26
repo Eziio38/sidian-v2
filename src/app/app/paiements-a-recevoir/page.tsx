@@ -8,6 +8,7 @@ import { AppShell } from "@/components/app/app-shell";
 import { ArchiveButton } from "@/components/app/client-forms";
 import { CreanceForm } from "@/components/app/creance-forms";
 import { ReceivablePaymentSection } from "@/components/app/receivable-payment-section";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
@@ -15,6 +16,7 @@ import { listActiveCreances, listPaidAmountsByCreanceIds } from "@/lib/creances/
 import { canArchiveReceivable } from "@/lib/receivables/archive-policy";
 import { getPrestataireStripeReadiness } from "@/lib/stripe/connect/readiness";
 import { createClient } from "@/lib/supabase/server";
+import { UX_COPY } from "@/lib/ux/microcopy";
 
 function centsToEurosInput(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -47,7 +49,7 @@ export default async function PaiementsARecevoirPage() {
       creances.map((c) => c.id),
     );
   } catch {
-    loadError = "Impossible de charger les paiements à recevoir pour le moment.";
+    loadError = UX_COPY.errorLoad.description;
   }
 
   const stripeReadiness = await getPrestataireStripeReadiness(
@@ -60,7 +62,7 @@ export default async function PaiementsARecevoirPage() {
   return (
     <AppShell
       title="Paiements à recevoir"
-      description="Paiements à recevoir. Les brouillons restent modifiables ; l’archivage est logique."
+      description="Tes paiements attendus. Les brouillons restent modifiables."
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="space-y-4">
@@ -68,17 +70,17 @@ export default async function PaiementsARecevoirPage() {
             Liste
           </h2>
           {loadError ? (
-            <p
-              role="alert"
-              className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-            >
-              {loadError}
-            </p>
+            <ErrorState
+              compact
+              title={UX_COPY.errorLoad.title}
+              description={loadError}
+            />
           ) : null}
           {!loadError && creances.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-gris-200 bg-white p-8 text-sm text-gris-500">
-              Aucun paiement à recevoir. Créez un brouillon à droite.
-            </p>
+            <EmptyState
+              title={UX_COPY.emptyPayments.title}
+              description={UX_COPY.emptyPayments.description}
+            />
           ) : null}
           <ul className="space-y-4">
             {creances.map((creance) => {

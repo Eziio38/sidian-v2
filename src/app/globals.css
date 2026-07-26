@@ -1,10 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * Sidian design tokens — source of truth for light app UI.
+ * Values align with docs/SIDIAN_DESIGN_SYSTEM.md.
+ * Brand tokens are preserved; semantic / state / type / elevation are centralized here.
+ */
+
 :root {
+  /* ── Brand (preserve) ───────────────────────────────────────── */
   --sidian-nuit: #0d1117;
   --sidian-ardoise: #1d2535;
   --sidian-blue: #3b6df8;
+  --sidian-blue-hover: #315fd9;
+  --sidian-blue-active: #2a52c4;
   --sidian-ciel: #6b96fa;
+  --sidian-brume: #edf2ff;
+
+  /* ── Cold grays ─────────────────────────────────────────────── */
   --sidian-gris-50: #f7f8fb;
   --sidian-gris-100: #eef0f4;
   --sidian-gris-200: #e3e6ec;
@@ -12,10 +24,133 @@
   --sidian-gris-400: #9aa1ae;
   --sidian-gris-500: #6b7280;
   --sidian-gris-600: #4b5563;
+
+  /* ── Semantic (status only) ─────────────────────────────────── */
+  --sidian-success: #059669;
+  --sidian-success-bg: #ecfdf3;
+  --sidian-success-border: #a7f3d0;
+  --sidian-warning: #d97706;
+  --sidian-warning-bg: #fffaeb;
+  --sidian-warning-border: #fde68a;
+  --sidian-danger: #dc2626;
+  --sidian-danger-bg: #fef3f2;
+  --sidian-danger-border: #fecaca;
+
+  /* ── Surfaces & text (light) ────────────────────────────────── */
   --background: #ffffff;
   --foreground: var(--sidian-nuit);
+  --surface: #ffffff;
+  --surface-muted: var(--sidian-gris-50);
+  --surface-sidebar: var(--sidian-gris-50);
+  --surface-elevated: #ffffff;
+  --surface-empty: var(--sidian-gris-50);
+  --surface-loading: var(--sidian-gris-100);
 
-  /* Assistant premium dark surface */
+  --text-primary: var(--sidian-nuit);
+  --text-secondary: var(--sidian-gris-500);
+  --text-tertiary: var(--sidian-gris-400);
+  --text-disabled: var(--sidian-gris-400);
+  --text-inverse: #ffffff;
+  --text-link: var(--sidian-blue);
+
+  --border-default: var(--sidian-gris-200);
+  --border-strong: var(--sidian-gris-300);
+  --border-divider: var(--sidian-gris-100);
+  --border-focus: var(--sidian-blue);
+
+  /* ── Interaction states ─────────────────────────────────────── */
+  --state-hover-bg: var(--sidian-gris-50);
+  --state-active-bg: var(--sidian-brume);
+  --state-disabled-bg: var(--sidian-gris-100);
+  --state-disabled-fg: var(--sidian-gris-400);
+  --state-disabled-opacity: 0.6;
+  --state-focus-ring: color-mix(in srgb, var(--sidian-blue) 40%, transparent);
+  --state-focus-ring-width: 2px;
+  --state-focus-ring-offset: 2px;
+
+  /* ── Elevation ──────────────────────────────────────────────── */
+  --sidian-shadow-sm: 0 1px 2px rgba(13, 17, 23, 0.04);
+  --sidian-shadow-card: 0 1px 3px rgba(13, 17, 23, 0.04), 0 1px 2px rgba(13, 17, 23, 0.03);
+  --sidian-shadow-float: 0 8px 24px rgba(13, 17, 23, 0.08);
+
+  /* ── Radii ──────────────────────────────────────────────────── */
+  --sidian-radius-sm: 8px;
+  --sidian-radius-md: 10px;
+  --sidian-radius-lg: 12px;
+  --sidian-radius-xl: 16px;
+  --sidian-radius-full: 9999px;
+
+  /* ── Spacing (4px grid — layout refs) ───────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-page-x: 24px;
+  --space-page-x-lg: 32px;
+  --space-page-y: 24px;
+  --space-rail-gap: 24px;
+  --space-card: 20px;
+  --space-card-lg: 24px;
+  --space-field-gap: 14px;
+  --space-section: 24px;
+
+  /* ── Control sizes ──────────────────────────────────────────── */
+  --control-height-sm: 36px;
+  --control-height: 40px;
+  --control-height-lg: 44px;
+  --control-px: 16px;
+  --input-height: 40px;
+  --input-px: 12px;
+  --badge-height: 24px;
+  --badge-px: 8px;
+  --row-min-height: 56px;
+  --sidebar-width: 220px;
+  --drawer-width: 480px;
+  --rail-width: 280px;
+  --toolbar-height: 40px;
+  --search-width: 280px;
+
+  /* ── Icon sizes (Lucide strokeWidth 1.75) ───────────────────── */
+  --icon-xs: 14px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-stroke: 1.75;
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  --text-display-size: 32px;
+  --text-display-lh: 1.15;
+  --text-display-tracking: -0.03em;
+  --text-kpi-size: 26px;
+  --text-section-size: 16px;
+  --text-section-tracking: -0.015em;
+  --text-body-size: 14px;
+  --text-body-lh: 1.5;
+  --text-body-sm-size: 13px;
+  --text-caption-size: 12px;
+  --text-eyebrow-size: 11px;
+  --text-eyebrow-tracking: 0.06em;
+  --text-button-size: 14px;
+
+  /* ── Scrollbars ─────────────────────────────────────────────── */
+  --scrollbar-size: 6px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in srgb, var(--sidian-gris-400) 45%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--sidian-gris-400) 70%, transparent);
+
+  /* ── Overlay ────────────────────────────────────────────────── */
+  --overlay-scrim: color-mix(in srgb, var(--sidian-nuit) 40%, transparent);
+
+  /* Assistant premium dark surface (conversation shell — preserve) */
   --assistant-bg: #0b0b0c;
   --assistant-sidebar: #101113;
   --assistant-composer: #151618;
@@ -25,16 +160,28 @@
   --assistant-muted: #8f939a;
   --assistant-line: rgba(255, 255, 255, 0.06);
   --assistant-hover: rgba(255, 255, 255, 0.04);
-  --assistant-accent: #3b6df8;
+  --assistant-accent: var(--sidian-blue);
 }
 
 @theme inline {
+  /* Surfaces */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-empty: var(--surface-empty);
+  --color-surface-loading: var(--surface-loading);
+
+  /* Brand */
   --color-nuit: var(--sidian-nuit);
   --color-ardoise: var(--sidian-ardoise);
   --color-sidian-blue: var(--sidian-blue);
+  --color-sidian-blue-hover: var(--sidian-blue-hover);
+  --color-sidian-blue-active: var(--sidian-blue-active);
   --color-ciel: var(--sidian-ciel);
+  --color-brume: var(--sidian-brume);
+
+  /* Grays */
   --color-gris-50: var(--sidian-gris-50);
   --color-gris-100: var(--sidian-gris-100);
   --color-gris-200: var(--sidian-gris-200);
@@ -42,6 +189,36 @@
   --color-gris-400: var(--sidian-gris-400);
   --color-gris-500: var(--sidian-gris-500);
   --color-gris-600: var(--sidian-gris-600);
+
+  /* Semantic */
+  --color-success: var(--sidian-success);
+  --color-success-bg: var(--sidian-success-bg);
+  --color-success-border: var(--sidian-success-border);
+  --color-warning: var(--sidian-warning);
+  --color-warning-bg: var(--sidian-warning-bg);
+  --color-warning-border: var(--sidian-warning-border);
+  --color-danger: var(--sidian-danger);
+  --color-danger-bg: var(--sidian-danger-bg);
+  --color-danger-border: var(--sidian-danger-border);
+
+  /* Text roles */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-disabled: var(--text-disabled);
+  --color-text-link: var(--text-link);
+
+  /* Borders */
+  --color-border-default: var(--border-default);
+  --color-border-divider: var(--border-divider);
+  --color-border-strong: var(--border-strong);
+
+  /* State */
+  --color-state-hover: var(--state-hover-bg);
+  --color-state-active: var(--state-active-bg);
+  --color-state-disabled: var(--state-disabled-bg);
+
+  /* Assistant */
   --color-assistant-bg: var(--assistant-bg);
   --color-assistant-sidebar: var(--assistant-sidebar);
   --color-assistant-composer: var(--assistant-composer);
@@ -49,13 +226,125 @@
   --color-assistant-bubble: var(--assistant-bubble);
   --color-assistant-text: var(--assistant-text);
   --color-assistant-muted: var(--assistant-muted);
+
+  /* Font */
   --font-sans: var(--font-outfit), system-ui, sans-serif;
+
+  /* Radii → rounded-* */
+  --radius-sm: var(--sidian-radius-sm);
+  --radius-md: var(--sidian-radius-md);
+  --radius-lg: var(--sidian-radius-lg);
+  --radius-xl: var(--sidian-radius-xl);
+
+  /* Shadows → shadow-* */
+  --shadow-sm: var(--sidian-shadow-sm);
+  --shadow-card: var(--sidian-shadow-card);
+  --shadow-float: var(--sidian-shadow-float);
+
+  /* Type scale → text-* */
+  --text-display: var(--text-display-size);
+  --text-display--line-height: var(--text-display-lh);
+  --text-display--letter-spacing: var(--text-display-tracking);
+  --text-kpi: var(--text-kpi-size);
+  --text-kpi--line-height: 1.2;
+  --text-section: var(--text-section-size);
+  --text-section--letter-spacing: var(--text-section-tracking);
+  --text-body: var(--text-body-size);
+  --text-body--line-height: var(--text-body-lh);
+  --text-body-sm: var(--text-body-sm-size);
+  --text-caption: var(--text-caption-size);
+  --text-eyebrow: var(--text-eyebrow-size);
+  --text-eyebrow--letter-spacing: var(--text-eyebrow-tracking);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-lh);
+}
+
+/* Focus ring tokens: --state-focus-ring / --border-focus
+ * Prefer focus-visible:outline-sidian-blue (or outline-color: var(--state-focus-ring))
+ * on interactive components — no global :focus-visible override. */
+
+/* ── Scrollbar utility (lists, drawers, panels) ───────────────── */
+.dashboard-card-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--sidian-radius-full);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── Lightweight state helpers (optional class hooks) ─────────── */
+.sidian-empty {
+  background: var(--surface-empty);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--sidian-radius-lg);
+}
+
+.sidian-loading-pulse {
+  background: var(--surface-loading);
+  border-radius: var(--sidian-radius-lg);
+  animation: sidian-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidian-loading-pulse {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch target floor (44px) for primary interactive controls */
+.sidian-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Safe-area helpers for notched devices */
+.sidian-safe-pb {
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+}
+
+.sidian-safe-pt {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+@keyframes sidian-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 @keyframes assistant-panel-in {

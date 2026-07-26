@@ -68,17 +68,35 @@ export function resolveShortcutPhase(
   return "default";
 }
 
+const REOPEN_PANEL_SHORTCUT: ComposerShortcut = {
+  id: "reopen-panel",
+  label: "Rouvrir le panneau",
+  action: "reopen_protection_panel",
+  emphasis: "primary",
+};
+
 export function getComposerShortcuts(
   phase: ShortcutPhase,
+  options?: { includeReopenPanel?: boolean },
 ): ComposerShortcut[] {
+  let shortcuts: ComposerShortcut[];
   switch (phase) {
     case "draft":
-      return DRAFT_SHORTCUTS;
+      shortcuts = DRAFT_SHORTCUTS;
+      break;
     case "created":
-      return CREATED_SHORTCUTS;
+      shortcuts = CREATED_SHORTCUTS;
+      break;
     default:
-      return DEFAULT_SHORTCUTS;
+      shortcuts = DEFAULT_SHORTCUTS;
   }
+
+  if (!options?.includeReopenPanel) {
+    return shortcuts;
+  }
+
+  // Remplace le dernier raccourci pour garder une rangée courte.
+  return [REOPEN_PANEL_SHORTCUT, ...shortcuts.slice(0, 2)];
 }
 
 export function shouldShowContextPanel(params: {

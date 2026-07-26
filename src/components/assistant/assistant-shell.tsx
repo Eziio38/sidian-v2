@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -15,52 +16,135 @@ type AssistantShellProps = {
   children: ReactNode;
 };
 
+function subscribeLg(onStoreChange: () => void) {
+  if (typeof window.matchMedia !== "function") {
+    return () => {};
+  }
+  const media = window.matchMedia("(min-width: 1024px)");
+  media.addEventListener("change", onStoreChange);
+  return () => media.removeEventListener("change", onStoreChange);
+}
+
+function getLgSnapshot() {
+  if (typeof window.matchMedia !== "function") {
+    return true;
+  }
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+
+function getLgServerSnapshot() {
+  return true;
+}
+
 export function AssistantShell({
   userDisplayName,
   children,
 }: AssistantShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navButtonRef = useRef<HTMLButtonElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const wasMobileNavOpen = useRef(false);
+  const isLg = useSyncExternalStore(
+    subscribeLg,
+    getLgSnapshot,
+    getLgServerSnapshot,
+  );
 
   const closeMobileNav = useCallback(() => {
     setMobileNavOpen(false);
   }, []);
 
+  const openMobileNav = useCallback(() => {
+    if (!isLg) {
+      setMobileNavOpen(true);
+    }
+  }, [isLg]);
+
+  // Dérivé : pas de setState dans un effect au resize desktop.
+  const isMobileDrawerOpen = !isLg && mobileNavOpen;
+
   useEffect(() => {
-    if (wasMobileNavOpen.current && !mobileNavOpen) {
+    if (wasMobileNavOpen.current && !isMobileDrawerOpen) {
       navButtonRef.current?.focus();
     }
-    wasMobileNavOpen.current = mobileNavOpen;
-  }, [mobileNavOpen]);
+    wasMobileNavOpen.current = isMobileDrawerOpen;
+  }, [isMobileDrawerOpen]);
+
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    if (isMobileDrawerOpen) {
+      main.setAttribute("inert", "");
+    } else {
+      main.removeAttribute("inert");
+    }
+  }, [isMobileDrawerOpen]);
+
+  useEffect(() => {
+    if (!isMobileDrawerOpen) return;
+
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyTouchAction = body.style.touchAction;
+
+    body.style.overflow = "hidden";
+    documentElement.style.overflow = "hidden";
+    body.style.touchAction = "none";
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.touchAction = previousBodyTouchAction;
+    };
+  }, [isMobileDrawerOpen]);
 
   return (
     <div
       data-testid="assistant-shell"
+      data-mobile-nav={isMobileDrawerOpen ? "open" : "closed"}
       className="flex h-dvh max-h-dvh overflow-hidden bg-assistant-bg text-assistant-text"
     >
       <AssistantSidebar
         userDisplayName={userDisplayName}
-        mobileOpen={mobileNavOpen}
+        mobileOpen={isMobileDrawerOpen}
         onCloseMobile={closeMobileNav}
       />
 
-      <div className="relative flex min-w-0 flex-1 flex-col bg-assistant-bg">
+      <div
+        ref={mainRef}
+        data-testid="assistant-main"
+        className={`relative flex min-w-0 flex-1 flex-col bg-assistant-bg ${
+          isMobileDrawerOpen ? "pointer-events-none" : ""
+        }`}
+        aria-hidden={isMobileDrawerOpen ? true : undefined}
+      >
+        <a
+          href="#assistant-discussion"
+          className="sr-only z-50 rounded-lg bg-assistant-composer px-4 py-2 text-sm font-semibold text-assistant-text focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:outline focus:outline-2 focus:outline-sidian-blue"
+        >
+          Aller à la discussion
+        </a>
+
         <button
           ref={navButtonRef}
           type="button"
           data-testid="assistant-mobile-nav"
           aria-label="Ouvrir la navigation"
-          aria-expanded="false"
+          aria-expanded={isMobileDrawerOpen}
           aria-controls="assistant-sidebar"
-          aria-hidden={mobileNavOpen ? true : undefined}
-          tabIndex={mobileNavOpen ? -1 : undefined}
-          onClick={() => setMobileNavOpen(true)}
-          className={`group absolute left-4 top-4 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full text-assistant-muted transition-[color,opacity,transform] duration-150 ease-out hover:text-assistant-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue motion-safe:duration-[140ms] lg:hidden ${
-            mobileNavOpen
+          aria-hidden={isMobileDrawerOpen ? true : undefined}
+          tabIndex={isMobileDrawerOpen ? -1 : undefined}
+          onClick={openMobileNav}
+          className={`group absolute z-10 inline-flex h-11 w-11 items-center justify-center rounded-full text-assistant-muted transition-[color,opacity,transform] duration-150 ease-out hover:text-assistant-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue motion-safe:duration-[140ms] motion-reduce:transition-none lg:hidden ${
+            isMobileDrawerOpen
               ? "pointer-events-none scale-[0.96] opacity-0"
               : "pointer-events-auto scale-100 opacity-100"
           }`}
+          style={{
+            top: "max(1rem, env(safe-area-inset-top, 0px))",
+            left: "max(1rem, env(safe-area-inset-left, 0px))",
+          }}
         >
           <span
             aria-hidden

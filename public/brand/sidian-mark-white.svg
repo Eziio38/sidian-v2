@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="156" height="156" viewBox="0 0 156 156" fill="none" role="img" aria-label="Sidian">
+  <!-- Interim mark  variante blanche (fonds chargés). Remplacer par PNG DS officiels quand disponibles. -->
+  <path
+    d="M52 42c14-14 36-14 50 0s14 36 0 50l-8 8"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M104 114c-14 14-36 14-50 0s-14-36 0-50l8-8"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M68 68c8-8 20-8 28 0s8 20 0 28-20 8-28 0-8-20 0-28Z"
+    stroke="#FFFFFF"
+    stroke-width="10"
+    stroke-linejoin="round"
+  />
+</svg>

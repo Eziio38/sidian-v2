@@ -26,9 +26,9 @@ export function WelcomeState({
   return (
     <div
       data-testid="welcome-state"
-      className="mx-auto mb-4 mt-16 flex w-full max-w-[32rem] flex-col items-center px-4 text-center motion-safe:animate-[assistant-welcome-in_180ms_ease-out] motion-reduce:animate-none"
+      className="mx-auto mb-4 mt-16 flex w-full max-w-[32rem] flex-col items-center px-4 text-center motion-safe:animate-[assistant-welcome-in_180ms_ease-out] motion-reduce:animate-none max-md:mt-12"
     >
-      <h1 className="text-balance text-[28px] font-semibold tracking-[-0.03em] text-assistant-text">
+      <h1 className="text-balance text-[28px] font-semibold tracking-[-0.03em] text-assistant-text max-md:text-[24px]">
         Bonjour {userFirstName}
       </h1>
       <div className="mt-4 max-w-[28rem] text-pretty">
@@ -46,14 +46,14 @@ export function WelcomeState({
           </p>
         ))}
       </div>
-      <div className="mt-8 flex flex-nowrap items-center justify-center gap-2 max-md:flex-wrap">
-        {suggestions.map((item) => (
+      <div className="mt-8 flex max-w-full flex-wrap items-center justify-center gap-2">
+        {suggestions.slice(0, 3).map((item) => (
           <button
             key={item.id}
             type="button"
             data-testid={`welcome-suggestion-${item.id}`}
             onClick={() => onSuggestion(item.action)}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white/[0.04] px-4 py-2 text-[12px] text-assistant-muted/80 transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.07] hover:text-assistant-text motion-safe:hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-white/[0.04] px-4 py-2 text-[12px] text-assistant-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.07] hover:text-assistant-text motion-safe:hover:-translate-y-px motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
           >
             <SuggestionIcon action={item.action} label={item.label} />
             {item.label}

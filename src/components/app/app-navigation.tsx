@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAVIGATION = [
+  { href: "/app/assistant", label: "Assistant" },
   { href: "/app", label: "Dashboard" },
   { href: "/app/demarrage", label: "Bien démarrer" },
   { href: "/app/paiements-a-recevoir", label: "Paiements à recevoir" },
@@ -41,8 +42,8 @@ export function AppNavigation({ compact = false }: AppNavigationProps) {
                 aria-current={current ? "page" : undefined}
                 className={`flex min-h-10 items-center rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue ${
                   current
-                    ? "bg-blue-50 text-sidian-blue"
-                    : "text-gris-500 hover:bg-gris-50 hover:text-nuit"
+                    ? "bg-brume text-sidian-blue"
+                    : "text-gris-500 hover:bg-state-hover hover:text-nuit"
                 }`}
               >
                 {item.label}

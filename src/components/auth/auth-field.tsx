@@ -34,8 +34,8 @@ export function AuthField({
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy || undefined}
-          className={`block w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-nuit shadow-sm transition-colors placeholder:text-gris-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:bg-gris-50 disabled:text-gris-500 ${
-            error ? "border-red-500" : "border-gris-200"
+          className={`block w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-nuit shadow-sm transition-colors placeholder:text-gris-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:bg-state-disabled disabled:text-text-disabled ${
+            error ? "border-danger" : "border-gris-200"
           } ${className}`}
           {...inputProps}
         />
@@ -46,7 +46,7 @@ export function AuthField({
         </p>
       ) : null}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-sm text-red-600">
+        <p id={`${id}-error`} role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
@@ -89,7 +89,7 @@ export function AuthCheckboxField({
         </label>
       </div>
       {error ? (
-        <p id={`${id}-error`} role="alert" className="text-sm text-red-600">
+        <p id={`${id}-error`} role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}

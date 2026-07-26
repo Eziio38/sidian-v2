@@ -2,10 +2,16 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AgentTransport } from "./agent-client";
 import { ConversationalWorkspace } from "./conversational-workspace";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/assistant",
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 
 describe("ConversationalWorkspace", () => {
@@ -86,12 +92,17 @@ describe("ConversationalWorkspace", () => {
     );
 
     expect(screen.getByTestId("context-panel")).toBeVisible();
+    expect(screen.getByTestId("protection-field-consequences")).toBeVisible();
     await user.click(screen.getByTestId("context-panel-close"));
     expect(screen.queryByTestId("context-panel")).not.toBeInTheDocument();
     expect(screen.getByTestId("conversational-workspace")).toHaveAttribute(
       "data-panel-open",
       "false",
     );
+    // Brouillon conservé — raccourci de réouverture
+    expect(
+      screen.getByTestId("composer-shortcut-reopen-panel"),
+    ).toBeVisible();
 
     rerender(
       <ConversationalWorkspace
@@ -105,6 +116,29 @@ describe("ConversationalWorkspace", () => {
 
     expect(screen.queryByTestId("context-panel")).not.toBeInTheDocument();
     expect(screen.getByTestId("message-thread")).toBeVisible();
+  });
+
+  it("rouvre le panneau sans perdre le brouillon après fermeture", async () => {
+    const user = userEvent.setup();
+    render(
+      <ConversationalWorkspace
+        userFirstName="Lucie"
+        userDisplayName="Lucie Martin"
+        demoState="C"
+        viewport="desktop"
+      />,
+    );
+
+    expect(screen.getByText("Dupont Conseil")).toBeVisible();
+    await user.click(screen.getByTestId("context-panel-close"));
+    expect(screen.queryByTestId("context-panel")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("composer-shortcut-reopen-panel"));
+    expect(screen.getByTestId("context-panel")).toBeVisible();
+    expect(screen.getByText("Dupont Conseil")).toBeVisible();
+    expect(screen.getByTestId("protection-field-amount")).toHaveTextContent(
+      "2 400",
+    );
   });
 
   it("adapte les raccourcis après création (état E)", () => {
@@ -150,12 +184,12 @@ describe("ConversationalWorkspace", () => {
 
   it("cache WelcomeState après envoi du premier message", async () => {
     const user = userEvent.setup();
-    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     render(
       <ConversationalWorkspace
         userFirstName="Lucie"
         userDisplayName="Lucie Martin"
+        demoState="A"
         viewport="desktop"
       />,
     );
@@ -172,10 +206,7 @@ describe("ConversationalWorkspace", () => {
     expect(
       within(screen.getByTestId("message-thread")).getByText("Bonjour Sidian"),
     ).toBeVisible();
-
-    vi.runOnlyPendingTimers();
-    vi.useRealTimers();
-  });
+  }, 15_000);
 
   it("ne rend pas de panneau permanent sur mobile", () => {
     render(
@@ -199,4 +230,133 @@ describe("ConversationalWorkspace", () => {
     const panel = screen.getByTestId("context-panel");
     expect(panel).toHaveAttribute("data-mode", "sheet");
   });
+});
+
+describe("ConversationalWorkspace live agent", () => {
+  it(
+    "appelle protection.draft.converse et affiche la réponse",
+    async () => {
+      const user = userEvent.setup();
+      const transport = vi.fn(async () => ({
+        ok: true as const,
+        request_id: "req-1",
+        correlation_id: "corr-1",
+        tool_id: "protection.draft.converse",
+        tool_version: "1.0.0",
+        output: {
+          draft_id: "11111111-1111-4111-8111-111111111111",
+          state: "QUESTION_CIBLEE",
+          missing_fields: ["client_email"],
+          pending_question: "Quelle est l’adresse e-mail du contact client ?",
+          open_ambiguities: [],
+          recap: {
+            client_name: "Dupont Conseil",
+            client_email: null,
+            expected_amount_minor: 240000,
+            currency: "EUR",
+            due_date: "2026-09-12",
+            libelle: null,
+            reference_externe: null,
+          },
+          confirmation_nonce: null,
+          summary: "Proposition de brouillon — Client : Dupont Conseil.",
+        },
+      }));
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          viewport="desktop"
+          forceLiveAgent
+          agentTransport={transport as AgentTransport}
+        />,
+      );
+
+      await user.type(screen.getByTestId("composer-input"), "Protection Dupont");
+      await user.click(screen.getByTestId("composer-send"));
+
+      expect(await screen.findByText(/adresse e-mail/i)).toBeVisible();
+      expect(transport).toHaveBeenCalledTimes(1);
+      const firstCall = transport.mock.calls[0] as unknown as
+        | [{ tool_id: string; tool_version: string; arguments: unknown }]
+        | undefined;
+      expect(firstCall?.[0]).toMatchObject({
+        tool_id: "protection.draft.converse",
+        tool_version: "1.0.0",
+        arguments: { message: "Protection Dupont" },
+      });
+      expect(screen.getByTestId("conversational-workspace")).toHaveAttribute(
+        "data-live-agent",
+        "true",
+      );
+    },
+    15_000,
+  );
+
+  it(
+    "affiche une erreur récupérable si le runtime échoue",
+    async () => {
+      const user = userEvent.setup();
+      const transport = vi.fn(async () => ({
+        ok: false as const,
+        code: "NETWORK_ERROR",
+        message: "Le runtime conversationnel est indisponible.",
+        httpStatus: 0,
+        retryable: true,
+      }));
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          viewport="desktop"
+          forceLiveAgent
+          agentTransport={transport as AgentTransport}
+        />,
+      );
+
+      await user.type(screen.getByTestId("composer-input"), "Bonjour");
+      await user.click(screen.getByTestId("composer-send"));
+
+    expect(await screen.findByTestId("message-retry")).toBeVisible();
+    expect(screen.getByTestId("composer-error")).toBeVisible();
+    expect(
+      screen.getAllByText(/runtime conversationnel est indisponible/i).length,
+    ).toBeGreaterThan(0);
+  },
+  15_000,
+);
+
+  it(
+    "signale une réponse vide comme erreur récupérable",
+    async () => {
+      const user = userEvent.setup();
+      const transport = vi.fn(async () => ({
+        ok: true as const,
+        request_id: "req-empty",
+        correlation_id: "corr-empty",
+        tool_id: "protection.draft.converse",
+        tool_version: "1.0.0",
+        output: {},
+      }));
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          viewport="desktop"
+          forceLiveAgent
+          agentTransport={transport as AgentTransport}
+        />,
+      );
+
+      await user.type(screen.getByTestId("composer-input"), "Hello");
+      await user.click(screen.getByTestId("composer-send"));
+
+      expect(await screen.findByText(/n’a rien renvoyé/i)).toBeVisible();
+      expect(screen.getByTestId("message-retry")).toBeVisible();
+    },
+    15_000,
+  );
 });

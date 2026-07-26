@@ -13,7 +13,7 @@
 ## 1. Logo
 
 - Pictogramme : l'entrelacs — deux boucles liées, l'engagement qui tient.
-- Fichiers : `/public/brand/sidian-mark-blue.png` · `/public/brand/sidian-mark-white.png` (détourés, fond transparent, 156 px — source vectorielle SVG à récupérer, TODO).
+- Fichiers : `/public/brand/sidian-mark-blue.svg` · `/public/brand/sidian-mark-white.svg` (**interim** MVP — entrelacs SVG). PNG DS officiels (`sidian-mark-*.png`, 156 px) à déposer quand disponibles ; voir `public/brand/README.md`.
 - Couleur du mark : Sidian Blue #3B6DF8 sur TOUS les fonds, y compris Nuit. Variante blanche uniquement si le fond rend le bleu illisible (photo, visuel chargé).
 - Lockup : mark + « Sidian » en Outfit ExtraBold (800), letter-spacing -0.02em. Le mot est TOUJOURS du texte rendu en Outfit, jamais une image. Espace mark↔texte : ~40 % de la hauteur du mark.
 - Zone de protection : 25 % de la hauteur du mark sur chaque côté.

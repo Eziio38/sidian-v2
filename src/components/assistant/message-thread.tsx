@@ -1,16 +1,20 @@
 "use client";
 
+import Link from "next/link";
+
 import { SuggestionIcon } from "./suggestion-icons";
-import type { AssistantMessage } from "./types";
+import type { AssistantMessage, AssistantMessageAction } from "./types";
 
 type MessageThreadProps = {
   messages: AssistantMessage[];
   onSuggestionSelect?: (suggestion: string) => void;
+  onAction?: (action: AssistantMessageAction, message: AssistantMessage) => void;
 };
 
 export function MessageThread({
   messages,
   onSuggestionSelect,
+  onAction,
 }: MessageThreadProps) {
   if (messages.length === 0) {
     return null;
@@ -29,12 +33,15 @@ export function MessageThread({
           message.role === "assistant" &&
           index === messages.findLastIndex((item) => item.role === "assistant");
         const isUser = message.role === "user";
+        const isError = message.status === "error";
+        const isStreaming = message.status === "streaming";
 
         return (
           <article
             key={message.id}
             data-testid={`message-${message.role}-${message.id}`}
             data-role={message.role}
+            data-status={message.status ?? "sent"}
             className={`motion-safe:animate-[assistant-message-in_180ms_ease-out] motion-reduce:animate-none ${
               isUser ? "ml-auto w-fit max-w-[min(100%,26rem)]" : "w-full"
             }`}
@@ -56,33 +63,97 @@ export function MessageThread({
             </div>
 
             {isUser ? (
-              <div className="rounded-2xl bg-assistant-bubble px-4 py-2 text-[14px] font-normal leading-6 text-assistant-text">
+              <div className="rounded-[20px] bg-assistant-bubble px-4 py-2 text-[14px] font-normal leading-6 break-words text-assistant-text">
                 <MessageBody content={message.content} />
               </div>
             ) : (
-              <div className="text-[14px] font-normal leading-6 text-assistant-text">
+              <div
+                className={`max-w-prose text-[14px] font-normal leading-6 break-words text-assistant-text ${
+                  isStreaming ? "opacity-80" : ""
+                } ${isError ? "text-red-300/90" : ""}`}
+              >
                 <MessageBody content={message.content} />
+                {isError && message.errorMessage ? (
+                  <p className="mt-2 text-[13px] text-red-300/80">
+                    {message.errorMessage}
+                  </p>
+                ) : null}
               </div>
             )}
 
             {isLastAssistant &&
             message.suggestions &&
-            message.suggestions.length > 0 ? (
+            message.suggestions.length > 0 &&
+            !isError ? (
               <div
                 data-testid="message-suggestions"
                 className="mt-4 flex flex-wrap gap-2"
               >
-                {message.suggestions.map((suggestion) => (
+                {message.suggestions.slice(0, 3).map((suggestion) => (
                   <button
                     key={suggestion}
                     type="button"
                     onClick={() => onSuggestionSelect?.(suggestion)}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/[0.045] px-4 py-1 text-[12px] text-assistant-muted/80 transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.08] hover:text-assistant-text motion-safe:hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/[0.045] px-4 py-2 text-[12px] text-assistant-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.08] hover:text-assistant-text motion-safe:hover:-translate-y-px motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
                   >
                     <SuggestionIcon label={suggestion} />
                     {suggestion}
                   </button>
                 ))}
+              </div>
+            ) : null}
+
+            {isLastAssistant &&
+            ((message.actions && message.actions.length > 0) || isError) ? (
+              <div
+                data-testid="message-actions"
+                className="mt-4 flex flex-wrap gap-2"
+              >
+                {isError ? (
+                  <button
+                    type="button"
+                    data-testid="message-retry"
+                    onClick={() =>
+                      onAction?.(
+                        {
+                          id: "retry",
+                          label: "Réessayer",
+                          kind: "retry",
+                        },
+                        message,
+                      )
+                    }
+                    className="inline-flex items-center rounded-full bg-white/[0.06] px-4 py-2 text-[12px] font-medium text-assistant-text transition-colors duration-150 hover:bg-white/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+                  >
+                    Réessayer
+                  </button>
+                ) : null}
+                {(message.actions ?? []).map((action) =>
+                  action.href ? (
+                    <Link
+                      key={action.id}
+                      href={action.href}
+                      data-testid={`message-action-${action.id}`}
+                      className="inline-flex items-center rounded-full bg-sidian-blue px-4 py-2 text-[12px] font-medium text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+                    >
+                      {action.label}
+                    </Link>
+                  ) : (
+                    <button
+                      key={action.id}
+                      type="button"
+                      data-testid={`message-action-${action.id}`}
+                      onClick={() => onAction?.(action, message)}
+                      className={`inline-flex items-center rounded-full px-4 py-2 text-[12px] font-medium transition-opacity duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue ${
+                        action.kind === "confirm_protection"
+                          ? "bg-sidian-blue text-white hover:opacity-90"
+                          : "bg-white/[0.06] text-assistant-text hover:bg-white/[0.1]"
+                      }`}
+                    >
+                      {action.label}
+                    </button>
+                  ),
+                )}
               </div>
             ) : null}
           </article>
@@ -104,7 +175,7 @@ function MessageBody({ content }: { content: string }) {
               {block.items.map((item) => (
                 <li key={item} className="flex gap-2">
                   <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-assistant-muted/80" />
-                  <span>{item}</span>
+                  <span className="min-w-0 break-words">{item}</span>
                 </li>
               ))}
             </ul>
@@ -112,7 +183,7 @@ function MessageBody({ content }: { content: string }) {
         }
 
         return (
-          <p key={`p-${index}`} className="whitespace-pre-wrap">
+          <p key={`p-${index}`} className="whitespace-pre-wrap break-words">
             {block.text}
           </p>
         );

@@ -2,10 +2,12 @@ import Link from "next/link";
 
 import { AppShell } from "@/components/app/app-shell";
 import { DashboardOverview } from "@/components/app/dashboard-overview";
+import { ErrorState } from "@/components/feedback";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { loadDashboard } from "@/lib/dashboard/load-dashboard";
 import { createClient } from "@/lib/supabase/server";
+import { UX_COPY } from "@/lib/ux/microcopy";
 
 export default async function AppPage() {
   const user = await requireConfirmedUser();
@@ -18,8 +20,7 @@ export default async function AppPage() {
   try {
     dashboard = await loadDashboard(supabase, prestataire.id);
   } catch {
-    loadError =
-      "Impossible de charger le tableau de bord pour le moment. Réessayez dans quelques instants.";
+    loadError = UX_COPY.errorLoad.description;
   }
 
   return (
@@ -36,13 +37,11 @@ export default async function AppPage() {
       }
     >
       {loadError ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm leading-relaxed text-red-700"
-        >
-          <p className="font-semibold">Tableau de bord indisponible</p>
-          <p className="mt-1">{loadError}</p>
-        </div>
+        <ErrorState
+          title="Tableau de bord indisponible"
+          description={loadError}
+          compact
+        />
       ) : dashboard ? (
         <DashboardOverview dashboard={dashboard} />
       ) : null}

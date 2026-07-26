@@ -165,7 +165,7 @@ export function FollowUpControls({
       <button
         type="submit"
         disabled={updatePending}
-        className="inline-flex min-h-10 items-center justify-center rounded-lg bg-sidian-blue px-4 text-sm font-medium text-white transition-colors hover:bg-[#315fd9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:opacity-60"
+        className="inline-flex min-h-10 items-center justify-center rounded-lg bg-sidian-blue px-4 text-sm font-medium text-white transition-colors hover:bg-sidian-blue-hover active:bg-sidian-blue-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:opacity-60"
       >
         {updatePending ? "Enregistrement…" : "Mettre à jour le suivi"}
       </button>

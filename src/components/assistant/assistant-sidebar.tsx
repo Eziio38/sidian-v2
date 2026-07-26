@@ -4,11 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   useEffect,
+  useId,
   useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 
+import { BrandLockup } from "@/components/brand/brand-lockup";
+
+/** Largeur fixe sidebar desktop / drawer mobile (14rem). */
+export const ASSISTANT_SIDEBAR_WIDTH_CLASS = "w-56";
+
+/** Nav produit assistant — pas d’entrée « Historique » vers démarrage. */
 const ASSISTANT_NAV = [
   {
     href: "/app/assistant",
@@ -18,11 +25,11 @@ const ASSISTANT_NAV = [
   },
   {
     href: "/app/paiements-a-recevoir",
-    label: "Protections",
+    label: "Paiements à recevoir",
     icon: <ShieldIcon />,
   },
   { href: "/app/clients", label: "Clients", icon: <PeopleIcon /> },
-  { href: "/app/demarrage", label: "Historique", icon: <ClockIcon /> },
+  { href: "/app", label: "Activité", icon: <ClockIcon /> },
   { href: "/app/parametres", label: "Paramètres", icon: <GearIcon /> },
 ] as const;
 
@@ -39,6 +46,10 @@ function isCurrentPath(pathname: string, href: string): boolean {
       pathname.startsWith(`${href}/`) ||
       pathname.startsWith("/dev/assistant")
     );
+  }
+  // Dashboard / activité : match exact uniquement (évite de marquer toute /app/*).
+  if (href === "/app") {
+    return pathname === "/app";
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -68,7 +79,11 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
     container.querySelectorAll<HTMLElement>(
       'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
-  ).filter((element) => element.getAttribute("aria-hidden") !== "true");
+  ).filter((element) => {
+    if (element.getAttribute("aria-hidden") === "true") return false;
+    if (element.hasAttribute("disabled")) return false;
+    return element.tabIndex !== -1 || element.tagName === "A";
+  });
 }
 
 export function AssistantSidebar({
@@ -78,12 +93,26 @@ export function AssistantSidebar({
 }: AssistantSidebarProps) {
   const pathname = usePathname();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
   const isLg = useSyncExternalStore(
     subscribeLg,
     getLgSnapshot,
     getLgServerSnapshot,
   );
   const mobileDrawerClosed = !isLg && !mobileOpen;
+  const mobileDrawerOpen = !isLg && mobileOpen;
+
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+    if (mobileDrawerClosed) {
+      aside.setAttribute("inert", "");
+    } else {
+      aside.removeAttribute("inert");
+    }
+  }, [mobileDrawerClosed]);
 
   useEffect(() => {
     if (!mobileOpen || isLg) return;
@@ -91,8 +120,7 @@ export function AssistantSidebar({
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
-    const focusables = getFocusableElements(wrapper);
-    focusables[0]?.focus();
+    closeButtonRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -118,7 +146,7 @@ export function AssistantSidebar({
         return;
       }
 
-      if (active === last) {
+      if (active === last || !wrapper.contains(active)) {
         event.preventDefault();
         first.focus();
       }
@@ -130,39 +158,45 @@ export function AssistantSidebar({
 
   return (
     <>
-      {mobileOpen ? (
-        <div
-          role="presentation"
-          className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+      {mobileDrawerOpen ? (
+        <button
+          type="button"
+          data-testid="assistant-mobile-nav-overlay"
+          aria-label="Fermer la navigation"
+          className="fixed inset-0 z-20 cursor-default bg-black/50 lg:hidden"
           onClick={onCloseMobile}
         />
       ) : null}
 
       <div
         ref={wrapperRef}
-        className={`fixed inset-y-0 left-0 z-30 w-56 transition-transform duration-[200ms] ease-out lg:static lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 ${ASSISTANT_SIDEBAR_WIDTH_CLASS} shrink-0 transition-transform duration-[200ms] ease-out motion-reduce:transition-none lg:static lg:z-auto lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <aside
+          ref={asideRef}
           id="assistant-sidebar"
           data-testid="assistant-sidebar"
+          aria-labelledby={mobileDrawerOpen ? titleId : undefined}
+          aria-modal={mobileDrawerOpen ? true : undefined}
+          role={mobileDrawerOpen ? "dialog" : undefined}
           aria-hidden={mobileDrawerClosed ? true : undefined}
-          inert={mobileDrawerClosed ? true : undefined}
           className="mobile-drawer relative flex h-dvh w-full flex-col overflow-visible border-r border-white/[0.06] bg-assistant-sidebar text-assistant-text"
         >
           <div className="hidden px-4 pb-0 pt-8 lg:block">
-            <p className="px-4 text-[14px] font-bold tracking-[-0.03em] text-assistant-text">
-              Sidian
-            </p>
+            <BrandLockup wordmarkClassName="text-[14px] font-extrabold tracking-[-0.02em] text-assistant-text" />
           </div>
 
           <div className="mobile-drawer-header relative flex h-[72px] shrink-0 items-center gap-2 border-b border-white/[0.035] pl-6 pr-[52px] lg:hidden">
-            <SidianMarkIcon />
-            <p className="text-[14px] font-semibold tracking-tight text-assistant-text">
-              Sidian
-            </p>
+            <div id={titleId}>
+              <BrandLockup
+                compact
+                wordmarkClassName="text-[14px] font-semibold tracking-tight text-assistant-text"
+              />
+            </div>
             <button
+              ref={closeButtonRef}
               type="button"
               data-testid="assistant-mobile-nav-close"
               aria-label="Replier la navigation"
@@ -197,8 +231,8 @@ export function AssistantSidebar({
           </div>
 
           <nav
-            aria-label="Navigation assistant"
-            className="min-h-0 flex-1 px-4 pt-8"
+            aria-label="Navigation principale"
+            className="min-h-0 flex-1 overflow-y-auto px-4 pt-8"
           >
             <ul className="flex flex-col gap-1">
               {ASSISTANT_NAV.map((item) => {
@@ -210,7 +244,7 @@ export function AssistantSidebar({
                       href={item.href}
                       aria-current={current ? "page" : undefined}
                       onClick={onCloseMobile}
-                      className={`group flex min-h-10 items-center gap-4 rounded-xl px-4 text-[12px] transition-[background-color,color] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue ${
+                      className={`group flex min-h-11 items-center gap-4 rounded-xl px-4 text-[12px] transition-[background-color,color] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue ${
                         current
                           ? "bg-white/[0.07] font-medium text-assistant-text"
                           : primary
@@ -235,8 +269,11 @@ export function AssistantSidebar({
             </ul>
           </nav>
 
-          <div className="px-4 py-4">
-            <div className="flex items-center gap-4 px-4">
+          <div className="shrink-0 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+            <div
+              data-testid="assistant-sidebar-profile"
+              className="flex min-h-11 items-center gap-4 px-4"
+            >
               <span
                 aria-hidden
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-[12px] font-medium text-assistant-text"
@@ -256,38 +293,6 @@ export function AssistantSidebar({
         </aside>
       </div>
     </>
-  );
-}
-
-function SidianMarkIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className="shrink-0 text-sidian-blue"
-    >
-      <path
-        d="M9.2 7.2c1.7-1.7 4.4-1.7 6.1 0s1.7 4.4 0 6.1l-.8.8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14.8 16.8c-1.7 1.7-4.4 1.7-6.1 0s-1.7-4.4 0-6.1l.8-.8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M10.6 10.6c.8-.8 2-.8 2.8 0s.8 2 0 2.8-.8.8-2.8 0-.8-2 0-2.8Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 

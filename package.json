@@ -53,6 +53,7 @@
     "test:g1-m:sql": "node scripts/test-g1-m-protection-drafts.mjs",
     "test:g1-n": "vitest run src/lib/agent/conversational-runtime",
     "test:g1-o": "vitest run src/components/assistant",
+    "test:ui": "vitest run src/components/assistant src/components/feedback src/components/app",
     "test:communication-channels": "vitest run src/lib/communication-channels",
     "test:g1-p": "vitest run src/lib/communication-channels",
     "test:g1-q": "vitest run src/lib/communication-channels/inbound src/lib/communication-channels/whatsapp/inbound src/lib/communication-channels/outbound/g1p-whatsapp.test.ts",

@@ -1,0 +1,292 @@
+.workspace {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  background:
+    radial-gradient(
+      100% 70% at 50% -8%,
+      color-mix(in srgb, var(--sidian-aurora-a, #3b6df8) 8%, transparent),
+      transparent 62%
+    ),
+    var(--ds-color-background);
+}
+
+.discussion {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.resourcesAnchor {
+  position: absolute;
+  top: var(--ds-space-4);
+  right: var(--ds-layout-gutter-mobile);
+  z-index: calc(var(--ds-layer-sticky) + 1);
+}
+
+.titleBarSlot {
+  flex: none;
+  width: 100%;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  padding-block-start: 0;
+  padding-inline: 24px var(--ds-layout-gutter-mobile);
+}
+
+.scroller {
+  min-height: 0;
+  flex: 1;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Même gouttière que le composerDock : le max-width du fil = largeur composer. */
+  padding-inline: var(--ds-layout-gutter-mobile);
+}
+
+.content {
+  display: flex;
+  width: 100%;
+  min-height: 100%;
+  flex-direction: column;
+  margin-inline: auto;
+  padding-block: var(--ds-space-6);
+  padding-inline: 0;
+}
+
+.contentWide {
+  /* Colonne de lecture un peu plus large : mieux alignée aux réponses longues. */
+  max-width: min(42rem, 100%);
+}
+
+.contentWithPanel {
+  max-width: min(48rem, 100%);
+}
+
+.welcomeContent {
+  /* Empty state : occupe toute la zone principale (à droite de la sidebar). */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  padding-block: var(--ds-space-10) var(--ds-space-8);
+  /* Welcome : le scroller porte déjà la gouttière ; pas de double inset. */
+}
+
+.conversationContent {
+  padding-block: var(--ds-space-3) var(--ds-space-4);
+}
+
+.contentInner {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.contentInnerWork {
+  /* Fil ancré en haut : évite le grand vide sous le titre sur conversations courtes. */
+  justify-content: flex-start;
+}
+
+.contentInnerWelcome {
+  /* Centre le bloc welcome dans la largeur disponible du panneau principal. */
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--ds-space-8);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-block: clamp(var(--ds-space-6), 6vh, var(--ds-space-14)) 0;
+  container-type: inline-size;
+  container-name: welcome;
+}
+
+/*
+  Groupe welcome :
+  - mobile/tablette étroite : 100 % de la zone, suggestions qui wrappent ;
+  - dès ~44rem de largeur utile (≥ largeur naturelle des 4 pills ≈ 693px) :
+    max-content + nowrap pour une seule ligne.
+*/
+.welcomeComposerGroup {
+  display: flex;
+  width: min(44rem, 100%);
+  max-width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+  margin-inline: 0;
+  align-items: stretch;
+}
+
+.welcomeComposerGroup :global([data-testid="composer"]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.welcomeComposerGroup :global([data-testid="composer-shortcuts"]) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
+@container welcome (min-width: 44rem) {
+  /* Le groupe reste borné (pas de max-content) ; seules les pills
+     prennent leur largeur naturelle, centrées sous le composer. */
+  .welcomeComposerGroup :global([data-testid="composer-shortcuts"]) {
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+}
+
+.generating {
+  margin-block-start: var(--ds-space-3);
+  padding-inline-start: 0.1rem;
+}
+
+.threadEnd {
+  width: 100%;
+  height: var(--ds-border-width);
+}
+
+.composerDock {
+  position: relative;
+  z-index: var(--ds-layer-sticky);
+  flex: 0 0 auto;
+  padding: var(--ds-space-4) var(--ds-layout-gutter-mobile)
+    max(var(--ds-space-3), env(safe-area-inset-bottom, 0));
+  background: color-mix(
+    in srgb,
+    var(--ds-color-background) 92%,
+    transparent
+  );
+  backdrop-filter: blur(var(--ds-space-3));
+  transform: translateY(calc(var(--assistant-keyboard-offset, 0px) * -1));
+}
+
+.composerDock::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--ds-space-10);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--ds-color-background)
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.composerDockBlocked {
+  pointer-events: none;
+}
+
+.composerInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  margin-inline: auto;
+}
+
+/* Raccourcis alignés sur le bord gauche du composer (hors empty state). */
+.composerInner > :global([data-testid="composer-shortcuts"]) {
+  width: 100%;
+  max-width: 100%;
+  justify-content: flex-start;
+  margin-inline: 0;
+}
+
+.composerWide {
+  max-width: min(42rem, 100%);
+}
+
+.composerWithPanel {
+  max-width: min(48rem, 100%);
+}
+
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-layer-dropdown);
+  background: var(--ds-color-overlay);
+}
+
+@media (min-width: 40rem) {
+  .scroller,
+  .composerDock {
+    padding-inline: var(--ds-layout-gutter-tablet);
+  }
+
+  .titleBarSlot {
+    padding-inline: 24px var(--ds-layout-gutter-tablet);
+  }
+
+  .resourcesAnchor {
+    right: var(--ds-layout-gutter-tablet);
+  }
+
+  .welcomeContent {
+    padding-block: var(--ds-space-12) var(--ds-space-10);
+  }
+
+  .conversationContent {
+    padding-block: var(--ds-space-4) var(--ds-space-5);
+  }
+
+  .composerDock {
+    padding-block-end: var(--ds-space-5);
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .titleBarSlot {
+    /* Dégage le bouton menu mobile + les actions ressources. */
+    padding-inline-start: calc(
+      max(var(--ds-space-3), env(safe-area-inset-left, 0)) + 2.75rem
+    );
+    padding-inline-end: calc(var(--ds-layout-gutter-mobile) + 5.75rem);
+  }
+
+  .conversationContent {
+    padding-block-start: max(
+      var(--ds-space-16),
+      calc(env(safe-area-inset-top, 0) + var(--ds-space-12))
+    );
+  }
+
+  .welcomeContent {
+    padding-block:
+      max(
+        var(--ds-space-12),
+        calc(env(safe-area-inset-top, 0) + var(--ds-space-10))
+      )
+      max(var(--ds-space-8), env(safe-area-inset-bottom, 0));
+  }
+
+  .contentInnerWelcome {
+    gap: var(--ds-space-4);
+    padding-block-start: var(--ds-space-4);
+  }
+}
+
+@media (min-width: 64rem) {
+  .welcomeContent {
+    padding-block: var(--ds-space-12) var(--ds-space-10);
+  }
+}

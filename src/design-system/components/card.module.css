@@ -1,0 +1,104 @@
+.card {
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-5);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-surface);
+}
+
+.raised {
+  border-color: transparent;
+  background: var(--ds-color-surface-raised);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.compact {
+  padding: var(--ds-space-4);
+}
+
+.info {
+  border-color: var(--ds-color-info-border);
+  background: var(--ds-color-info-surface);
+}
+
+.protection,
+.payment,
+.client,
+.summary,
+.timeline {
+  background: var(--ds-color-surface);
+}
+
+.error {
+  border-color: var(--ds-color-danger-border);
+  background: var(--ds-color-danger-surface);
+}
+
+.success {
+  border-color: var(--ds-color-success-border);
+  background: var(--ds-color-success-surface);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+}
+
+.title {
+  margin: 0;
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-family-sans);
+  font-size: var(--ds-type-title-size);
+  font-weight: var(--ds-type-title-weight);
+  line-height: var(--ds-type-title-line);
+  letter-spacing: var(--ds-type-title-tracking);
+}
+
+.description {
+  max-width: var(--ds-prose-width);
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-family-sans);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+.body {
+  margin-top: var(--ds-space-4);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-5);
+  padding-top: var(--ds-space-4);
+  border-top: var(--ds-border-width) solid var(--ds-color-border);
+}
+
+.timelineList {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: var(--ds-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ds-space-3);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+.timelineDot {
+  width: var(--ds-space-2);
+  height: var(--ds-space-2);
+  margin-top: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-accent);
+}

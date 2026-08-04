@@ -1,9 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { AUTH_MESSAGES } from "@/lib/auth/messages";
+import {
+  evaluateAuthRateLimit,
+  type AuthRateLimitOperation,
+} from "@/lib/auth/rate-limit";
 import {
   forgotPasswordSchema,
   formatZodFieldErrors,
@@ -17,6 +22,10 @@ import {
   logSupabaseAuthError,
 } from "@/lib/auth/log-auth-error";
 import { createClient } from "@/lib/supabase/server";
+import {
+  clearThemePreferenceCookie,
+  syncThemePreferenceCookieFromAccount,
+} from "@/lib/theme/theme-server";
 
 export type AuthActionState = {
   ok: boolean;
@@ -46,6 +55,17 @@ function success(message?: string): AuthActionState {
   };
 }
 
+async function authRateLimit(
+  operation: AuthRateLimitOperation,
+  identity: string,
+) {
+  return evaluateAuthRateLimit({
+    operation,
+    requestHeaders: await headers(),
+    identity,
+  });
+}
+
 export async function signUpAction(
   _prevState: AuthActionState,
   formData: FormData,
@@ -64,6 +84,11 @@ export async function signUpAction(
 
   if (!parsed.success) {
     return failure(formatZodFieldErrors(parsed.error));
+  }
+
+  const rateLimit = await authRateLimit("sign_up", parsed.data.email);
+  if (rateLimit.status !== "allowed") {
+    return failure(undefined, AUTH_MESSAGES.genericRateLimitError);
   }
 
   const supabase = await createClient();
@@ -105,6 +130,11 @@ export async function signInAction(
     return failure(formatZodFieldErrors(parsed.error));
   }
 
+  const rateLimit = await authRateLimit("sign_in", parsed.data.email);
+  if (rateLimit.status !== "allowed") {
+    return failure(undefined, AUTH_MESSAGES.genericRateLimitError);
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
@@ -121,12 +151,18 @@ export async function signInAction(
   }
 
   await ensurePrestataireForUser(supabase, data.user);
+  // La préférence d'apparence du compte remplace celle laissée sur le poste
+  // par une session précédente : deux comptes sur un même navigateur ne
+  // doivent jamais hériter l'un de l'autre.
+  await syncThemePreferenceCookieFromAccount(supabase);
   redirect("/app");
 }
 
 export async function signOutAction(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  // Le repli local ne doit pas survivre au compte qui l'a défini.
+  await clearThemePreferenceCookie();
   redirect("/connexion");
 }
 
@@ -140,6 +176,13 @@ export async function forgotPasswordAction(
 
   if (!parsed.success) {
     return failure(formatZodFieldErrors(parsed.error));
+  }
+
+  const rateLimit = await authRateLimit("password_reset", parsed.data.email);
+  if (rateLimit.status !== "allowed") {
+    // Même réponse qu'une demande acceptée : ni l'existence du compte ni la
+    // décision de quota ne sont révélées sur ce parcours public.
+    return success(AUTH_MESSAGES.genericPasswordResetSent);
   }
 
   const supabase = await createClient();
@@ -171,6 +214,11 @@ export async function resetPasswordAction(
 
   if (!user) {
     redirect("/connexion?erreur=session");
+  }
+
+  const rateLimit = await authRateLimit("password_update", user.id);
+  if (rateLimit.status !== "allowed") {
+    return failure(undefined, AUTH_MESSAGES.genericRateLimitError);
   }
 
   const { error } = await supabase.auth.updateUser({

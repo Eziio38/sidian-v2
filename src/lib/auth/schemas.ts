@@ -7,6 +7,7 @@ function normalizeSpaces(value: string): string {
 const passwordSchema = z
   .string()
   .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+  .max(1024, "Le mot de passe est trop long.")
   .regex(/[a-zA-Z]/, "Le mot de passe doit contenir au moins une lettre.")
   .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre.");
 
@@ -15,20 +16,32 @@ export const signUpSchema = z
     displayName: z
       .string()
       .transform(normalizeSpaces)
-      .pipe(z.string().min(1, "Indiquez comment nous pouvons vous appeler.")),
+      .pipe(
+        z
+          .string()
+          .min(1, "Indiquez comment nous pouvons vous appeler.")
+          .max(120, "Le nom affiché est trop long."),
+      ),
     agencyName: z
       .string()
       .transform(normalizeSpaces)
       .pipe(
-        z.string().min(1, "Indiquez le nom de votre agence ou activité."),
+        z
+          .string()
+          .min(1, "Indiquez le nom de votre agence ou activité.")
+          .max(120, "Le nom de l'activité est trop long."),
       ),
     email: z
       .string()
       .trim()
       .toLowerCase()
+      .pipe(z.string().max(254, "Adresse email trop longue."))
       .pipe(z.email("Adresse email invalide.")),
     password: passwordSchema,
-    passwordConfirm: z.string().min(1, "Confirmez votre mot de passe."),
+    passwordConfirm: z
+      .string()
+      .min(1, "Confirmez votre mot de passe.")
+      .max(1024, "La confirmation du mot de passe est trop longue."),
     acceptCgu: z.literal(true, {
       error: "Vous devez accepter les conditions générales d'utilisation.",
     }),
@@ -46,8 +59,12 @@ export const signInSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
+    .pipe(z.string().max(254, "Adresse email trop longue."))
     .pipe(z.email("Adresse email invalide.")),
-  password: z.string().min(1, "Saisissez votre mot de passe."),
+  password: z
+    .string()
+    .min(1, "Saisissez votre mot de passe.")
+    .max(1024, "Le mot de passe est trop long."),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -55,13 +72,17 @@ export const forgotPasswordSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
+    .pipe(z.string().max(254, "Adresse email trop longue."))
     .pipe(z.email("Adresse email invalide.")),
 });
 
 export const resetPasswordSchema = z
   .object({
     password: passwordSchema,
-    passwordConfirm: z.string().min(1, "Confirmez votre mot de passe."),
+    passwordConfirm: z
+      .string()
+      .min(1, "Confirmez votre mot de passe.")
+      .max(1024, "La confirmation du mot de passe est trop longue."),
   })
   .refine((data) => data.password === data.passwordConfirm, {
     path: ["passwordConfirm"],

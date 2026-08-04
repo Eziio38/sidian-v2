@@ -677,6 +677,43 @@ await run("SID-STRIPE-001 payment_authorization contraintes ACTIVE", async () =>
     p_email: `pa-${randomUUID()}@example.com`,
     p_creation_key: randomUUID(),
   });
+  const { data: creance, error: creanceError } = await client.rpc(
+    "create_current_creance",
+    {
+      p_client_payeur_id: clientRow.id,
+      p_montant: 5000,
+      p_date_echeance: "2026-12-15",
+      p_creation_key: randomUUID(),
+      p_libelle: "auth-constraints",
+    },
+  );
+  if (creanceError || !creance) throw creanceError ?? new Error("creance");
+  const { data: tentative, error: tentativeError } = await admin
+    .from("tentative_paiement")
+    .insert({
+      creance_id: creance.id,
+      montant: 5000,
+      moyen: "carte",
+      source: "lien_agent",
+      etat: "CREEE",
+    })
+    .select("id")
+    .single();
+  if (tentativeError || !tentative) {
+    throw tentativeError ?? new Error("tentative");
+  }
+  // Les états EN_CONFIGURATION/ACTIVE/REVOQUEE exigent désormais les snapshots
+  // setup SID-STRIPE-003 (fail-closed).
+  const setupSnapshots = {
+    source_tentative_paiement_id: tentative.id,
+    stripe_account_id: `acct_${randomUUID().replaceAll("-", "").slice(0, 16)}`,
+    stripe_customer_id: `cus_${randomUUID().replaceAll("-", "").slice(0, 14)}`,
+    accepted_at: new Date().toISOString(),
+    stripe_setup_idempotency_key: `setup_${randomUUID()}`,
+    setup_operation_key: randomUUID(),
+    authorization_text_version: "v1",
+    authorization_channel: "checkout",
+  };
 
   const { data: draft, error: dErr } = await admin
     .from("payment_authorization")
@@ -689,6 +726,8 @@ await run("SID-STRIPE-001 payment_authorization contraintes ACTIVE", async () =>
       authorized_at: null,
       stripe_setup_intent_id: `seti_${randomUUID()}`,
       stripe_setup_checkout_session_id: `cs_${randomUUID()}`,
+      setup_provisioning_status: "created",
+      ...setupSnapshots,
     })
     .select("*")
     .single();
@@ -784,19 +823,54 @@ await run("SID-STRIPE-001 unicités Stripe partielles checkout/setup", async () 
   if (!t2) throw new Error("checkout session unique violée");
 
   const seti = `seti_${randomUUID()}`;
-  const { error: a1 } = await admin.from("payment_authorization").insert({
-    client_payeur_id: clientRow.id,
-    prestataire_id: prestataire.id,
-    etat: "EN_CONFIGURATION",
-    stripe_setup_intent_id: seti,
-  });
+  async function insertEnConfiguration(setupIntentId) {
+    const { data: authCreance, error: authCreanceError } = await client.rpc(
+      "create_current_creance",
+      {
+        p_client_payeur_id: clientRow.id,
+        p_montant: 1500,
+        p_date_echeance: "2026-11-01",
+        p_libelle: "UniqAuth",
+        p_creation_key: randomUUID(),
+      },
+    );
+    if (authCreanceError || !authCreance) {
+      throw authCreanceError ?? new Error("auth creance");
+    }
+    const { data: authTentative, error: authTentativeError } = await admin
+      .from("tentative_paiement")
+      .insert({
+        creance_id: authCreance.id,
+        montant: 1500,
+        moyen: "carte",
+        source: "lien_agent",
+        etat: "CREEE",
+      })
+      .select("id")
+      .single();
+    if (authTentativeError || !authTentative) {
+      throw authTentativeError ?? new Error("auth tentative");
+    }
+    return admin.from("payment_authorization").insert({
+      client_payeur_id: clientRow.id,
+      prestataire_id: prestataire.id,
+      etat: "EN_CONFIGURATION",
+      stripe_setup_intent_id: setupIntentId,
+      stripe_setup_checkout_session_id: `cs_${randomUUID()}`,
+      setup_provisioning_status: "created",
+      source_tentative_paiement_id: authTentative.id,
+      stripe_account_id: `acct_${randomUUID().replaceAll("-", "").slice(0, 16)}`,
+      stripe_customer_id: `cus_${randomUUID().replaceAll("-", "").slice(0, 14)}`,
+      accepted_at: new Date().toISOString(),
+      stripe_setup_idempotency_key: `setup_${randomUUID()}`,
+      setup_operation_key: randomUUID(),
+      authorization_text_version: "v1",
+      authorization_channel: "checkout",
+    });
+  }
+  const { error: a1 } = await insertEnConfiguration(seti);
   if (a1) throw a1;
-  const { error: a2 } = await admin.from("payment_authorization").insert({
-    client_payeur_id: clientRow.id,
-    prestataire_id: prestataire.id,
-    etat: "EN_CONFIGURATION",
-    stripe_setup_intent_id: seti,
-  });
+  const { error: a2 } = await insertEnConfiguration(seti);
   if (!a2) throw new Error("setup intent unique violée");
 });
 

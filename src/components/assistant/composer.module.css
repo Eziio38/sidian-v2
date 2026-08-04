@@ -1,0 +1,562 @@
+.form {
+  position: relative;
+  display: grid;
+  width: 100%;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-4) var(--ds-space-4) var(--ds-space-3);
+  border: var(--ds-border-width) solid color-mix(
+    in srgb,
+    var(--ds-color-border) 70%,
+    transparent
+  );
+  border-radius: var(--ds-radius-2xl);
+  background: var(--ds-color-surface);
+  box-shadow:
+    0 1px 2px rgb(13 17 23 / 0.04),
+    0 8px 24px rgb(13 17 23 / 0.06),
+    0 20px 48px rgb(13 17 23 / 0.04);
+  transition:
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.form:focus-within {
+  border-color: color-mix(
+    in srgb,
+    var(--ds-color-accent) 28%,
+    var(--ds-color-border)
+  );
+  box-shadow:
+    0 0 0 var(--ds-focus-ring-width) var(--ds-color-focus-ring),
+    0 1px 2px rgb(13 17 23 / 0.04),
+    0 12px 32px rgb(13 17 23 / 0.08),
+    0 24px 56px rgb(13 17 23 / 0.05);
+}
+
+.welcomeForm {
+  position: relative;
+  isolation: isolate;
+  /* Clippe le halo décoratif (::before/::after) : sans ça, les insets négatifs
+     élargissent .scroller et permettent un défilement horizontal du empty state. */
+  overflow: hidden;
+  min-height: calc(var(--ds-space-20) + var(--ds-space-12));
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-5) var(--ds-space-5) var(--ds-space-4);
+  border-color: color-mix(in srgb, #ffffff 12%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #ffffff 4%, var(--ds-color-surface-raised)),
+    var(--ds-color-surface-raised)
+  );
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #ffffff 8%, transparent) inset,
+    0 20px 50px rgb(0 0 0 / 0.38);
+}
+
+/* Halo large et très diffus — atmosphère, pas néon. */
+.welcomeForm::before {
+  position: absolute;
+  inset: -55% -45% -48%;
+  z-index: -2;
+  background:
+    radial-gradient(
+      70% 85% at 18% 48%,
+      color-mix(in srgb, var(--sidian-aurora-a, #3b6df8) 28%, transparent),
+      transparent 78%
+    ),
+    radial-gradient(
+      75% 90% at 82% 42%,
+      color-mix(in srgb, var(--sidian-aurora-b, #6b96fa) 24%, transparent),
+      transparent 80%
+    ),
+    radial-gradient(
+      65% 70% at 50% 95%,
+      color-mix(in srgb, var(--sidian-aurora-c, #4fd1c5) 12%, transparent),
+      transparent 82%
+    );
+  filter: blur(64px) saturate(0.85);
+  opacity: 0.55;
+  content: "";
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+/* Voile proche, quasi imperceptible. */
+.welcomeForm::after {
+  position: absolute;
+  inset: -18% -14% -16%;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      90% 100% at 35% 25%,
+      color-mix(in srgb, var(--sidian-aurora-b, #6b96fa) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      85% 95% at 70% 75%,
+      color-mix(in srgb, var(--sidian-aurora-a, #3b6df8) 10%, transparent),
+      transparent 72%
+    );
+  filter: blur(36px) saturate(0.8);
+  opacity: 0.4;
+  content: "";
+  pointer-events: none;
+}
+
+.welcomeForm:focus-within {
+  border-color: color-mix(in srgb, var(--ds-color-accent) 40%, transparent);
+  box-shadow:
+    0 0 0 var(--ds-focus-ring-width) var(--ds-color-focus-ring),
+    0 1px 0 color-mix(in srgb, #ffffff 10%, transparent) inset,
+    0 24px 60px rgb(0 0 0 / 0.42);
+}
+
+.welcomeForm:focus-within::before {
+  opacity: 0.68;
+  filter: blur(68px) saturate(0.9);
+}
+
+.welcomeForm:focus-within::after {
+  opacity: 0.5;
+}
+
+.dragActive {
+  border-color: var(--ds-color-accent);
+}
+
+/* Une seule surface : le textarea DS ne doit jamais former une 2ᵉ carte. */
+.field {
+  position: relative;
+}
+
+.field :global(textarea),
+.control {
+  width: 100%;
+  min-height: var(--ds-control-height-lg);
+  max-height: var(--ds-composer-max-height);
+  overflow-y: hidden;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: var(--ds-space-1) 0 var(--ds-space-2) !important;
+  color: var(--ds-color-text-primary);
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  font-size: var(--ds-type-body-size);
+  line-height: var(--ds-type-body-line);
+  resize: none;
+}
+
+.field :global(textarea):hover:not(:disabled),
+.field :global(textarea):focus,
+.field :global(textarea):focus-visible,
+.control:hover:not(:disabled),
+.control:focus-visible {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.field :global(textarea::placeholder) {
+  color: var(--ds-color-text-muted);
+}
+
+.welcomeControl,
+.field :global(textarea.welcomeControl) {
+  min-height: calc(var(--ds-control-height-lg) + var(--ds-space-4));
+  padding-block: var(--ds-space-1) var(--ds-space-3) !important;
+  font-size: var(--ds-type-title-size);
+  line-height: var(--ds-type-title-line);
+}
+
+.hiddenInput {
+  position: absolute;
+  width: var(--ds-border-width);
+  height: var(--ds-border-width);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.editBanner {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  margin: 0;
+  padding: 0.4rem 0.5rem 0.4rem 0.65rem;
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, var(--ds-color-accent) 14%, transparent);
+  color: var(--ds-color-text-primary);
+}
+
+.editBannerLabel {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding-inline: 0;
+  font-size: var(--ds-type-caption-size);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: 1.3;
+}
+
+.editBannerClose {
+  flex: none;
+  width: 1.75rem;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  color: var(--ds-color-text-muted);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.editBannerClose:hover:not(:disabled) {
+  color: var(--ds-color-text-primary);
+  background: color-mix(in srgb, #ffffff 8%, transparent);
+}
+
+/* Plancher tactile : 1,75rem (28px) est trop petit au pointeur grossier. */
+@media (hover: none) {
+  .editBannerClose {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+.attachments {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--ds-space-2);
+  margin-block-end: var(--ds-space-2);
+  overflow-x: auto;
+  padding-block-end: var(--ds-space-1);
+  scrollbar-width: thin;
+}
+
+.attachment {
+  display: grid;
+  flex: 0 0 auto;
+  width: 13.25rem;
+  max-width: 13.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-2);
+  min-height: 2.75rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.45rem;
+  border: var(--ds-border-width) solid color-mix(
+    in srgb,
+    #ffffff 10%,
+    transparent
+  );
+  border-radius: var(--ds-radius-lg);
+  color: var(--ds-color-text-secondary);
+  background: color-mix(in srgb, #ffffff 4%, transparent);
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  animation: attachmentIn 180ms var(--ds-ease-standard) forwards;
+  transition:
+    border-color 140ms var(--ds-ease-standard),
+    background 140ms var(--ds-ease-standard),
+    box-shadow 140ms var(--ds-ease-standard);
+}
+
+.attachmentPreviewTrigger {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: start;
+  cursor: zoom-in;
+}
+
+.attachmentPreviewTrigger:focus-visible {
+  border-radius: var(--ds-radius-md);
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.attachment:nth-child(1) {
+  animation-delay: 0ms;
+}
+.attachment:nth-child(2) {
+  animation-delay: 30ms;
+}
+.attachment:nth-child(3) {
+  animation-delay: 60ms;
+}
+.attachment:nth-child(4) {
+  animation-delay: 90ms;
+}
+.attachment:nth-child(5) {
+  animation-delay: 120ms;
+}
+.attachment:nth-child(6) {
+  animation-delay: 150ms;
+}
+
+@keyframes attachmentIn {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachment {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+.attachment:hover {
+  border-color: color-mix(in srgb, #ffffff 16%, transparent);
+  background: color-mix(in srgb, #ffffff 7%, transparent);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.22);
+}
+
+.attachmentThumb {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  border-radius: calc(var(--ds-radius-md) - 1px);
+  object-fit: cover;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, #ffffff 10%, transparent),
+      color-mix(in srgb, #ffffff 3%, transparent)
+    ),
+    var(--ds-color-surface-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 8%, transparent);
+}
+
+.attachmentIcon {
+  display: inline-flex;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--ds-radius-md) - 1px);
+  color: #e8ecf2;
+  background: color-mix(in srgb, #ffffff 7%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ffffff 8%, transparent);
+}
+
+.attachmentCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  padding-block: 0.1rem;
+}
+
+.attachmentName {
+  overflow: hidden;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-type-body-small-size);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentSize {
+  overflow: hidden;
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-type-caption-size);
+  line-height: var(--ds-type-caption-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.removeAttachment {
+  flex: none;
+  align-self: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  min-height: 1.6rem;
+  color: var(--ds-color-text-muted);
+  border-radius: var(--ds-radius-pill);
+  background: transparent;
+  opacity: 0.72;
+  transition:
+    opacity 120ms var(--ds-ease-standard),
+    color 120ms var(--ds-ease-standard),
+    background 120ms var(--ds-ease-standard);
+}
+
+.attachment:hover .removeAttachment,
+.removeAttachment:focus-visible {
+  opacity: 1;
+}
+
+.removeAttachment:hover:not(:disabled) {
+  color: #ffffff;
+  background: color-mix(in srgb, #ffffff 10%, transparent);
+}
+
+.toolbar,
+.tools,
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar {
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  padding-block-start: var(--ds-space-1);
+}
+
+.tools {
+  gap: var(--ds-space-1);
+}
+
+.actions {
+  gap: var(--ds-space-1);
+}
+
+.composerAction,
+.send {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.send {
+  transition:
+    color var(--ds-duration-fast) var(--ds-ease-standard),
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+/* Inactif : lisible, pas trop sombre. */
+.send:disabled,
+.send[data-ready="false"] {
+  color: #d0d5de;
+  background: color-mix(in srgb, #ffffff 16%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.send[data-ready="true"]:not(:disabled) {
+  color: var(--ds-color-text-inverse);
+  background: var(--ds-color-accent);
+  box-shadow: none;
+}
+
+.send[data-ready="true"]:hover:not(:disabled) {
+  background: var(--ds-color-accent-hover);
+  box-shadow: none;
+}
+
+.meta {
+  display: flex;
+  min-height: var(--ds-space-5);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.counter {
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-type-caption-size);
+  line-height: var(--ds-type-caption-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.counterLimit {
+  color: var(--ds-color-danger);
+}
+
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-layer-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--ds-space-6);
+  color: var(--ds-color-text-primary);
+  background: color-mix(
+    in srgb,
+    var(--ds-color-background) 84%,
+    transparent
+  );
+  backdrop-filter: blur(var(--ds-space-2));
+  pointer-events: none;
+}
+
+.dropMessage {
+  display: flex;
+  width: min(100%, var(--ds-layout-conversation-response-width));
+  min-height: calc(var(--ds-space-20) * 2);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  border: var(--ds-border-width) dashed var(--ds-color-accent-border);
+  border-radius: var(--ds-radius-2xl);
+  color: var(--ds-color-accent);
+  background: var(--ds-color-surface-raised);
+  box-shadow: var(--ds-shadow-lg);
+  text-align: center;
+}
+
+.dropMessage strong {
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-type-title-size);
+  line-height: var(--ds-type-title-line);
+}
+
+.dropMessage span {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form {
+    transition: none;
+  }
+}
+
+@media (max-width: 39.999rem) {
+  .welcomeForm {
+    min-height: calc(var(--ds-space-20) + var(--ds-space-6));
+  }
+
+  .control {
+    min-height: var(--ds-control-height-lg);
+  }
+
+  .welcomeControl {
+    min-height: var(--ds-control-height-lg);
+    font-size: var(--ds-type-body-size);
+    line-height: var(--ds-type-body-line);
+  }
+}

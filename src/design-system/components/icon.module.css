@@ -1,0 +1,26 @@
+.icon {
+  display: inline-block;
+  flex: none;
+  color: currentColor;
+  stroke-width: var(--ds-icon-stroke);
+}
+
+.xs {
+  width: var(--ds-icon-size-xs);
+  height: var(--ds-icon-size-xs);
+}
+
+.sm {
+  width: var(--ds-icon-size-sm);
+  height: var(--ds-icon-size-sm);
+}
+
+.md {
+  width: var(--ds-icon-size-md);
+  height: var(--ds-icon-size-md);
+}
+
+.lg {
+  width: var(--ds-icon-size-lg);
+  height: var(--ds-icon-size-lg);
+}

@@ -35,7 +35,7 @@ export default async function ConnexionPage({ searchParams }: PageProps) {
           Pas encore de compte ?{" "}
           <Link
             href="/inscription"
-            className="font-medium text-sidian-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+            className="font-medium text-lien hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
           >
             Créer un compte
           </Link>

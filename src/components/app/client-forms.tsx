@@ -4,8 +4,10 @@ import { useActionState, useId, useState } from "react";
 
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
+import { Button } from "@/design-system";
 import { createCreationKeyMachine } from "@/lib/clients/creation-key";
 
+import styles from "./form-layout.module.css";
 type ActionResult =
   | { ok: true }
   | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
@@ -17,9 +19,15 @@ type ClientFormProps = {
   ) => Promise<ActionResult>;
   initial?: { id?: string; nom?: string; email?: string };
   submitLabel: string;
+  conversationId?: string;
 };
 
-export function ClientForm({ action, initial, submitLabel }: ClientFormProps) {
+export function ClientForm({
+  action,
+  initial,
+  submitLabel,
+  conversationId,
+}: ClientFormProps) {
   const reactId = useId();
   const prefix = `client-${initial?.id ?? reactId}`;
   const isCreate = !initial?.id;
@@ -52,9 +60,15 @@ export function ClientForm({ action, initial, submitLabel }: ClientFormProps) {
     <form
       key={isCreate ? formEpoch : "edit"}
       action={formAction}
-      className="space-y-4 rounded-xl border border-gris-200 bg-white p-5"
+      className={styles.form}
+      aria-describedby={
+        state?.ok === false ? `${prefix}-form-error` : undefined
+      }
     >
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
+      {isCreate && conversationId ? (
+        <input type="hidden" name="conversationId" value={conversationId} />
+      ) : null}
       {isCreate ? (
         <input
           type="hidden"
@@ -81,13 +95,21 @@ export function ClientForm({ action, initial, submitLabel }: ClientFormProps) {
         required
       />
       {state?.ok === false ? (
-        <p role="alert" className="text-sm text-red-600" id={`${prefix}-form-error`}>
+        <p
+          role="alert"
+          className={`${styles.formStatus} ${styles.formError}`}
+          id={`${prefix}-form-error`}
+        >
           {state.message}
         </p>
       ) : null}
-      {state?.ok === true ? (
-        <p className="text-sm text-emerald-700">Enregistré.</p>
-      ) : null}
+      {/* Région live montée en permanence : voir `.sidian-live-region`. */}
+      <p
+        role="status"
+        className={`sidian-live-region ${styles.formStatus} ${styles.formSuccess}`}
+      >
+        {state?.ok === true ? "Enregistré." : ""}
+      </p>
       <AuthSubmitButton>{submitLabel}</AuthSubmitButton>
     </form>
   );
@@ -107,20 +129,29 @@ export function ArchiveButton({ action, id, label }: ArchiveButtonProps) {
   const reactId = useId();
 
   return (
-    <form action={formAction} className="inline">
+    <form
+      action={formAction}
+      className={styles.inlineForm}
+      aria-describedby={
+        state?.ok === false ? `${reactId}-archive-error` : undefined
+      }
+    >
       <input type="hidden" name="id" value={id} />
-      <button
+      <Button
         type="submit"
+        variant="destructive"
+        size="sm"
         disabled={pending}
-        className="text-sm text-red-600 hover:underline disabled:opacity-50"
+        loading={pending}
+        loadingLabel="Archivage…"
       >
-        {pending ? "Archivage…" : label}
-      </button>
+        {label}
+      </Button>
       {state?.ok === false ? (
         <p
           role="alert"
           id={`${reactId}-archive-error`}
-          className="mt-1 text-xs text-red-600"
+          className={`${styles.formStatus} ${styles.formError}`}
         >
           {state.message}
         </p>

@@ -7,9 +7,10 @@ import { getStripeServerEnv } from "@/config/env-server";
 /** Version API épinglée sur celle du SDK stripe installé (22.x → 2026-06-24.dahlia). */
 export const SIDIAN_STRIPE_API_VERSION = "2026-06-24.dahlia" as const;
 
-export type StripeMode = "test" | "live";
+type StripeMode = "test" | "live";
 
-export function resolveStripeMode(secretKey: string): StripeMode {
+/** Interne : garde-fou de forme de clé — le mode effectif vient de STRIPE_MODE (env validé). */
+function resolveStripeMode(secretKey: string): StripeMode {
   if (secretKey.startsWith("sk_live_")) {
     return "live";
   }
@@ -41,21 +42,6 @@ export function getStripeClient(): Stripe {
   });
 
   return cached;
-}
-
-/** Client injectable pour tests (mocks). */
-export function createStripeClient(
-  secretKey: string,
-  options?: Stripe.StripeConfig,
-): Stripe {
-  resolveStripeMode(secretKey);
-  return new Stripe(secretKey, {
-    apiVersion: SIDIAN_STRIPE_API_VERSION,
-    typescript: true,
-    timeout: 15_000,
-    maxNetworkRetries: 2,
-    ...options,
-  });
 }
 
 export function getStripeWebhookSecret(): string {

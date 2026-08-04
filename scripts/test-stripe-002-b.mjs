@@ -166,7 +166,7 @@ async function provisionTentative(tenant, {
   if (claim.error || claim.data?.status !== "claimed") {
     throw claim.error ?? new Error(`claim inattendu: ${JSON.stringify(claim.data)}`);
   }
-  const sessionId = `cs_test_${randomUUID()}`;
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
   const complete = await admin.rpc("complete_checkout_provisioning", {
     p_tentative_id: claim.data.tentative_id,
     p_lease_token: claim.data.lease_token,
@@ -244,7 +244,7 @@ await run("claim concurrent → in_progress, puis complete → already_created",
   if (second.error) throw second.error;
   assert(second.data.status === "in_progress", "second claim in_progress (lease vivant)");
 
-  const sessionId = `cs_test_${randomUUID()}`;
+  const sessionId = `cs_test_${randomUUID().replaceAll("-", "")}`;
   const complete = await admin.rpc("complete_checkout_provisioning", {
     p_tentative_id: first.data.tentative_id,
     p_lease_token: first.data.lease_token,
@@ -614,7 +614,7 @@ await run("paiements partiels → PARTIELLEMENT_REGLEE puis REGLEE au solde", as
   await admin.rpc("complete_checkout_provisioning", {
     p_tentative_id: claim2.data.tentative_id,
     p_lease_token: claim2.data.lease_token,
-    p_stripe_checkout_session_id: `cs_test_${randomUUID()}`,
+    p_stripe_checkout_session_id: `cs_test_${randomUUID().replaceAll("-", "")}`,
     p_stripe_payment_intent_id: pi2,
     p_stripe_customer_id: null,
     p_stripe_account_id: tenantA.account,
@@ -715,11 +715,58 @@ await run("checkout.session.expired → ANNULEE ; jamais après succeeded", asyn
     p_checkout_session_id: provE.sessionId,
   });
   if (expired.error) throw expired.error;
+  const replayExpired = await admin.rpc("apply_checkout_session_expired_payment", {
+    p_stripe_event_id: evtE.eventId,
+    p_processing_attempt: evtE.attempt,
+    p_lease_token: evtE.leaseToken,
+    p_connected_account_id: tenantA.account,
+    p_checkout_session_id: provE.sessionId,
+  });
+  if (replayExpired.error) throw replayExpired.error;
   const { rows: re } = await postgres.query(
-    "select etat from public.tentative_paiement where id = $1",
+    `select etat, checkout_provisioning_status,
+            checkout_provisioning_error_code
+     from public.tentative_paiement where id = $1`,
     [provE.tentativeId],
   );
-  assert(re[0].etat === "ANNULEE", "ANNULEE");
+  assert(
+    re[0].etat === "ANNULEE" &&
+      re[0].checkout_provisioning_status === "failed_terminal" &&
+      re[0].checkout_provisioning_error_code === "checkout_session_expired",
+    "ANNULEE avec cause d'expiration durable",
+  );
+  const { rows: expiryAudits } = await postgres.query(
+    `select count(*)::int as n
+     from public.audit_log
+     where entity_id = $1
+       and action = 'PAYMENT_CHECKOUT_SESSION_EXPIRED'`,
+    [provE.creance.id],
+  );
+  assert(expiryAudits[0].n === 1, "audit d'expiration unique au replay");
+  const projectedExpiry = await admin.rpc(
+    "resolve_payment_status_by_checkout_session_id",
+    { p_checkout_session_id: provE.sessionId },
+  );
+  if (projectedExpiry.error) throw projectedExpiry.error;
+  assert(
+    projectedExpiry.data?.found === true &&
+      projectedExpiry.data?.etat === "ANNULEE" &&
+      projectedExpiry.data?.checkout_provisioning_error_code ===
+        "checkout_session_expired" &&
+      !("tentative_id" in projectedExpiry.data) &&
+      !("creance_id" in projectedExpiry.data),
+    "projection publique expirée bornée, sans identifiant interne",
+  );
+
+  const invalidProjection = await admin.rpc(
+    "resolve_payment_status_by_checkout_session_id",
+    { p_checkout_session_id: `cs_${"A".repeat(253)}` },
+  );
+  if (invalidProjection.error) throw invalidProjection.error;
+  assert(
+    invalidProjection.data?.found === false,
+    "identifiant de Session surdimensionné refusé sans résolution",
+  );
 
   // Cas 2 : succeeded d'abord, puis expired ne doit pas annuler.
   const pi = `pi_${randomUUID()}`;

@@ -4,8 +4,8 @@ type AuthBannerProps = {
 };
 
 const toneClasses: Record<NonNullable<AuthBannerProps["tone"]>, string> = {
-  error: "border-red-200 bg-red-50 text-red-700",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  error: "border-danger-border bg-danger-bg text-danger",
+  success: "border-success-border bg-success-bg text-success",
   info: "border-gris-200 bg-gris-50 text-gris-500",
 };
 

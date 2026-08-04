@@ -108,3 +108,30 @@ export async function archiveCreance(
 
   return data;
 }
+
+/**
+ * Montant réglé (somme de `paiement`, règlements confirmés uniquement) par
+ * créance. RLS `authenticated` scope déjà chaque ligne au prestataire courant
+ * — cette fonction ne fait qu'agréger côté application.
+ */
+export async function listPaidAmountsByCreanceIds(
+  supabase: SupabaseClient<Database>,
+  creanceIds: string[],
+): Promise<Map<string, number>> {
+  const totals = new Map<string, number>();
+  if (creanceIds.length === 0) return totals;
+
+  const { data, error } = await supabase
+    .from("paiement")
+    .select("creance_id, montant")
+    .in("creance_id", creanceIds);
+
+  if (error) {
+    throw new Error("paiement_sum_failed");
+  }
+
+  for (const row of data ?? []) {
+    totals.set(row.creance_id, (totals.get(row.creance_id) ?? 0) + row.montant);
+  }
+  return totals;
+}

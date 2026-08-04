@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  min-height: var(--ds-control-badge-height);
+  align-items: center;
+  gap: var(--ds-space-1);
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-pill);
+  padding-inline: var(--ds-space-2);
+  font-family: var(--ds-font-family-sans);
+  font-size: var(--ds-type-caption-size);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-type-caption-line);
+  white-space: nowrap;
+}
+
+.neutral {
+  color: var(--ds-color-text-secondary);
+  background: var(--ds-color-surface-muted);
+}
+
+.info {
+  color: var(--ds-color-info);
+  background: var(--ds-color-info-surface);
+}
+
+.success {
+  color: var(--ds-color-success);
+  background: var(--ds-color-success-surface);
+}
+
+.warning {
+  color: var(--ds-color-warning);
+  background: var(--ds-color-warning-surface);
+}
+
+.danger {
+  color: var(--ds-color-danger);
+  background: var(--ds-color-danger-surface);
+}
+
+.outline {
+  color: var(--ds-color-text-secondary);
+  background: transparent;
+  border-color: var(--ds-color-border);
+}

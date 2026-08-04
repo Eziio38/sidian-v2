@@ -1,0 +1,38 @@
+/**
+ * Codes de raison stables du Permission Service (G1-C).
+ * Aucune chaîne de pensée LLM.
+ */
+
+export const PERMISSION_REASON_CODES = [
+  "ALLOW",
+  "INPUT_INVALID",
+  "PERMISSION_MISSING",
+  "PERMISSION_DENIED",
+  "TENANT_SCOPE_MISMATCH",
+  "RESOURCE_SCOPE_MISMATCH",
+  "TOOL_UNRESOLVED",
+  "TOOL_NOT_CALLABLE",
+  "MODE_NOT_ALLOWED",
+  "AUTONOMY_EXCEEDED",
+  "VALIDATION_REQUIRED",
+  "VALIDATION_PENDING",
+  "VALIDATION_REJECTED",
+  "VALIDATION_EXPIRED",
+  "VALIDATION_SCOPE_MISMATCH",
+  "POLICY_EVALUATION_FAILED",
+] as const;
+
+export type PermissionReasonCode = (typeof PERMISSION_REASON_CODES)[number];
+
+/** Codes d’erreur exposés au futur Tool Router (distincts entre eux). */
+export const PERMISSION_ERROR_CODES = [
+  "PERMISSION_DENIED",
+  "VALIDATION_EXPIRED",
+  "VALIDATION_REQUIRED",
+  "VALIDATION_PENDING",
+  "VALIDATION_REJECTED",
+  "VALIDATION_SCOPE_MISMATCH",
+  "PERMISSION_EVALUATION_FAILED",
+] as const;
+
+export type PermissionErrorCode = (typeof PERMISSION_ERROR_CODES)[number];

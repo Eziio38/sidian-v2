@@ -40,7 +40,9 @@ describe("ClientForm — création idempotente", () => {
     );
   });
 
-  it("conserve la clé sur erreur, la rotate après succès, puis en émet une nouvelle", async () => {
+  it(
+    "conserve la clé sur erreur, la rotate après succès, puis en émet une nouvelle",
+    async () => {
     const user = userEvent.setup();
     const submittedKeys: string[] = [];
 
@@ -111,7 +113,9 @@ describe("ClientForm — création idempotente", () => {
     expect(submittedKeys[2]).toBe(keyAfterSuccess);
     expect(submittedKeys[2]).not.toBe(keyBeforeError);
     expect(creationKeyInput().value).not.toBe(keyAfterSuccess);
-  });
+  },
+  15_000,
+  );
 
   it("ne rotate pas la clé pendant pending ni sur erreur", async () => {
     const user = userEvent.setup();

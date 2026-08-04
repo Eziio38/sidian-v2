@@ -4,8 +4,10 @@ import { useActionState, useId, useState } from "react";
 
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
+import { InfoCard, Select } from "@/design-system";
 import { createCreationKeyMachine } from "@/lib/clients/creation-key";
 
+import styles from "./form-layout.module.css";
 type ActionResult =
   | { ok: true }
   | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
@@ -71,28 +73,30 @@ export function CreanceForm({
 
   if (clients.length === 0 && !isEdit) {
     return (
-      <p className="rounded-xl border border-gris-200 bg-white p-5 text-sm text-gris-500">
-        Ajoutez d&apos;abord un client pour créer un paiement à recevoir.
-      </p>
+      <InfoCard
+        density="compact"
+        title="Ajoute d’abord un client"
+        description="Un client est nécessaire pour créer un paiement à recevoir."
+      />
     );
   }
 
   if (isEdit && currentClientId && !currentClientSelectable) {
     return (
-      <div
-        className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-nuit"
+      <InfoCard
         role="status"
         data-testid="paiement-client-bloque"
+        density="compact"
+        title="Modification bloquée"
       >
-        <p className="font-medium">Modification bloquée</p>
-        <p className="mt-2 text-gris-500">
+        <p className={styles.formStatus}>
           Le client actuel
           {initial?.clientNom ? ` (« ${initial.clientNom} ») ` : " "}
           n&apos;est plus sélectionnable. Aucune réaffectation automatique
           n&apos;est effectuée. Archivez ce paiement à recevoir ou rétablissez
           le client avant de modifier le brouillon.
         </p>
-      </div>
+      </InfoCard>
     );
   }
 
@@ -100,7 +104,10 @@ export function CreanceForm({
     <form
       key={isCreate ? formEpoch : initial?.id}
       action={formAction}
-      className="space-y-4 rounded-xl border border-gris-200 bg-white p-5"
+      className={styles.form}
+      aria-describedby={
+        state?.ok === false ? `${prefix}-form-error` : undefined
+      }
     >
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       {isCreate ? (
@@ -112,22 +119,15 @@ export function CreanceForm({
         />
       ) : null}
 
-      <div className="space-y-1.5">
-        <label
-          htmlFor={`${prefix}-clientPayeurId`}
-          className="block text-sm font-medium text-nuit"
-        >
-          Client
-        </label>
-        <select
+      <Select
           id={`${prefix}-clientPayeurId`}
+          label="Client"
           name="clientPayeurId"
           defaultValue={isEdit ? (currentClientId ?? "") : ""}
-          className="block w-full rounded-lg border border-gris-200 bg-white px-3 py-2.5 text-sm text-nuit shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-sidian-blue"
           required
-          aria-describedby={
-            state?.ok === false && state.fieldErrors?.clientPayeurId?.[0]
-              ? `${prefix}-clientPayeurId-error`
+          error={
+            state?.ok === false
+              ? state.fieldErrors?.clientPayeurId?.[0]
               : undefined
           }
         >
@@ -141,17 +141,7 @@ export function CreanceForm({
               {client.nom}
             </option>
           ))}
-        </select>
-        {state?.ok === false && state.fieldErrors?.clientPayeurId?.[0] ? (
-          <p
-            role="alert"
-            id={`${prefix}-clientPayeurId-error`}
-            className="text-sm text-red-600"
-          >
-            {state.fieldErrors.clientPayeurId[0]}
-          </p>
-        ) : null}
-      </div>
+      </Select>
 
       <AuthField
         id={`${prefix}-libelle`}
@@ -201,14 +191,18 @@ export function CreanceForm({
         <p
           role="alert"
           id={`${prefix}-form-error`}
-          className="text-sm text-red-600"
+          className={`${styles.formStatus} ${styles.formError}`}
         >
           {state.message}
         </p>
       ) : null}
-      {state?.ok === true ? (
-        <p className="text-sm text-emerald-700">Enregistré.</p>
-      ) : null}
+      {/* Région live montée en permanence : voir `.sidian-live-region`. */}
+      <p
+        role="status"
+        className={`sidian-live-region ${styles.formStatus} ${styles.formSuccess}`}
+      >
+        {state?.ok === true ? "Enregistré." : ""}
+      </p>
       <AuthSubmitButton>{submitLabel}</AuthSubmitButton>
     </form>
   );

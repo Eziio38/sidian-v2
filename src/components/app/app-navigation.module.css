@@ -1,0 +1,121 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * `min-width: max-content` faisait déborder la rangée hors du tiroir mobile
+ * (272px, overflow: hidden) : les derniers éléments étaient rognés sans aucun
+ * moyen de les atteindre. On rend la rangée défilable à la place, sans barre
+ * visible pour ne pas alourdir le tiroir.
+ */
+.compact {
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* `overflow-x: auto` calcule aussi `overflow-y: auto` : sans cette réserve,
+     l'anneau de focus des liens serait rogné en haut et en bas. */
+  padding-block: calc(var(--ds-focus-ring-width) + var(--ds-focus-ring-offset));
+}
+
+.compact::-webkit-scrollbar {
+  display: none;
+}
+
+.compact > li {
+  flex: none;
+}
+
+.link {
+  display: flex;
+  min-height: calc(var(--ds-control-height-md) - var(--ds-space-1));
+  align-items: center;
+  gap: var(--ds-space-3);
+  border-radius: var(--ds-radius-md);
+  padding-inline: var(--ds-space-2);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-type-body-small-line);
+  text-decoration: none;
+  transition:
+    color var(--ds-duration-fast) var(--ds-ease-standard),
+    background-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.newConversation {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.newConversation:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.newConversation:disabled:hover {
+  color: var(--ds-color-text-secondary);
+  background: transparent;
+}
+
+.link:hover {
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-hover);
+}
+
+.link:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.current {
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-hover);
+}
+
+.icon {
+  color: var(--ds-color-text-muted);
+  opacity: 0.82;
+}
+
+.homeMark {
+  width: var(--ds-icon-size-sm);
+  height: var(--ds-icon-size-sm);
+  flex: none;
+  justify-content: center;
+}
+
+.homeMark img {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.homeLabel {
+  font-family: var(--font-outfit), var(--ds-font-family-sans);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.current .icon {
+  color: var(--ds-color-accent);
+  opacity: 1;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+}

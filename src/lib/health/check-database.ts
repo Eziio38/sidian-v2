@@ -2,7 +2,9 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { getApplicationEnvironment } from "@/config/env-server";
 import { getSupabasePublicEnv, isSupabasePublicEnvConfigured } from "@/config/env-public";
+import { assertSupabaseDeploymentEnvironment } from "@/lib/supabase/environment-attestation";
 import type { Database } from "@/types/database.generated";
 
 const HEALTH_CHECK_TIMEOUT_MS = 5_000;
@@ -11,14 +13,6 @@ export type DatabaseHealthStatus =
   | "connected"
   | "not_configured"
   | "unavailable";
-
-function isPostgrestOperationalError(code: string | undefined): boolean {
-  if (!code) {
-    return false;
-  }
-
-  return code !== "PGRST205";
-}
 
 export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
   if (!isSupabasePublicEnvConfigured()) {
@@ -30,6 +24,10 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
   const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
   try {
+    if (getApplicationEnvironment() !== "local") {
+      await assertSupabaseDeploymentEnvironment();
+    }
+
     const supabase = createClient<Database>(
       env.NEXT_PUBLIC_SUPABASE_URL,
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -44,15 +42,7 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
 
     const { error } = await supabase.from("prestataire").select("id").limit(0);
 
-    if (!error) {
-      return "connected";
-    }
-
-    if (isPostgrestOperationalError(error.code)) {
-      return "connected";
-    }
-
-    return "unavailable";
+    return error ? "unavailable" : "connected";
   } catch {
     return "unavailable";
   } finally {

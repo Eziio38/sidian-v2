@@ -7,10 +7,11 @@ import { z } from "zod";
 import { getSidianEnvironment } from "@/config/env-server";
 import { getAppUrl } from "@/lib/auth/urls";
 import { getStripeClient } from "@/lib/stripe/client";
+import { assertConnectedAccountIdentity } from "@/lib/stripe/connect/account-identity";
 import { StripeDomainError, toSafeStripeError } from "@/lib/stripe/shared/errors";
 import type { Database } from "@/types/database.generated";
 
-const accountLinkKindSchema = z.enum(["onboarding", "update"]);
+const accountLinkKindSchema = z.literal("onboarding");
 
 export type AccountLinkKind = z.infer<typeof accountLinkKindSchema>;
 
@@ -19,8 +20,8 @@ export type AccountLinkKind = z.infer<typeof accountLinkKindSchema>;
  * Les chemins sont relatifs à NEXT_PUBLIC_APP_URL.
  */
 export const STRIPE_ACCOUNT_LINK_PATHS = {
-  refresh: "/app/stripe/reprise",
-  return: "/app/stripe/retour",
+  refresh: "/app/connexion-stripe/reprise",
+  return: "/app/connexion-stripe/retour",
 } as const;
 
 export function buildAllowlistedAccountLinkUrls(appUrl = getAppUrl()): {
@@ -44,7 +45,15 @@ export async function createConnectedAccountLink(params: {
   stripe?: Stripe;
   sidianEnvironment?: "local" | "staging" | "production";
 }): Promise<Stripe.AccountLink> {
-  const kind = accountLinkKindSchema.parse(params.kind ?? "onboarding");
+  const kind = accountLinkKindSchema.safeParse(params.kind ?? "onboarding");
+  if (!kind.success) {
+    throw new StripeDomainError(
+      "stripe_account_link_kind_not_supported",
+      undefined,
+      "terminal",
+    );
+  }
+
   const stripe = params.stripe ?? getStripeClient();
   const { data: authData, error: authError } = await params.supabaseUser.auth.getUser();
   if (authError || !authData.user) {
@@ -61,29 +70,23 @@ export async function createConnectedAccountLink(params: {
   const { refreshUrl, returnUrl } = buildAllowlistedAccountLinkUrls();
 
   try {
-    const account = await stripe.accounts.retrieve(prestataire.stripe_account_id);
+    const retrieved = await stripe.accounts.retrieve(prestataire.stripe_account_id);
     const sidianEnvironment =
       params.sidianEnvironment ?? getSidianEnvironment();
-    if (
-      account.id !== prestataire.stripe_account_id ||
-      account.metadata?.sidian_prestataire_id !== prestataire.id ||
-      account.metadata?.sidian_environment !== sidianEnvironment ||
-      (prestataire.stripe_connect_operation_key &&
-        account.metadata?.sidian_provisioning_operation_id !==
-          prestataire.stripe_connect_operation_key) ||
-      account.type !== "express" ||
-      account.country !== "FR" ||
-      account.controller?.type !== "application" ||
-      account.controller.requirement_collection !== "stripe" ||
-      account.controller.stripe_dashboard?.type !== "express"
-    ) {
-      throw new StripeDomainError("stripe_account_scope_mismatch");
-    }
+    const account = assertConnectedAccountIdentity({
+      account: retrieved,
+      expectedAccountId: prestataire.stripe_account_id,
+      prestataireId: prestataire.id,
+      operationKey: prestataire.stripe_connect_operation_key,
+      sidianEnvironment,
+    });
     return await stripe.accountLinks.create({
       account: account.id,
       refresh_url: refreshUrl,
       return_url: returnUrl,
-      type: kind === "update" ? "account_update" : "account_onboarding",
+      // Express possède un Dashboard hébergé Stripe : account_update n'est pas
+      // autorisé par Stripe pour ce type de compte.
+      type: "account_onboarding",
       collection_options: {
         fields: "currently_due",
       },

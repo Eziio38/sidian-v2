@@ -1,30 +1,576 @@
 @import "tailwindcss";
+@import "../design-system/tokens.css";
 
-:root {
-  --sidian-nuit: #0d1117;
+/*
+ * Variante `dark:` de Tailwind pilotée par le choix explicite de
+ * l'utilisateur, et non par `prefers-color-scheme`.
+ *
+ * Sans cette redéfinition, Tailwind v4 rattache `dark:` au réglage OS : un
+ * compte réglé sur « Clair » verrait quand même les utilitaires `dark:`
+ * s'appliquer sur un système en sombre. L'architecture du produit reste
+ * néanmoins portée par les tokens ; cette variante n'est qu'un garde-fou.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Sidian design tokens — source of truth for light app UI.
+ * Values align with docs/SIDIAN_DESIGN_SYSTEM.md.
+ * Brand tokens are preserved; semantic / state / type / elevation are centralized here.
+ */
+
+/* Voir tokens.css : le clair est déclaré sur `:root` ET sur
+ * `[data-theme="light"]`, pour permettre d'épingler un sous-arbre en clair
+ * (pages publiques /p/*) sous une racine en sombre. */
+:root,
+[data-theme="light"] {
+  /* ── Brand (preserve) ───────────────────────────────────────── */
+  --sidian-nuit: var(--ds-color-text-primary);
+  --sidian-ardoise: #1d2535;
   --sidian-blue: #3b6df8;
-  --sidian-gris-50: #f7f8fb;
-  --sidian-gris-100: #eef0f4;
-  --sidian-gris-200: #e3e6ec;
-  --sidian-gris-500: #6b7280;
-  --background: #ffffff;
+  --sidian-blue-hover: #315fd9;
+  --sidian-blue-active: #2a52c4;
+  --sidian-ciel: #6b96fa;
+  --sidian-brume: var(--ds-color-accent-soft);
+
+  /* ── Cold grays ─────────────────────────────────────────────── */
+  --sidian-gris-50: var(--ds-color-background);
+  --sidian-gris-100: var(--ds-color-surface-muted);
+  --sidian-gris-200: var(--ds-color-border);
+  --sidian-gris-300: var(--ds-color-border-strong);
+  --sidian-gris-400: #9aa1ae;
+  --sidian-gris-500: var(--ds-color-text-muted);
+  --sidian-gris-600: var(--ds-color-text-secondary);
+
+  /*
+   * ── Semantic (status only) ───────────────────────────────────
+   *
+   * Alias sur les valeurs du design system plutôt que sur les teintes
+   * historiques : celles-ci passaient sous le seuil AA sur leur propre fond
+   * (succès 3,57:1, alerte 3,05:1, danger 4,44:1 — seuil 4,5:1). Les valeurs
+   * `--ds-color-*` couvrent le même rôle en passant (5,20 / 6,79 / 6,05:1).
+   * Les fonds et bordures sont inchangés : seule la teinte du texte fonce.
+   */
+  --sidian-success: var(--ds-color-success);
+  --sidian-success-bg: var(--ds-color-success-surface);
+  --sidian-success-border: var(--ds-color-success-border);
+  --sidian-warning: var(--ds-color-warning);
+  --sidian-warning-bg: var(--ds-color-warning-surface);
+  --sidian-warning-border: var(--ds-color-warning-border);
+  --sidian-danger: var(--ds-color-danger);
+  --sidian-danger-bg: var(--ds-color-danger-surface);
+  --sidian-danger-border: var(--ds-color-danger-border);
+
+  /* ── Surfaces & text (light) ────────────────────────────────── */
+  /*
+   * Fond du document = fond applicatif, et non `--ds-color-surface`.
+   * `--background` n'est consommé que par `body` : lorsqu'il valait la surface
+   * (blanc) alors que le shell peint `--ds-color-background`, une bande d'une
+   * autre teinte apparaissait sous le contenu et en overscroll. Les cartes
+   * restent blanches via `--surface`, inchangé.
+   */
+  --background: var(--ds-color-background);
   --foreground: var(--sidian-nuit);
+  --surface: var(--ds-color-surface);
+  --surface-muted: var(--sidian-gris-50);
+  --surface-sidebar: var(--sidian-gris-50);
+  --surface-elevated: var(--ds-color-surface-raised);
+  --surface-empty: var(--sidian-gris-50);
+  --surface-loading: var(--sidian-gris-100);
+
+  --text-primary: var(--sidian-nuit);
+  --text-secondary: var(--sidian-gris-500);
+  /*
+   * `--text-tertiary` porte du texte informatif : il doit rester lisible.
+   * L'ancienne valeur (--sidian-gris-400, 2,60:1 sur blanc) est conservée
+   * uniquement pour le désactivé, exempté par WCAG 1.4.3.
+   */
+  --text-tertiary: var(--ds-color-text-muted);
+  --text-disabled: var(--sidian-gris-400);
+  --text-inverse: var(--ds-color-text-inverse);
+  /*
+   * Lien textuel : `--ds-color-accent` et non le bleu de marque. `--sidian-blue`
+   * tombe à 4,44:1 sur blanc, 4,18:1 sur le fond applicatif et 4,08:1 sur la
+   * surface sombre — sous le seuil AA 4,5:1 dès que le texte est < 18px.
+   * `--ds-color-accent` passe dans les deux thèmes (5,57:1 clair / 6,35:1
+   * sombre). Le bleu de marque reste réservé aux remplissages de boutons et aux
+   * anneaux de focus, où le seuil non textuel de 3:1 s'applique.
+   */
+  --text-link: var(--ds-color-accent);
+
+  --border-default: var(--sidian-gris-200);
+  --border-strong: var(--sidian-gris-300);
+  --border-divider: var(--sidian-gris-100);
+  --border-focus: var(--sidian-blue);
+
+  /* ── Interaction states ─────────────────────────────────────── */
+  --state-hover-bg: var(--sidian-gris-50);
+  --state-active-bg: var(--sidian-brume);
+  --state-disabled-bg: var(--sidian-gris-100);
+  --state-disabled-fg: var(--sidian-gris-400);
+  --state-disabled-opacity: 0.6;
+  --state-focus-ring: color-mix(in srgb, var(--sidian-blue) 40%, transparent);
+  --state-focus-ring-width: 2px;
+  --state-focus-ring-offset: 2px;
+
+  /* ── Elevation ──────────────────────────────────────────────── */
+  --sidian-shadow-sm: 0 1px 2px rgba(13, 17, 23, 0.04);
+  --sidian-shadow-card: 0 1px 3px rgba(13, 17, 23, 0.04), 0 1px 2px rgba(13, 17, 23, 0.03);
+  --sidian-shadow-float: 0 8px 24px rgba(13, 17, 23, 0.08);
+
+  /* ── Radii ──────────────────────────────────────────────────── */
+  --sidian-radius-sm: var(--ds-radius-sm);
+  --sidian-radius-md: var(--ds-radius-md);
+  --sidian-radius-lg: var(--ds-radius-lg);
+  --sidian-radius-xl: var(--ds-radius-xl);
+  --sidian-radius-full: var(--ds-radius-pill);
+
+  /* ── Spacing (4px grid — layout refs) ───────────────────────── */
+  --space-1: var(--ds-space-1);
+  --space-2: var(--ds-space-2);
+  --space-3: var(--ds-space-3);
+  --space-4: var(--ds-space-4);
+  --space-5: var(--ds-space-5);
+  --space-6: var(--ds-space-6);
+  --space-8: var(--ds-space-8);
+  --space-page-x: var(--ds-layout-gutter-tablet);
+  --space-page-x-lg: var(--ds-space-8);
+  --space-page-y: var(--ds-space-6);
+  --space-rail-gap: var(--ds-space-6);
+  --space-card: var(--ds-space-5);
+  --space-card-lg: var(--ds-space-6);
+  --space-field-gap: 14px;
+  --space-section: var(--ds-space-6);
+
+  /* ── Control sizes ──────────────────────────────────────────── */
+  --control-height-sm: var(--ds-control-height-sm);
+  --control-height: var(--ds-control-height-md);
+  --control-height-lg: var(--ds-control-height-lg);
+  --control-px: var(--ds-control-inline-padding);
+  --input-height: var(--ds-control-height-md);
+  --input-px: var(--ds-space-3);
+  --badge-height: var(--ds-control-badge-height);
+  --badge-px: var(--ds-space-2);
+  --row-min-height: var(--ds-control-row-min-height);
+
+  /* ── Icon sizes (Lucide strokeWidth 1.75) ───────────────────── */
+  --icon-xs: var(--ds-icon-size-xs);
+  --icon-sm: var(--ds-icon-size-sm);
+  --icon-md: var(--ds-icon-size-md);
+  --icon-lg: var(--ds-icon-size-lg);
+  --icon-stroke: var(--ds-icon-stroke);
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-weight-regular: var(--ds-font-weight-regular);
+  --font-weight-medium: var(--ds-font-weight-medium);
+  --font-weight-semibold: var(--ds-font-weight-semibold);
+  --font-weight-bold: var(--ds-font-weight-bold);
+
+  --text-display-size: var(--ds-type-h1-size);
+  --text-display-lh: var(--ds-type-h1-line);
+  --text-display-tracking: var(--ds-type-h1-tracking);
+  --text-kpi-size: 26px;
+  --text-section-size: var(--ds-type-title-size);
+  --text-section-tracking: var(--ds-type-title-tracking);
+  --text-body-size: var(--ds-type-body-size);
+  --text-body-lh: var(--ds-type-body-line);
+  --text-body-sm-size: var(--ds-type-body-small-size);
+  --text-caption-size: var(--ds-type-caption-size);
+  --text-eyebrow-size: var(--ds-type-label-size);
+  --text-eyebrow-tracking: var(--ds-type-label-tracking);
+  --text-button-size: var(--ds-type-body-size);
+
+  /* ── Scrollbars ─────────────────────────────────────────────── */
+  --scrollbar-size: 6px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in srgb, var(--sidian-gris-400) 45%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--sidian-gris-400) 70%, transparent);
+
+  /* ── Overlay ────────────────────────────────────────────────── */
+  --overlay-scrim: color-mix(in srgb, var(--sidian-nuit) 40%, transparent);
+
+  /*
+   * Premium AI Workspace — light mode principal.
+   * Fond gris très clair, surfaces blanches, sidebar claire, bleu Sidian retenu.
+   * Alias accent / error pour tokens brief §11.
+   */
+  --accent: var(--sidian-blue);
+  --accent-hover: var(--sidian-blue-hover);
+  --error: var(--sidian-danger);
+  --shadow-md: var(--sidian-shadow-card);
+
+  --assistant-bg: var(--sidian-gris-50);
+  --assistant-surface: #ffffff;
+  --assistant-sidebar: #ffffff;
+  --assistant-sidebar-text: var(--sidian-nuit);
+  --assistant-sidebar-muted: var(--sidian-gris-500);
+  --assistant-sidebar-line: var(--sidian-gris-200);
+  --assistant-sidebar-hover: var(--sidian-gris-50);
+  --assistant-composer: #ffffff;
+  --assistant-panel: #ffffff;
+  --assistant-bubble: #eef0f4;
+  --assistant-bubble-user: #f0f3f8;
+  --assistant-text: var(--sidian-nuit);
+  --assistant-muted: var(--sidian-gris-500);
+  --assistant-line: rgba(13, 17, 23, 0.08);
+  --assistant-hover: rgba(13, 17, 23, 0.035);
+  --assistant-accent: var(--sidian-blue);
+  --assistant-composer-shadow: 0 1px 2px rgba(13, 17, 23, 0.04),
+    0 8px 24px rgba(13, 17, 23, 0.035);
+}
+
+/*
+ * ── Thème sombre ───────────────────────────────────────────────────────
+ *
+ * La majorité des tokens ci-dessus dérivent déjà de `--ds-color-*`, qui sont
+ * redéfinis par `[data-theme="dark"]` dans design-system/tokens.css.
+ * Ce bloc ne traite QUE les valeurs littérales de `:root` qui ne dérivent pas
+ * du design system et n'auraient donc pas basculé.
+ *
+ * Le bleu de marque (`--sidian-blue`) reste identique dans les deux thèmes :
+ * les actions principales conservent le couple bleu + texte blanc déjà
+ * validé en clair, donc aucun contraste nouveau n'est introduit. Seul
+ * `--ds-color-accent` s'éclaircit en sombre, pour les composants du design
+ * system qui l'associent à `--ds-color-text-inverse`.
+ */
+[data-theme="dark"] {
+  /* Neutre froid restant : sert à --text-tertiary / --text-disabled / scrollbar */
+  --sidian-gris-400: var(--ds-color-text-muted);
+  --sidian-ardoise: var(--ds-color-surface-raised);
+
+  /*
+   * Les statuts ne sont pas repris ici : ils sont désormais aliasés sur
+   * `--ds-color-*` dans le bloc clair, et ces primitives basculent déjà.
+   */
+
+  /* Élévation : en sombre la profondeur vient des surfaces, pas de l'ombre */
+  --sidian-shadow-sm: var(--ds-shadow-xs);
+  --sidian-shadow-card: var(--ds-shadow-sm);
+  --sidian-shadow-float: var(--ds-shadow-md);
+
+  /* Surfaces de l'espace conversationnel */
+  --assistant-surface: var(--ds-color-surface);
+  --assistant-sidebar: var(--ds-color-background);
+  --assistant-composer: var(--ds-color-surface-raised);
+  --assistant-panel: var(--ds-color-surface);
+  --assistant-bubble: var(--ds-color-surface-muted);
+  --assistant-bubble-user: var(--ds-color-accent-soft);
+  --assistant-line: rgba(244, 246, 250, 0.1);
+  --assistant-hover: rgba(244, 246, 250, 0.06);
+  --assistant-composer-shadow: var(--ds-shadow-sm);
 }
 
 @theme inline {
+  /* Surfaces */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-empty: var(--surface-empty);
+  --color-surface-loading: var(--surface-loading);
+
+  /* Brand */
   --color-nuit: var(--sidian-nuit);
+  --color-ardoise: var(--sidian-ardoise);
   --color-sidian-blue: var(--sidian-blue);
+  --color-sidian-blue-hover: var(--sidian-blue-hover);
+  --color-sidian-blue-active: var(--sidian-blue-active);
+  --color-ciel: var(--sidian-ciel);
+  --color-brume: var(--sidian-brume);
+
+  /* Grays */
   --color-gris-50: var(--sidian-gris-50);
   --color-gris-100: var(--sidian-gris-100);
   --color-gris-200: var(--sidian-gris-200);
+  --color-gris-300: var(--sidian-gris-300);
+  --color-gris-400: var(--sidian-gris-400);
   --color-gris-500: var(--sidian-gris-500);
+  --color-gris-600: var(--sidian-gris-600);
+
+  /* Semantic */
+  --color-success: var(--sidian-success);
+  --color-success-bg: var(--sidian-success-bg);
+  --color-success-border: var(--sidian-success-border);
+  --color-warning: var(--sidian-warning);
+  --color-warning-bg: var(--sidian-warning-bg);
+  --color-warning-border: var(--sidian-warning-border);
+  --color-danger: var(--sidian-danger);
+  --color-danger-bg: var(--sidian-danger-bg);
+  --color-danger-border: var(--sidian-danger-border);
+
+  /* Text roles */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-disabled: var(--text-disabled);
+  --color-text-link: var(--text-link);
+  /* Alias court pour les liens textuels : `text-lien` / `hover:text-lien`. */
+  --color-lien: var(--text-link);
+
+  /* Borders */
+  --color-border-default: var(--border-default);
+  --color-border-divider: var(--border-divider);
+  --color-border-strong: var(--border-strong);
+
+  /* State */
+  --color-state-hover: var(--state-hover-bg);
+  --color-state-active: var(--state-active-bg);
+  --color-state-disabled: var(--state-disabled-bg);
+
+  /* Assistant */
+  --color-assistant-bg: var(--assistant-bg);
+  --color-assistant-sidebar: var(--assistant-sidebar);
+  --color-assistant-sidebar-text: var(--assistant-sidebar-text);
+  --color-assistant-sidebar-muted: var(--assistant-sidebar-muted);
+  --color-assistant-composer: var(--assistant-composer);
+  --color-assistant-panel: var(--assistant-panel);
+  --color-assistant-bubble: var(--assistant-bubble);
+  --color-assistant-bubble-user: var(--assistant-bubble-user);
+  --color-assistant-text: var(--assistant-text);
+  --color-assistant-muted: var(--assistant-muted);
+
+  /* Font */
   --font-sans: var(--font-outfit), system-ui, sans-serif;
+
+  /* Radii → rounded-* */
+  --radius-sm: var(--sidian-radius-sm);
+  --radius-md: var(--sidian-radius-md);
+  --radius-lg: var(--sidian-radius-lg);
+  --radius-xl: var(--sidian-radius-xl);
+
+  /* Shadows → shadow-* */
+  --shadow-sm: var(--sidian-shadow-sm);
+  --shadow-md: var(--sidian-shadow-card);
+  --shadow-card: var(--sidian-shadow-card);
+  --shadow-float: var(--sidian-shadow-float);
+
+  /* Accent / error aliases (brief §11) */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-error: var(--error);
+  --color-text-muted: var(--text-tertiary);
+
+  /* Type scale → text-* */
+  --text-display: var(--text-display-size);
+  --text-display--line-height: var(--text-display-lh);
+  --text-display--letter-spacing: var(--text-display-tracking);
+  --text-kpi: var(--text-kpi-size);
+  --text-kpi--line-height: 1.2;
+  --text-section: var(--text-section-size);
+  --text-section--letter-spacing: var(--text-section-tracking);
+  --text-body: var(--text-body-size);
+  --text-body--line-height: var(--text-body-lh);
+  --text-body-sm: var(--text-body-sm-size);
+  --text-caption: var(--text-caption-size);
+  --text-eyebrow: var(--text-eyebrow-size);
+  --text-eyebrow--letter-spacing: var(--text-eyebrow-tracking);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-lh);
+}
+
+/* Focus ring tokens: --state-focus-ring / --border-focus
+ * Prefer focus-visible:outline-sidian-blue (or outline-color: var(--state-focus-ring))
+ * on interactive components — no global :focus-visible override. */
+
+/* ── Scrollbar utility (lists, drawers, panels) ───────────────── */
+.dashboard-card-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--sidian-radius-full);
+}
+
+.dashboard-card-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ── Lightweight state helpers (optional class hooks) ─────────── */
+.sidian-empty {
+  background: var(--surface-empty);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--sidian-radius-lg);
+}
+
+.sidian-loading-pulse {
+  background: var(--surface-loading);
+  border-radius: var(--sidian-radius-lg);
+  animation: sidian-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidian-loading-pulse {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * ── Région live montée en permanence ──────────────────────────
+ *
+ * Un `role="status"` ajouté au DOM en même temps que son message n'est pas
+ * annoncé : la région doit préexister à sa mutation. Tant qu'elle est vide,
+ * on la sort du flux — sinon elle occuperait une ligne de grille et
+ * consommerait le `gap` du formulaire, ajoutant un blanc permanent. Elle
+ * reste rendue (jamais `display: none`), donc toujours dans l'arbre
+ * d'accessibilité.
+ */
+.sidian-live-region:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Touch target floor (44px) for primary interactive controls */
+.sidian-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Safe-area helpers for notched devices */
+.sidian-safe-pb {
+  padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+}
+
+.sidian-safe-pt {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+@keyframes sidian-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes assistant-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes assistant-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes assistant-welcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes assistant-field-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes assistant-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes assistant-panel-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-welcome-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-field-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes assistant-message-in {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

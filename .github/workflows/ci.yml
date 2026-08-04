@@ -1,0 +1,160 @@
+# Intégration continue Sidian V2.
+#
+# PRINCIPE : aucun secret GitHub n'est requis. Les seules valeurs
+# d'environnement injectées ici sont soit des placeholders explicites, soit les
+# clés de démonstration publiques du CLI Supabase — celles-là mêmes qui sont
+# déjà versionnées dans scripts/lib/assert-local-supabase.mjs, et que les
+# harnais SQL refusent d'utiliser contre autre chose qu'une base loopback.
+# Si une étape venait à exiger un vrai secret, elle devrait être sautée avec un
+# message explicite, jamais silencieusement.
+#
+# SÉCURITÉ : aucune entrée contrôlée par un tiers (titre de PR, message de
+# commit, corps d'issue) n'est interpolée dans une commande `run`.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# Une nouvelle poussée annule le run précédent de la même référence : inutile
+# de payer deux fois la même vérification.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Le build lit ces variables via next.config.ts et src/config/env-public.ts.
+  # Valeurs de démonstration locales : elles permettent de compiler, elles ne
+  # donnent accès à rien.
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+  SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+  # Readiness Stripe explicite exigée par next.config.ts : false = module éteint,
+  # aucune clé Stripe n'est donc nécessaire.
+  NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: "false"
+  SIDIAN_ENVIRONMENT: local
+  # Placeholder de compilation (>= 32 caractères). Ne signe rien : aucun token
+  # produit en CI n'est vérifié ailleurs qu'en CI.
+  SIDIAN_PAYMENT_AUTHORIZATION_TOKEN_SECRET: ci_placeholder_seulement_32_caracteres_min
+
+jobs:
+  quality:
+    name: Types, lint, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # package.json ne déclare pas de champ "packageManager" ; la version
+          # majeure est donc épinglée ici (pnpm 10, celle du lockfile v9.0).
+          version: 10
+          run_install: false
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          # Source unique de vérité : .nvmrc (compatible engines.node >= 22.6).
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Vérifier les types
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Design system
+        run: pnpm design-system:check
+
+      - name: Tests unitaires et composants
+        run: pnpm exec vitest run
+
+      - name: Build de production
+        run: pnpm build
+
+      - name: Dérive des types générés
+        # Compare supabase/migrations/** à src/types/database.generated.ts.
+        # Ne nécessite aucune base : c'est une comparaison de fichiers.
+        run: pnpm types:check
+
+  sql:
+    name: Suites SQL sur Supabase local
+    runs-on: ubuntu-latest
+    # Docker est fourni par le runner ubuntu-latest ; démarrer la pile Supabase
+    # (Postgres + PostgREST + GoTrue + Storage) prend plusieurs minutes.
+    timeout-minutes: 45
+
+    env:
+      # Sans ces drapeaux, les suites G1-K / G1-L se sautent silencieusement
+      # lorsqu'aucune authentification n'est disponible. En CI on exige qu'elles
+      # s'exécutent réellement : un test qui se saute tout seul ne protège rien.
+      SIDIAN_G1K_REQUIRE_AUTH: "1"
+      SIDIAN_G1L_REQUIRE_AUTH: "1"
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Vérifier la présence de Docker
+        # Échec explicite plutôt qu'un « supabase start » qui part en timeout.
+        run: docker info > /dev/null
+
+      - name: Démarrer Supabase (CLI de devDependencies, pas d'action tierce)
+        # Les services exclus ne sont utilisés par aucune suite SQL : les
+        # démarrer allongerait le job sans rien couvrir de plus. postgrest,
+        # gotrue, kong et storage-api sont indispensables et restent démarrés.
+        # `supabase start` applique les migrations de supabase/migrations/**.
+        run: >-
+          node_modules/.bin/supabase start
+          -x studio,imgproxy,edge-runtime,vector,logflare,supavisor,realtime
+
+      - name: Vérifier que la cible est bien locale
+        # Garde-fou du dépôt : refuse toute cible non loopback avant d'écrire
+        # quoi que ce soit.
+        run: pnpm test:local-guard
+
+      - name: Suites SQL
+        run: pnpm test:sql
+
+      - name: Compteurs de budget LLM (SID-OPS-001)
+        # Non inclus dans `pnpm test:sql` : le script package.json n'a pas été
+        # modifié pour éviter un conflit d'édition concurrente. À fusionner
+        # dans test:sql dès que package.json est libre.
+        run: node scripts/test-llm-budget-counters.mjs
+
+      - name: État Supabase en cas d'échec
+        if: failure()
+        run: node_modules/.bin/supabase status || true
+
+      - name: Arrêter Supabase
+        if: always()
+        run: node_modules/.bin/supabase stop --no-backup || true

@@ -17,7 +17,14 @@ const lease = {
 
 function supabaseWith(rpcImpl: (name: string, args: unknown) => unknown) {
   const rpc = vi.fn(async (name: string, args: unknown) => rpcImpl(name, args));
-  return { supabase: { rpc } as never, rpc };
+  const from = vi.fn(() => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({ data: null, error: null }),
+      }),
+    }),
+  }));
+  return { supabase: { rpc, from } as never, rpc };
 }
 
 function event(type: string, object: unknown, account: string | undefined = "acct_x") {
@@ -179,7 +186,7 @@ describe("payment-effects mapping", () => {
       { supabase, lease },
     );
     expect(rpc).toHaveBeenCalledWith(
-      "record_charge_dispute_opened",
+      "apply_charge_dispute_created_effects",
       expect.objectContaining({
         p_dispute_id: "dp_1",
         p_payment_intent_id: "pi_1",

@@ -4,6 +4,7 @@ export {
   archiveCreance,
   createCreanceDraft,
   listActiveCreances,
+  listPaidAmountsByCreanceIds,
   updateCreanceDraft,
   type CreanceDraftInput,
   type CreanceSummary,

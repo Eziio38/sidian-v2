@@ -1,0 +1,67 @@
+.catalogue {
+  display: grid;
+  gap: var(--ds-space-12);
+  width: 100%;
+  max-width: var(--ds-layout-container-width);
+  margin-inline: auto;
+  padding: var(--ds-layout-gutter-desktop);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-background);
+}
+
+.header,
+.section {
+  display: grid;
+  gap: var(--ds-space-5);
+}
+
+.sectionHeader {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(min(100%, var(--ds-layout-panel-width)), 1fr)
+    );
+  gap: var(--ds-space-4);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(min(100%, var(--ds-layout-panel-width)), 1fr)
+    );
+  gap: var(--ds-space-5);
+  align-items: start;
+}
+
+.stack {
+  display: grid;
+  gap: var(--ds-space-4);
+}
+
+.typeSpecimen {
+  display: grid;
+  gap: var(--ds-space-3);
+  padding-block: var(--ds-space-4);
+  border-block: var(--ds-border-width) solid var(--ds-color-border);
+}
+
+@media (max-width: 48rem) {
+  .catalogue {
+    padding: var(--ds-layout-gutter-mobile);
+  }
+}

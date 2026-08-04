@@ -1,0 +1,1597 @@
+# Index d’exécution G1 — NON NORMATIF
+# Sources normatives: docs/agent/09_AGENT_EVALUATIONS.md, docs/agent/governance/REQUIREMENTS_MATRIX.md
+# Ce fichier ne crée aucune exigence ni évaluation.
+catalog_version: 1.0.0
+gate: G1
+lot: G1-A
+normative: false
+scope: Harness G1 + inventaire des preuves existantes (sans Workflow Engine ni Memory Core)
+g1_pillars:
+  - unit
+  - schemas
+  - permissions
+  - rls
+  - transitions
+  - idempotence
+  - audit
+spec_documents:
+  evaluations:
+    path: docs/agent/09_AGENT_EVALUATIONS.md
+  requirements_matrix:
+    path: docs/agent/governance/REQUIREMENTS_MATRIX.md
+strict_inventory:
+  id_prefixes:
+    - EVAL-TOOL-
+    - EVAL-SEC-
+    - EVAL-OBS-
+    - EVAL-PAY-
+entries:
+  - evaluation_id: EVAL-OBS-001
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-001
+      - REQ-OBS-003
+      - REQ-TOL-005
+      - REQ-WF-002
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F: corrélation / tenant / outil reliés dans AuditEvent construit + append-only agent_audit_events (sink injecté Router).
+        G1-I: ObservabilityEvent post-route (correlation_id/tenant/tool) via sink local injecté — pas de graphe multi-outils ni provider.
+        Absents pour exact : mission, conversation/trace provider, parcours de lecture bout-en-bout multi-outils, dashboard. Partial volontaire — pas d’exact.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-i
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-OBS-002
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-DEC-004
+      - REQ-DEC-007
+      - REQ-OBS-001
+      - REQ-OBS-004
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F+G1-G: composition AuditEvent + persistance append-only agent_audit_events via AuditSink (Router) ; hash de clé / fingerprint / execution_outcome si idempotency_key fournie.
+        G1-I: métriques dérivées locales (router_*/permission_*/approval_*/idempotency_*) + événement obs post-audit — pas de retrouvabilité produit ni export.
+        Absents : mission, API lecture, clé systématique auto-produite, dashboard. Pas d’exact.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-003-orphan-audit
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:prod-003
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-i
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-OBS-003
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-MEM-017
+      - REQ-OBS-005
+      - REQ-SEC-004
+      - REQ-SEC-014
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F: redaction de l’événement d’audit agent (schéma strict — secrets/token/PAN/stack/payload refusés ; hashes seulement) y compris dans event_payload persisté.
+        G1-I: schéma ObservabilityEvent strict (même interdictions) + tests refus secret/token/stack/args/output ; pas de redaction de tous les logs applicatifs / OTel / console.
+        Partial volontaire.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/audit/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/observability/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-e
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-i
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-OBS-004
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-002
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F: immutabilité agent_audit_events (triggers anti-UPDATE/DELETE + privileges) + audit_log historique.
+        G1-I: pas de détecteur « audit_tamper_attempt » ni alerte envoyée — candidats locaux hors scénario acteur E2E.
+        Pas de preuve exacte « acteur agent tente modifier trace critique » bout-en-bout produit. Partial volontaire — pas d’exact.
+    bindings:
+      - type: pnpm_script
+        command: test:schema
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-OBS-005
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-RES-003
+      - REQ-RES-007
+    coverage:
+      kind: none
+      rationale: |
+        G1-I livre des métriques Router locales (duration_ms, compteurs issues) mais pas les métriques LLM (tokens, coût, latence provider) exigées. Pas de dashboard. Aucune preuve exacte — reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-006
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-TOL-009
+      - REQ-TOL-017
+    coverage:
+      kind: none
+      rationale: |
+        G1-I: compteurs locaux executor_error / blocked / success dérivés d’événements — insuffisant vs agrégats retry/latence outils + alerte doc 08 §11.6. Pas d’envoi. Reste none (éviter surdéclaration).
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-007
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-001
+    coverage:
+      kind: none
+      rationale: |
+        Événement métier (ex. rappel suspendu) hors périmètre G1-I (events tool_router seulement). Pas de Workflow Engine. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-008
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-006
+    coverage:
+      kind: none
+      rationale: |
+        G1-I: détecteur cross_tenant_scope_mismatch + AlertCandidate local (pas d’envoi). SEC-003 partial (RLS) ≠ alerte immédiate §11.6. Pas de partial ici — reste none jusqu’à alerte réelle / runbook.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-009
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-006
+    coverage:
+      kind: none
+      rationale: |
+        Alerte doublon financier + incident hors G1-I (pas d’envoi, pas d’incident auto). Idempotence agent locale ≠ preuve OBS-009. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-010
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-006
+    coverage:
+      kind: none
+      rationale: |
+        Alerte queue + runbook hors scope G1-I (zéro réseau / cron / queue). Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-011
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-006
+      - REQ-RES-003
+      - REQ-RES-007
+    coverage:
+      kind: none
+      rationale: |
+        Alerte coût + limitation hors G1-I (pas de métriques coût LLM ni enforcement). Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-012
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-DEC-007
+      - REQ-PRM-009
+    coverage:
+      kind: none
+      rationale: |
+        Explication utilisateur sans CoT — hors G1-I (pas de couche explication / UI). Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-013
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-DEC-008
+      - REQ-OBS-007
+      - REQ-PRM-011
+    coverage:
+      kind: none
+      rationale: |
+        Preuve release (prompts/modèles/datasets) hors lot agent G1-I. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-014
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-RES-002
+    coverage:
+      kind: none
+      rationale: |
+        Incident régression constitutionnelle — process/CI, hors G1-I. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-015
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-RES-001
+    coverage:
+      kind: none
+      rationale: |
+        SLO + dashboard + rollback — dashboard explicitement hors G1-I. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-OBS-016
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-002
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F: append-only agent_audit_events (pas d’UPDATE/DELETE applicatif ; triggers SQL) + audit_log historique.
+        G1-I: pas de distinction event « preuve métier » ni historisation ancienne valeur. Preuve partielle vs scénario générique. Pas d’exact.
+    bindings:
+      - type: pnpm_script
+        command: test:schema
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-OBS-017
+    g1_pillars:
+      - audit
+    requirements:
+      - REQ-OBS-006
+    coverage:
+      kind: none
+      rationale: |
+        Dérive permission → alerte dédiée : G1-I a repeated_permission_denials + AlertCandidate local sans envoi. Norme §11.6 exige alerte opérationnelle — reste none (pas de surdéclaration partial).
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-001
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-ARC-002
+      - REQ-ARC-011
+      - REQ-MEM-020
+      - REQ-PAY-001
+    coverage:
+      kind: partial
+      rationale: |
+        Tentative vs succès Stripe déterministe; hors outil agent.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-002
+    g1_pillars:
+      - transitions
+    requirements:
+      - REQ-PAY-001
+    coverage:
+      kind: partial
+      rationale: |
+        États processing/affichage public; pas de message agent.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-c
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/stripe/checkout/resolve-checkout-status.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-003
+    g1_pillars:
+      - transitions
+    requirements:
+      - REQ-TOL-007
+    coverage:
+      kind: partial
+      rationale: |
+        Échec paiement Stripe distingué; hors agent.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-004
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-ARC-009
+      - REQ-PAY-004
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-005
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-ARC-009
+      - REQ-PAY-004
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-006
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-DEC-013
+      - REQ-PAY-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-007
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-MEM-006
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-008
+    g1_pillars:
+      - idempotence
+    requirements:
+      - REQ-ARC-005
+      - REQ-TOL-006
+    coverage:
+      kind: analog
+      rationale: |
+        Idempotence Stripe/création_key; pas de clé tool-call agent générique.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:prod-001
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-009
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-DEC-014
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-010
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-DEC-014
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-011
+    g1_pillars:
+      - idempotence
+      - transitions
+    requirements:
+      - REQ-ARC-006
+      - REQ-TOL-016
+      - REQ-WF-006
+      - REQ-WF-016
+    coverage:
+      kind: partial
+      rationale: |
+        Unknown/réconciliation SID-PROD-004; hors Tool Router.
+    bindings:
+      - type: pnpm_script
+        command: test:prod-004
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-012
+    g1_pillars:
+      - idempotence
+      - transitions
+    requirements:
+      - REQ-SEC-013
+    coverage:
+      kind: partial
+      rationale: |
+        Webhook doublé Stripe = un seul effet.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-013
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-SEC-013
+    coverage:
+      kind: partial
+      rationale: |
+        Webhook falsifié rejeté; hors agent.
+    bindings:
+      - type: vitest_file
+        path: src/app/api/stripe/webhook/route.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-PAY-014
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-PAY-003
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-015
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-WF-007
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-016
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-PAY-002
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-017
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-ARC-011
+      - REQ-PAY-001
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-018
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-PAY-001
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-019
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-PAY-004
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-PAY-020
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-COM-001
+      - REQ-COM-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-001
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PER-004
+      - REQ-SEC-008
+      - REQ-SEC-009
+      - REQ-WF-005
+    coverage:
+      kind: partial
+      rationale: |
+        G1-K: Request Gateway ancre identité via getUser()/JWT + membership prestataire 1:1 ;
+        TrustedExecutionContext propagé au Tool Router (plus d’identité déclarative body).
+        G1-L: point d’entrée HTTP POST /api/agent/tools — session headers/cookies → Gateway →
+        Router ; anti-contournement (server-only + test architectural) ; pas d’identité body.
+        Consolidation G1 finale : test:g1-k:auth (12) + test:g1-l:auth (11) PASS sur Supabase
+        local (JWT valide/invalide, membership, cross-tenant, fail-closed) — plus BLOCKED infra.
+        Reste partial : pas MFA/SSO/révocation instantanée/cycle de vie utilisateur/production.
+    bindings:
+      - type: pnpm_script
+        command: test:auth
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-k
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-k:auth
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l:auth
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-002
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PER-004
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-003
+    g1_pillars:
+      - rls
+    requirements:
+      - REQ-SEC-003
+      - REQ-SEC-010
+    coverage:
+      kind: partial
+      rationale: |
+        RLS lecture cross-tenant couverte par test-schema-rls; pas de chemin Tool Router agent.
+    bindings:
+      - type: pnpm_script
+        command: test:schema
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:security-trust-boundaries
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-004
+    g1_pillars:
+      - rls
+      - permissions
+    requirements:
+      - REQ-SEC-003
+      - REQ-SEC-010
+    coverage:
+      kind: partial
+      rationale: |
+        RLS/écriture cross-tenant et trust boundaries; pas d’écriture via agent.
+    bindings:
+      - type: pnpm_script
+        command: test:schema
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:security-trust-boundaries
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-005
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PER-004
+      - REQ-SEC-009
+      - REQ-SEC-011
+      - REQ-WF-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-006
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-SEC-012
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-007
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-SEC-010
+    coverage:
+      kind: partial
+      rationale: |
+        Contrôles SECURITY DEFINER/search_path présents dans suites SQL; pas de gate CI documentaire dédiée 09.
+    bindings:
+      - type: pnpm_script
+        command: test:security-trust-boundaries
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:stripe-001
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-008
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PER-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-009
+    g1_pillars:
+      - schemas
+      - idempotence
+    requirements:
+      - REQ-SEC-013
+      - REQ-WF-003
+    coverage:
+      kind: partial
+      rationale: |
+        Signature webhook Stripe testée; hors Tool Router agent.
+    bindings:
+      - type: vitest_file
+        path: src/app/api/stripe/webhook/route.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-010
+    g1_pillars:
+      - idempotence
+      - audit
+    requirements:
+      - REQ-SEC-013
+      - REQ-WF-003
+    coverage:
+      kind: partial
+      rationale: |
+        Replay/déduplication webhook Stripe prouvée; analogie partielle au scénario 09.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-011
+    g1_pillars:
+      - transitions
+      - idempotence
+    requirements:
+      - REQ-SEC-013
+      - REQ-WF-003
+    coverage:
+      kind: partial
+      rationale: |
+        Événements hors-ordre/anciens traités côté Stripe; pas de moteur workflow agent.
+    bindings:
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:stripe-003
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-012
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-ARC-008
+      - REQ-PRM-007
+      - REQ-PRM-016
+      - REQ-SEC-007
+    coverage:
+      kind: none
+      rationale: |
+        Hors périmètre Tool Router pur (JWT / RLS / runtime auth). G1-D n’introduit pas de preuve SEC exacte. Conservé none.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-013
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PRM-007
+      - REQ-PRM-016
+      - REQ-SEC-007
+    coverage:
+      kind: none
+      rationale: |
+        Hors périmètre Tool Router pur (JWT / RLS / runtime auth). G1-D n’introduit pas de preuve SEC exacte. Conservé none.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-014
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-SEC-004
+      - REQ-SEC-014
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-015
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-MEM-017
+      - REQ-SEC-004
+      - REQ-SEC-014
+    coverage:
+      kind: partial
+      rationale: |
+        G1-E/F: redaction de l’AuditEvent agent (pas de secrets/payload/stack) y compris dans la ligne persistée event_payload.
+        G1-I: schéma ObservabilityEvent strict + tests refus secret/token/stack ; Router best-effort n’expose jamais l’erreur obs brute.
+        G1-L: réponses HTTP sanitizées (pas JWT/cookie/SQL/stack/secret) via Server Route Adapter.
+        Consolidation G1 finale : test:g1-l (62) + auth E2E confirment absence de fuite sensible HTTP.
+        N’établit pas la redaction de tous les logs système / console / OTel. Partial volontaire — pas d’exact.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/audit/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/observability/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-e
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-i
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-016
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-SEC-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-017
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-CON-002
+      - REQ-PER-004
+      - REQ-PRM-003
+      - REQ-SEC-002
+      - REQ-WF-005
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-018
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-PER-004
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-019
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-MEM-008
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-020
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-ARC-010
+      - REQ-SEC-015
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-021
+    g1_pillars:
+      - schemas
+    requirements:
+      - REQ-ARC-010
+      - REQ-SEC-015
+    coverage:
+      kind: analog
+      rationale: |
+        Séparation d’environnement attestée; scénario clé staging≠prod analogique.
+    bindings:
+      - type: pnpm_script
+        command: test:security-environment
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-022
+    g1_pillars:
+      - permissions
+    requirements:
+      - REQ-PRM-018
+    coverage:
+      kind: analog
+      rationale: |
+        Rate limits persistants; Request Gateway agent absent.
+    bindings:
+      - type: pnpm_script
+        command: test:security-rate-limits
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-SEC-023
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-ARC-003
+      - REQ-TOL-011
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-024
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      []
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-025
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-MEM-025
+      - REQ-SEC-003
+      - REQ-SEC-005
+      - REQ-SEC-010
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-026
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-SEC-013
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-SEC-027
+    g1_pillars:
+      - permissions
+      - rls
+    requirements:
+      - REQ-ARC-001
+      - REQ-ARC-018
+      - REQ-SEC-001
+    coverage:
+      kind: none
+      rationale: |
+        Accès direct LLM → DB/secret/fournisseur hors périmètre Router unitaire (pas de runtime agent / gateway). G1-D n’introduit pas de preuve SEC exacte. Conservé none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-001
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-001
+    coverage:
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-001 reproduites — fiche regroupant lecture+paiement+email via effect_family hors allowlist refusée à la validation de définition (une seule effect_family autorisée). Preuve: definition-schema.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/definition-schema.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-002
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-SEC-003
+    coverage:
+      kind: partial
+      rationale: |
+        G1-K: isolation tool-call tenant via Gateway→TrustedExecutionContext→Router ;
+        body ne peut plus injecter tenant_id/grants (schéma strict + tests poison).
+        G1-L: chaîne HTTP réelle POST /api/agent/tools (Gateway obligatoire avant Router).
+        Consolidation G1 finale : test:g1-l:auth PASS — tenant A→B refusé ; body tenant_id/
+        actor_id sans effet ; RPC/audit/idempotency/approval sous tenant trusted ; RLS F/G/H verts.
+        G1-M: protection.draft.* — schémas refusent tenant_id/actor_id ; exécuteurs prennent
+        tenant/actor uniquement depuis TrustedExecutionContext ; brouillons + confirm
+        isolés cross-tenant (vitest + SQL).
+        G1-N: runtime LLM (provider stub) → schéma → domaine → protection.draft.* uniquement ;
+        converse refuse tenant/actor/extraction dans args ; traces sans PII ; fallback déterministe.
+        Reste partial (pas exact) : pas de parcours LLM provider réel E2E ni MFA.
+    bindings:
+      - type: pnpm_script
+        command: test:g1-k
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-m
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-m:sql
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-n
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-k:auth
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l:auth
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-003
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-SEC-003
+    coverage:
+      kind: partial
+      rationale: |
+        G1-K: Tool Router n’accepte plus tenant/actor/grants déclaratifs ; identité
+        ancrée TrustedExecutionContext (Gateway).
+        G1-L: entrée HTTP sanitizée + membership vérifiée serveur avant route outil.
+        Consolidation G1 finale : intégration auth locale PASS (JWT/membership/cross-tenant/
+        anti-service_role) ; anti-bypass architectural vert.
+        G1-M: outils protection.draft.* refusent tenant/actor dans args ; création métier
+        uniquement après confirm explicite sous tenant trusted.
+        G1-N: protection.draft.converse — runtime LLM stub + validations ; aucune écriture
+        métier sans confirm ; injection tenant/confirm ignorée / refusée.
+        Reste partial : scénario exact UI/provider LLM réel hors lot — pas d’exact.
+    bindings:
+      - type: pnpm_script
+        command: test:g1-k
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-m
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-n
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-k:auth
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-l:auth
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-004
+    g1_pillars:
+      - permissions
+    requirements:
+      - REQ-ARC-001
+      - REQ-PER-007
+      - REQ-PRM-003
+      - REQ-SEC-002
+      - REQ-TOL-002
+    coverage:
+      kind: exact
+      rationale: |
+        G1-D: préconditions EVAL-TOOL-004 reproduites — PermissionDecision deny via Tool Router → status blocked PERMISSION_DENIED (catégorie permission), exécuteur jamais appelé (aucun effet de bord). Préconditions : registre Production + args valides + fake Permission Service deny. Preuve: src/lib/agent/router/router.test.ts (tests 10, 24). G1-C conserve la preuve authorize() sans exécution d’outil.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-005
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-003
+      - REQ-TOL-014
+    coverage:
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-005 reproduites — appel payment.create_attempt sans amount_cents → validation Zod refuse (INVALID_ARGUMENT). Aucun effet de bord. Preuve: src/lib/agent/tools/validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-006
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-003
+      - REQ-TOL-014
+    coverage:
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-006 reproduites — amount_cents fourni comme string ambiguë → refus de schéma. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-007
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-014
+    coverage:
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-007 reproduites — currency absente, aucun default EUR/.default sensible dans le schéma → refus. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-008
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-DEC-005
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: Router/Permission présents ; scénario exact REQ-DEC-005 non reproduit comme preuve catalogue. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-009
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-007
+      - REQ-TOL-015
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: composants agent présents ; preuve exacte REQ-TOL-007/015 absente du catalogue. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-010
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-007
+      - REQ-TOL-012
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: composants agent présents ; scénario exact non câblé en binding. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-011
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-009
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: composants agent présents ; REQ-TOL-009 sans preuve exacte dédiée. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-012
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-ARC-006
+      - REQ-TOL-007
+      - REQ-TOL-008
+      - REQ-TOL-016
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: composants agent présents ; composition multi-REQ non prouvée exacte. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-013
+    g1_pillars:
+      - idempotence
+    requirements:
+      - REQ-ARC-005
+      - REQ-TOL-006
+      - REQ-TOL-009
+      - REQ-TOL-017
+    coverage:
+      kind: partial
+      rationale: |
+        G1-G: Idempotency Service + Router — même clé → claim/replay, exécuteur au plus une fois (effet) ; codes IDEMPOTENCY_* fail-closed. Absents pour exact : Stripe réel, backoff/jitter agent, unknown post-envoi, atomicité effet externe↔complete(). Analogies Stripe historiques conservées hors chemin agent. Partial volontaire — pas d’exact.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/idempotency/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-g
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:stripe-003
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-014
+    g1_pillars:
+      - idempotence
+    requirements:
+      - REQ-ARC-006
+      - REQ-TOL-016
+      - REQ-WF-016
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-015
+    g1_pillars:
+      - idempotence
+    requirements:
+      - REQ-ARC-005
+      - REQ-TOL-006
+    coverage:
+      kind: partial
+      rationale: |
+        G1-G: intention équivalente (même clé + fingerprint) → replay_success sans second exécuteur ; conflict si fingerprint différent. Absents pour exact : construction systématique de clé depuis fiche outil, exactly-once métier externe, Stripe. Preuves checkout/Stripe restent analogiques hors Router. Partial volontaire — pas d’exact.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/idempotency/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-g
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:prod-001
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:stripe-002-b
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-016
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-012
+      - REQ-TOL-020
+    coverage:
+      kind: none
+      rationale: |
+        Post-G1-D: composants agent présents ; REQ-TOL-012/020 sans preuve exacte catalogue. Reste none.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-017
+    g1_pillars:
+      - permissions
+    requirements:
+      - REQ-DEC-014
+      - REQ-PER-002
+      - REQ-PER-006
+    coverage:
+      kind: exact
+      rationale: |
+        Exact G1-C only: préconditions EVAL-TOOL-017 reproduites — validation humaine status=expired ou expires_at<=now injecté → deny VALIDATION_EXPIRED (distinct de PERMISSION_DENIED) ; hash paramètres modifié → VALIDATION_EXPIRED. Preuve: src/lib/agent/permissions/service.test.ts. G1-H (consume Router) n’élargit pas cette exactitude ; MODE-011 reste partial (hors inventaire catalogue) — pas d’UI/auth/workflow. TOOL-013/015 hors G1-H.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-018
+    g1_pillars:
+      - permissions
+    requirements:
+      - REQ-PER-007
+    coverage:
+      kind: exact
+      rationale: |
+        G1-C: préconditions EVAL-TOOL-018 reproduites — grants vides ou permission absente → deny PERMISSION_MISSING avec error_code PERMISSION_DENIED, distinct de VALIDATION_EXPIRED ; aucun appel d’outil. Preuve: src/lib/agent/permissions/service.test.ts
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/permissions/service.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-019
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-ARC-001
+    coverage:
+      kind: exact
+      rationale: |
+        G1-B+G1-D: préconditions EVAL-TOOL-019 reproduites — Registry resolve d’un tool_id absent → TOOL_UNKNOWN ; Router.route outil/version inconnu → TOOL_UNKNOWN, Permission Service et exécuteur jamais appelés. Preuves: src/lib/agent/tools/registry.test.ts ; src/lib/agent/router/router.test.ts (test 3).
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/registry.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-020
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-019
+    coverage:
+      kind: exact
+      rationale: |
+        G1-B+G1-D: préconditions EVAL-TOOL-020 reproduites — Registry assertCallable Deprecated → TOOL_DEPRECATED / Disabled → TOOL_DISABLED ; Router.route status≠Production (Deprecated payment.create_attempt@0.9.0, Approved fixture) → TOOL_NOT_CALLABLE avant Permission et exécuteur. Preuves: src/lib/agent/tools/registry.test.ts ; src/lib/agent/router/router.test.ts (tests 4–5).
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/registry.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-021
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-ARC-004
+      - REQ-TOL-004
+      - REQ-TOL-007
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-022
+    g1_pillars:
+      - audit
+      - permissions
+    requirements:
+      - REQ-PER-001
+      - REQ-TOL-005
+      - REQ-TOL-020
+    coverage:
+      kind: partial
+      rationale: |
+        G1-F+G1-G: Audit Service buildEvent + Router append ; champs sanitizés idempotency_key_hash / idempotency_status / replayed / request_fingerprint / execution_outcome lorsque clé fournie. Absents pour exact : mission_id, clé systématique produite par le Router, atomicité externe effet↔persist. Partial volontaire — pas d’exact.
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/audit/service.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/audit/persistence/repository.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-e
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-f
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-d
+        asserts:
+          - exit_code_0
+      - type: pnpm_script
+        command: test:g1-g
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-023
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-PER-005
+      - REQ-TOL-010
+    coverage:
+      kind: exact
+      rationale: "G1-B: préconditions EVAL-TOOL-023 reproduites — notification.generate_draft avec ledger_entries/full_accounting → PAYLOAD_NOT_MINIMAL / contrat refusé. Preuve: validate-arguments.test.ts"
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-024
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-012
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-025
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-012
+    coverage:
+      kind: none
+      rationale: |
+        Composant agent déterministe requis absent en G1-A (Tool Registry / Permission Service / Tool Router / Output Validator / Audit Service agent). Les parcours humains Domain Services ne constituent pas une preuve exacte.
+    bindings:
+      []
+  - evaluation_id: EVAL-TOOL-026
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-PER-003
+    coverage:
+      kind: exact
+      rationale: |
+        G1-D: préconditions EVAL-TOOL-026 reproduites — taxonomie runtime via Tool Router : EXECUTOR_TECHNICAL_ERROR (technical), EXECUTOR_BUSINESS_ERROR (business), PERMISSION_DENIED (permission) distincts ; aucun refus de permission présenté comme panne technique ; exception non typée → ROUTER_INTERNAL_ERROR fail-closed sans stack. G1-G: codes IDEMPOTENCY_KEY_CONFLICT / IDEMPOTENCY_UNAVAILABLE (technical) et IDEMPOTENCY_REPLAY_FAILURE (business) distincts, exécuteur non appelé. Preuve: src/lib/agent/router/router.test.ts (tests 10, 18–20, G1-G taxonomie).
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/router/router.test.ts
+        asserts:
+          - exit_code_0
+      - type: vitest_file
+        path: src/lib/agent/tools/validate-arguments.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-TOOL-027
+    g1_pillars:
+      - schemas
+      - permissions
+    requirements:
+      - REQ-TOL-001
+    coverage:
+      kind: exact
+      rationale: |
+        G1-B: préconditions EVAL-TOOL-027 reproduites — familles decide/approve/arbitrate/grant_refund rejetées structurellement (allowlist effect_family), pas un simple booléen déclaratif. Couverture limitée à la fiche/statique ; le Router G1-D n’étend pas la preuve au scénario d’appel métier complet 09. Preuve: src/lib/agent/tools/definition-schema.test.ts
+    bindings:
+      - type: vitest_file
+        path: src/lib/agent/tools/definition-schema.test.ts
+        asserts:
+          - exit_code_0
+  - evaluation_id: EVAL-DOC-007
+    g1_pillars:
+      - transitions
+      - unit
+    requirements:
+      - REQ-PAY-001
+      - REQ-TOL-015
+    coverage:
+      kind: analog
+      rationale: |
+        Matrice transitions dossier_suivi testée; mapping Tools↔Architecture workflow agent non formalisé en code.
+    bindings:
+      - type: vitest_file
+        path: src/lib/workflows/transitions.test.ts
+        asserts:
+          - exit_code_0

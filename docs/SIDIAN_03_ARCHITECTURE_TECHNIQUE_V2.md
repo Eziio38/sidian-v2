@@ -156,11 +156,23 @@ Trigger de scope : `creance_id` / `client_payeur_id` doivent appartenir au même
 Le jeton public doit être opaque, non prédictible, révocable, et stocké sous forme d'empreinte. Il ne doit jamais exposer `creance_id` en clair dans une adresse email publique (cf. PRD §4.5).
 
 #### `message` (migrations actives)
-`id`, `conversation_id` (FK), `emetteur` (`agent` / `prestataire` / `client`), `contenu`, `canal` (`email` / `interface`), `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), `created_at`.
+`id`, `conversation_id` (FK), `emetteur` (`agent` / `prestataire` / `client`), `contenu`, `canal` (`email` / `interface` / `whatsapp`), `actor_type` (`human` / `sidian_agent` / `system` / `external_integration`), `created_at`.
 
 **Append-only pour les rôles applicatifs ordinaires** (triggers empêchent UPDATE/DELETE sur `message`). Compatible avec une **procédure privilégiée** de rétention, purge ou anonymisation auditée (service_role / opération contrôlée) — pas avec un DELETE navigateur.
 
 **SID-SEC-004 (cible) :** la provenance (`emetteur`, `actor_type`, et futurs `actor_provider` / `actor_model`) est imposée côté serveur — le navigateur ne choisit pas librement qu'un message « vient de l'agent ».
+
+### `communication_channel` — canal de communication abstrait **[NOUVEAU — 26 juillet 2026]**
+
+`id`, `prestataire_id` (FK), `provider_kind` (`whatsapp_sidian` / `whatsapp_business_personal`), `status` (`inactive` / `active` / `degraded` / `revoked`), `display_name`, `provider_ref` (opaque — **jamais un E.164**), `is_default`, `public_metadata` (jsonb non secret), `activated_at`, `revoked_at`, `created_at`, `updated_at`.
+
+**Invariant non négociable :** les services métier (agent, relances, « prêt à communiquer », journal `message`) sélectionnent un canal via `id` / `provider_kind` / défaut prestataire. **Ils ne dépendent jamais d'un numéro WhatsApp.** Le numéro d'expédition WhatsApp Sidian (et futurs secrets WABA) restent dans la config d'adaptateur / secrets (`SIDIAN_WHATSAPP_SIDIAN_SENDER_E164`, etc.), hors tables métier.
+
+**Provider implémenté aujourd'hui :** `whatsapp_sidian` (plateforme). **Préparé, non branché :** `whatsapp_business_personal` — même interface d'envoi, autre adaptateur.
+
+Provisioning serveur : `ensure_whatsapp_sidian_channel(prestataire_id)` (service_role) crée le canal défaut opaque `provider_ref = sidian_platform` s'il n'existe pas.
+
+Code : `src/lib/communication-channels/` (`resolveCommunicationChannel`, `createCommunicationOutboundService`, adaptateur `whatsapp_sidian`).
 
 ### `dossier_suivi`
 `id`, `creance_id` (FK, **unique**), `etat` (cf. §2.4), `last_client_activity_at`, `last_agent_action_at`, `next_action_at`, `escalation_reason`, `created_at`, `updated_at`, `clos_at` (nullable). Une créance possède au plus un dossier principal au MVP.
@@ -447,6 +459,42 @@ Toute opération Stripe vérifie la concordance entre :
 ### 5.4 Outil de facturation tiers
 Hors MVP. Lecture seule future pour `reference_externe` — jamais d'écriture dans l'outil tiers.
 
+### 5.5 Canaux de communication client (WhatsApp) **[NOUVEAU — 26 juillet 2026]**
+
+**[DÉCISION]** L'envoi client sortant est routé par `communication_channel`, pas par un numéro en dur.
+
+| Provider | Statut | Rôle |
+|---|---|---|
+| `whatsapp_sidian` | Implémenté (adaptateur + transport G1-P) | Numéro / compte WhatsApp plateforme Sidian |
+| `whatsapp_business_personal` | Réservé | WABA du prestataire — même contrat d'interface, autre adaptateur |
+
+**G1-P — transport :**
+```
+OutboundMessageService.queue*  → communication_messages (queued)
+Processor                      → WhatsAppTransport (stub|live)
+Webhook /api/whatsapp/webhook  → signature → dedupe → status update
+```
+
+Tables : `communication_messages`, `communication_webhook_events`.  
+Idempotence : `UNIQUE (tenant_id, idempotency_key)`.  
+Modes : `disabled` | `stub` | `live`.  
+Endpoint : `GET|POST /api/whatsapp/webhook`.  
+Cas d'usage livré : template interne `guide_payment_confirmation` (destinataire = Guide, pas le client final).
+
+**G1-Q — inbound actions :**
+```
+Webhook messages → parseWhatsAppInboundMessages
+  → InboundCommunicationService (corrélation outbound)
+  → ConfirmPayment* / partial session / verification
+  → ack via OutboundMessageRepository (G1-P)
+```
+
+Tables : `communication_inbound_messages`, `communication_interaction_sessions`, `guide_payment_confirmation_state`.  
+État Guide distinct de `paiement_source` — **pas** de `detecte_hors_sidian`.  
+Live : webhook events persistés (mémoire interdite).  
+
+Flux métier : résoudre canal → queue message → process transport → webhook statut. L'adaptateur seul lit secrets / `phone_number_id`. Aucun outil agent / workflow ne doit accepter `phoneNumber` / `e164` / `waId` en entrée métier.
+
 ---
 
 ## 6. Sécurité
@@ -528,6 +576,8 @@ Email / IA : files d'attente visibles ; workers déterministes indépendants de 
 ## 7. Workers et tâches planifiées (cron)
 
 **Clarification verrouillée :** les workers déclenchent l'**envoi actif** ou la préparation d'intentions — jamais la création automatique d'une session Stripe payable sur une créance dont le compte n'est pas payable. Un client ne peut payer tôt que si un lien **partageable** lui a été exposé (compte payable).
+
+**Implémentation P0 (2026-07-26) :** politique unique `src/lib/runtime/workflow-policy.ts` ; scanners → `runtime_job` / outbox ; drains + payment executor via **Vercel Cron** sécurisé (`Authorization: Bearer CRON_SECRET`) sur `/api/cron/scanners` et `/api/cron/drains`. Détail : `docs/implementation/SID_GATE_P0_RUNTIME_AUTOMATION.md`. Les offsets legacy d’enrôlement J+5…J+17 **ne sont pas** actifs.
 
 - **Scanner de prévention** (quotidien) : créances ouvertes / partiellement réglées dans la fenêtre J-5 → `dossier_suivi` `PRÉVENTION` → notice si non déjà envoyée.
 - **Scanner d'échéance** (quotidien) : échéance atteinte → `ÉCHÉANCE` → envoi actif du lien **uniquement si partageable** (payable) et règles OK — ne change pas `creance.etat`.

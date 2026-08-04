@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 
 import {
@@ -101,16 +100,6 @@ export function SignUpForm() {
       <AuthSubmitButton pendingLabel="Création du compte…">
         Créer mon compte
       </AuthSubmitButton>
-
-      <p className="text-center text-sm text-gris-500">
-        Déjà inscrit ?{" "}
-        <Link
-          href="/connexion"
-          className="font-medium text-sidian-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
-        >
-          Se connecter
-        </Link>
-      </p>
     </form>
   );
 }

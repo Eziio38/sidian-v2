@@ -3,6 +3,8 @@ export const AUTH_MESSAGES = {
     "Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.",
   genericAuthError:
     "La connexion n'a pas abouti. Réessayez ou contactez le support si le problème persiste.",
+  genericRateLimitError:
+    "Trop de tentatives. Patientez quelques minutes avant de réessayer.",
   genericPasswordResetSent:
     "Si un compte existe avec cette adresse, vous recevrez un email pour réinitialiser votre mot de passe.",
   signUpSuccess:

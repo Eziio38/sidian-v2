@@ -9,7 +9,12 @@ import { metadata } from "./layout";
 
 describe("sécurité des pages publiques /p/*", () => {
   it("désactive indexation et suivi au niveau du segment applicatif", () => {
-    expect(metadata.robots).toMatchObject({ index: false, follow: false });
+    expect(metadata.robots).toMatchObject({
+      index: false,
+      follow: false,
+      nocache: true,
+    });
+    expect(metadata.referrer).toBe("no-referrer");
   });
 
   it("impose no-store, no-referrer et X-Robots-Tag sur les réponses", () => {

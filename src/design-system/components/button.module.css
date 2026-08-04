@@ -1,0 +1,183 @@
+.base {
+  position: relative;
+  display: inline-flex;
+  min-height: var(--ds-control-height-md);
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding-inline: var(--ds-control-inline-padding);
+  font-family: var(--ds-font-family-sans);
+  font-size: var(--ds-type-body-size);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-type-body-line);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--ds-duration-fast) var(--ds-ease-standard),
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    transform var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.base:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.base:active:not(:disabled, [aria-disabled="true"]) {
+  transform: translateY(var(--ds-pressed-offset));
+}
+
+.base:disabled,
+.base[aria-disabled="true"] {
+  color: var(--ds-color-disabled-text);
+  background: var(--ds-color-disabled-surface);
+  border-color: transparent;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.primary {
+  color: var(--ds-color-text-inverse);
+  background: var(--ds-color-accent);
+}
+
+.primary:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ds-color-accent-hover);
+}
+
+.primary:active:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ds-color-accent-pressed);
+}
+
+.secondary {
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-surface);
+  border-color: var(--ds-color-border);
+}
+
+.secondary:hover:not(:disabled, [aria-disabled="true"]),
+.ghost:hover:not(:disabled, [aria-disabled="true"]),
+.icon:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ds-color-hover);
+}
+
+.secondary:active:not(:disabled, [aria-disabled="true"]),
+.ghost:active:not(:disabled, [aria-disabled="true"]),
+.icon:active:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ds-color-pressed);
+}
+
+.ghost,
+.link {
+  color: var(--ds-color-text-secondary);
+  background: transparent;
+}
+
+.ghost:hover:not(:disabled, [aria-disabled="true"]),
+.link:hover:not(:disabled, [aria-disabled="true"]) {
+  color: var(--ds-color-text-primary);
+}
+
+.destructive {
+  color: var(--ds-color-text-inverse);
+  background: var(--ds-color-danger);
+}
+
+.destructive:hover:not(:disabled, [aria-disabled="true"]) {
+  filter: brightness(var(--ds-hover-brightness));
+}
+
+.link {
+  min-height: auto;
+  padding-inline: 0;
+  color: var(--ds-color-accent);
+  border-radius: var(--ds-radius-sm);
+}
+
+.link:hover:not(:disabled, [aria-disabled="true"]) {
+  color: var(--ds-color-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-1);
+}
+
+.sm {
+  min-height: var(--ds-control-height-sm);
+  padding-inline: var(--ds-space-3);
+  font-size: var(--ds-type-body-small-size);
+}
+
+.lg {
+  min-height: var(--ds-control-height-lg);
+  padding-inline: var(--ds-space-5);
+}
+
+.icon {
+  width: var(--ds-control-height-md);
+  padding-inline: 0;
+}
+
+.iconSm {
+  width: var(--ds-control-height-sm);
+  min-height: var(--ds-control-height-sm);
+}
+
+.iconLg {
+  width: var(--ds-control-height-lg);
+  min-height: var(--ds-control-height-lg);
+}
+
+.floating {
+  color: var(--ds-color-text-inverse);
+  background: var(--ds-color-accent);
+  border-color: transparent;
+  border-radius: var(--ds-radius-pill);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.floating:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ds-color-accent-hover);
+}
+
+.loading {
+  pointer-events: none;
+}
+
+.loadingLabel {
+  opacity: var(--ds-loading-label-opacity);
+}
+
+/*
+ * Région live du bouton : hors flux (sinon elle compterait comme item flex et
+ * ajouterait un `gap` parasite quand elle est vide) et invisible, le libellé
+ * de chargement restant rendu par le span visible.
+ */
+.status {
+  position: absolute;
+  width: var(--ds-border-width);
+  height: var(--ds-border-width);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.icon .loadingLabel {
+  position: absolute;
+  width: var(--ds-border-width);
+  height: var(--ds-border-width);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .base {
+    transition: none;
+  }
+
+  .base:active:not(:disabled, [aria-disabled="true"]) {
+    transform: none;
+  }
+}

@@ -406,14 +406,32 @@ describe("webhook process / dispatch", () => {
     ).rejects.toMatchObject({ code: "webhook_lease_lost" });
   });
 
-  it("diffère un événement du chemin autorisation future (lot ultérieur)", async () => {
+  it("traite mandate.updated dans le lot autorisation fencé", async () => {
+    const rpc = vi.fn(async () => ({ data: { applied: true }, error: null }));
     const result = await dispatchStripeWebhookEvent({
       event: {
         id: "evt_2",
         type: "mandate.updated",
-        data: { object: {} },
+        account: "acct_auth",
+        data: {
+          object: {
+            id: "mandate_1",
+            object: "mandate",
+            status: "inactive",
+            payment_method: "pm_1",
+          },
+        },
       } as Stripe.Event,
-      supabaseAdmin: {} as never,
+      supabaseAdmin: { rpc } as never,
+      stripe: {
+        paymentMethods: {
+          retrieve: vi.fn(async () => ({
+            id: "pm_1",
+            type: "sepa_debit",
+            customer: "cus_1",
+          })),
+        },
+      } as unknown as Stripe,
       sidianEnvironment: "local",
       lease: {
         eventId: "evt_2",
@@ -422,10 +440,17 @@ describe("webhook process / dispatch", () => {
       },
       renewLease: vi.fn(async () => undefined),
     });
-    expect(result).toEqual({
-      outcome: "ignored",
-      reason: "deferred_to_authorization_lot",
-    });
+    expect(result).toEqual({ outcome: "processed", detail: "mandate_updated" });
+    expect(rpc).toHaveBeenCalledWith(
+      "apply_mandate_updated_authorization",
+      expect.objectContaining({
+        p_connected_account_id: "acct_auth",
+        p_mandate_id: "mandate_1",
+        p_mandate_status: "inactive",
+        p_payment_method_id: "pm_1",
+        p_customer_id: "cus_1",
+      }),
+    );
   });
 
   it("account.updated applique le dernier état live et renouvelle le lease", async () => {

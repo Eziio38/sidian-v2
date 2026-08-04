@@ -94,7 +94,7 @@ export async function signUpAction(
   const supabase = await createClient();
   const emailRedirectTo = buildAuthCallbackUrl();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -112,6 +112,14 @@ export async function signUpAction(
       redirectPath: new URL(emailRedirectTo).pathname,
     });
     return failure(undefined, AUTH_MESSAGES.genericAuthError);
+  }
+
+  // Supabase masque les comptes déjà confirmés : il répond en succès avec un
+  // utilisateur factice, sans identité et sans rôle, et n'envoie aucun email.
+  // Un invité légitime a lui aussi `identities: []`, mais conserve son rôle —
+  // d'où la double condition.
+  if (data.user && data.user.identities?.length === 0 && data.user.role === "") {
+    return failure(undefined, AUTH_MESSAGES.accountAlreadyExists);
   }
 
   redirect("/inscription/verifier-email");

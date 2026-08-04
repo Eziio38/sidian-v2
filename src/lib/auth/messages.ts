@@ -7,6 +7,8 @@ export const AUTH_MESSAGES = {
     "Trop de tentatives. Patientez quelques minutes avant de réessayer.",
   genericPasswordResetSent:
     "Si un compte existe avec cette adresse, vous recevrez un email pour réinitialiser votre mot de passe.",
+  accountAlreadyExists:
+    "Un compte avec cette adresse email existe déjà. Connectez-vous ou réinitialisez votre mot de passe.",
   signUpSuccess:
     "Consultez votre boîte mail pour confirmer votre adresse avant de vous connecter.",
   passwordUpdated:

@@ -139,3 +139,74 @@ describe("rate limiting des actions Auth", () => {
     expect(mocks.updateUser).not.toHaveBeenCalled();
   });
 });
+
+describe("inscription sur une adresse déjà enregistrée", () => {
+  const signUp = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.evaluateAuthRateLimit.mockResolvedValue({ status: "allowed" });
+    mocks.createClient.mockResolvedValue({ auth: { signUp } });
+  });
+
+  it("signale le compte existant au lieu de promettre un email", async () => {
+    // Réponse masquée de Supabase : succès, utilisateur factice, aucun envoi.
+    signUp.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: "22222222-2222-4222-8222-222222222222",
+          identities: [],
+          role: "",
+        },
+        session: null,
+      },
+      error: null,
+    });
+
+    const result = await signUpAction({ ok: false }, signUpForm());
+
+    expect(result).toEqual({
+      ok: false,
+      fieldErrors: undefined,
+      message: AUTH_MESSAGES.accountAlreadyExists,
+    });
+  });
+
+  it("redirige vers la confirmation pour une inscription réelle", async () => {
+    signUp.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: "33333333-3333-4333-8333-333333333333",
+          identities: [{ id: "44444444-4444-4444-8444-444444444444" }],
+          role: "authenticated",
+        },
+        session: null,
+      },
+      error: null,
+    });
+
+    await expect(signUpAction({ ok: false }, signUpForm())).rejects.toThrow(
+      "redirect:/inscription/verifier-email",
+    );
+  });
+
+  it("laisse passer un invité légitime dont le rôle est conservé", async () => {
+    // Un utilisateur invité n'a pas encore d'identité, mais garde son rôle :
+    // le confondre avec la réponse masquée le bloquerait à l'inscription.
+    signUp.mockResolvedValueOnce({
+      data: {
+        user: {
+          id: "55555555-5555-4555-8555-555555555555",
+          identities: [],
+          role: "authenticated",
+        },
+        session: null,
+      },
+      error: null,
+    });
+
+    await expect(signUpAction({ ok: false }, signUpForm())).rejects.toThrow(
+      "redirect:/inscription/verifier-email",
+    );
+  });
+});

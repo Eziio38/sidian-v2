@@ -4,10 +4,6 @@
     {
       "path": "/api/cron/scanners",
       "schedule": "20 5 * * *"
-    },
-    {
-      "path": "/api/cron/drains",
-      "schedule": "*/5 * * * *"
     }
   ]
 }

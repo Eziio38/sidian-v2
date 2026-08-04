@@ -432,3 +432,41 @@ requis), les suites SQL : `pnpm test:schema`, `pnpm test:auth`,
 Enfin, **le test qui compte le plus** : créer **deux comptes réels distincts**,
 et vérifier depuis chacun qu'aucune donnée de l'autre n'est visible — dossiers,
 clients, paiements, conversations, activité.
+
+---
+
+## 2 bis. Cron externe pour le drain (décision MVP : Hobby gratuit)
+
+**Contexte :** le plan Vercel Hobby limite les tâches planifiées natives à une
+fois par jour. Le drain (`/api/cron/drains`) avait besoin de tourner toutes
+les 5 minutes. Décision retenue pour le MVP : rester en Hobby et déclencher ce
+drain via un service de cron externe **gratuit**, plutôt que de payer le plan
+Pro. Le scanner quotidien (`/api/cron/scanners`, 5h20) reste nativement sur
+Vercel — il tient dans la limite Hobby telle quelle.
+
+La route `/api/cron/drains` ne fait aucune distinction entre Vercel et un
+appelant externe : elle vérifie uniquement l'en-tête
+`Authorization: Bearer <CRON_SECRET>` (jamais en query string). N'importe quel
+service capable d'envoyer cet en-tête peut la déclencher.
+
+### 🟠 Configurer cron-job.org (ou équivalent)
+
+1. Crée un compte gratuit sur **cron-job.org**.
+2. **Create cronjob** :
+   - **URL :** `https://app.sidian.so/api/cron/drains`
+   - **Méthode :** `GET`
+   - **Cadence :** toutes les 5 minutes (`*/5 * * * *`)
+   - **En-têtes personnalisés (Advanced → Headers) :**
+     `Authorization: Bearer <la valeur de CRON_SECRET>`
+3. Active le job.
+
+**Validation :** dans l'historique d'exécution de cron-job.org, les appels
+doivent renvoyer **200**. Un **401** signifie un jeton incorrect ; un **503**
+signifie que `CRON_SECRET` n'est pas configuré côté Vercel.
+
+**Compromis assumé :** la réactivité des relances, de la réconciliation des
+paiements et des envois WhatsApp/email dépend désormais de la disponibilité
+de ce service tiers gratuit, et non plus uniquement de Vercel. Si le service
+tombe, le drain s'arrête jusqu'à ce qu'il reparte. Acceptable pour un MVP ;
+à réévaluer si le volume augmente — passer au plan Pro à ce moment-là ne
+demande qu'un revert de ce choix (`vercel.json` + suppression du cron externe).

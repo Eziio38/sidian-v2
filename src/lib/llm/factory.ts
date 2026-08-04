@@ -5,12 +5,17 @@
 import "server-only";
 
 import { createLlmBudgetTracker } from "./budget";
-import { loadLlmEnv, type LlmEnv } from "./env";
+import { loadLlmEnv, type LlmEnv, type LlmProviderConfig } from "./env";
 import { LlmError } from "./errors";
 import {
   InMemoryLlmObservabilitySink,
   NullLlmObservabilitySink,
 } from "./observability";
+import { createAnthropicMessagesTransport } from "./providers/anthropic-messages";
+import {
+  createFailoverLlmTransport,
+  type LlmFailoverEvent,
+} from "./providers/failover";
 import { createOpenAiCompatibleTransport } from "./providers/openai-compatible";
 import { createStubLlmTransport } from "./providers/stub";
 import { createLlmRuntime } from "./runtime";
@@ -24,7 +29,40 @@ export type CreateLlmRuntimeFromEnvOptions = {
   transport?: LlmTransport;
   /** fetch injectable pour le transport live. */
   fetchImpl?: typeof fetch;
+  /** Trace du provider ayant servi la requête — injectable pour tests. */
+  onProviderServed?: (event: LlmFailoverEvent) => void;
 };
+
+/**
+ * Construit le transport live d'un provider donné.
+ * Toute clé absente est refusée ici : jamais d'appel réseau sans credential.
+ */
+function createLiveTransport(
+  config: LlmProviderConfig,
+  options: { streaming: boolean; fetchImpl?: typeof fetch },
+): LlmTransport {
+  if (!config.apiKey) {
+    throw new LlmError("LLM_LIVE_MISCONFIGURED", {
+      message: `llm_live_api_key_missing:${config.provider}`,
+    });
+  }
+  if (config.provider === "anthropic") {
+    return createAnthropicMessagesTransport({
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl,
+      model: config.model,
+      anthropicVersion: config.anthropicVersion,
+      stream: options.streaming,
+      fetchImpl: options.fetchImpl,
+    });
+  }
+  return createOpenAiCompatibleTransport({
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+    model: config.model,
+    fetchImpl: options.fetchImpl,
+  });
+}
 
 /**
  * Construit le runtime selon SIDIAN_LLM_*.
@@ -90,12 +128,20 @@ export function createLlmRuntimeFromEnv(
     });
   }
 
+  const liveOptions = {
+    streaming: env.streaming,
+    fetchImpl: options.fetchImpl,
+  };
+  const primary = createLiveTransport(env.providers[env.provider], liveOptions);
+  const fallback = env.fallbackProvider
+    ? createLiveTransport(env.providers[env.fallbackProvider], liveOptions)
+    : undefined;
+
   return createLlmRuntime({
-    transport: createOpenAiCompatibleTransport({
-      apiKey: env.apiKey,
-      baseUrl: env.baseUrl,
-      model: env.model,
-      fetchImpl: options.fetchImpl,
+    transport: createFailoverLlmTransport({
+      primary,
+      fallback,
+      onProviderServed: options.onProviderServed,
     }),
     mode: "live",
     maxRetries: env.maxRetries,

@@ -6,6 +6,7 @@ import type { ProfileActionResult } from "@/app/actions/profile";
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 
+import styles from "./form-layout.module.css";
 type ProfileFormProps = {
   action: (
     previous: ProfileActionResult | undefined,
@@ -44,7 +45,7 @@ export function ProfileForm({
     state?.ok === false ? state.fieldErrors?.profilAgent?.[0] : undefined;
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} className={`${styles.form} ${styles.formSpacious}`}>
       <AuthField
         id={`${id}-nom`}
         name="nom"
@@ -57,31 +58,42 @@ export function ProfileForm({
         required
       />
 
+      {/*
+        `aria-invalid` n'est pas supporté par le rôle `radio` (ARIA 1.2) : il se
+        porte sur le groupe. `role="radiogroup"` est explicite car un
+        `fieldset` seul est exposé en `group`, qui lui non plus n'accepte pas
+        `aria-invalid`.
+      */}
       <fieldset
-        className="space-y-3"
+        className={styles.fieldset}
+        role="radiogroup"
+        aria-invalid={agentError ? true : undefined}
         aria-describedby={agentError ? `${id}-profil-error` : undefined}
       >
-        <legend className="text-sm font-medium text-nuit">
+        <legend className={styles.legend}>
           Niveau d’accompagnement de l’agent
         </legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={styles.optionGrid}>
           {AGENT_PROFILES.map((profile) => (
             <label
               key={profile.value}
-              className="flex cursor-pointer gap-3 rounded-xl border border-gris-200 bg-white p-4 transition-colors hover:border-sidian-blue has-[:checked]:border-sidian-blue has-[:checked]:bg-brume"
+              className={styles.option}
             >
               <input
                 type="radio"
                 name="profilAgent"
                 value={profile.value}
                 defaultChecked={initial.profilAgent === profile.value}
-                className="mt-1 h-4 w-4 shrink-0 accent-sidian-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+                // Le message reste rattaché à chaque option : à la tabulation,
+                // le lecteur d'écran ne réannonce pas le groupe.
+                aria-describedby={agentError ? `${id}-profil-error` : undefined}
+                className={styles.radio}
               />
               <span>
-                <span className="block text-sm font-semibold text-nuit">
+                <span className={styles.optionTitle}>
                   {profile.title}
                 </span>
-                <span className="mt-1 block text-sm leading-relaxed text-gris-500">
+                <span className={styles.optionDescription}>
                   {profile.description}
                 </span>
               </span>
@@ -89,24 +101,31 @@ export function ProfileForm({
           ))}
         </div>
         {agentError ? (
-          <p id={`${id}-profil-error`} role="alert" className="text-sm text-red-600">
+          <p
+            id={`${id}-profil-error`}
+            role="alert"
+            className={`${styles.formStatus} ${styles.formError}`}
+          >
             {agentError}
           </p>
         ) : null}
       </fieldset>
 
       {state?.ok === false ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className={`${styles.formStatus} ${styles.formError}`}>
           {state.message}
         </p>
       ) : null}
       {state?.ok === true ? (
-        <p role="status" className="text-sm text-emerald-700">
+        <p
+          role="status"
+          className={`${styles.formStatus} ${styles.formSuccess}`}
+        >
           Profil enregistré.
         </p>
       ) : null}
 
-      <div className="max-w-xs">
+      <div className={styles.submit}>
         <AuthSubmitButton pendingLabel="Enregistrement…">
           {submitLabel}
         </AuthSubmitButton>

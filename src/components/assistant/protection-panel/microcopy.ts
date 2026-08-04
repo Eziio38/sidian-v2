@@ -1,5 +1,5 @@
 /**
- * Microcopy panneau Protection — tutoiement, calme, sans jargon juridique.
+ * Microcopy panneau Protection — tutoiement, calme, sans jargon admin.
  */
 
 import type { ProtectionPanelStatus } from "./types";
@@ -14,18 +14,19 @@ export const FIELD_LABELS = {
   authorization: "Autorisation",
   auto_debit: "Prélèvement auto",
   status: "Statut",
-  next_step: "Prochaine étape",
-  consequences: "Ce que ça change",
+  next_step: "Élément manquant",
+  consequences: "Réassurance",
 } as const;
 
 export const PLACEHOLDERS = {
   client: "À préciser",
   amount: "À préciser",
   due_date: "À préciser",
-  payment_method: "Le client choisira au moment du paiement",
-  authorization: "Pas encore proposée",
-  auto_debit: "Pas encore activé",
-  next_step: "Compléter les infos manquantes",
+  /** Réservés : ne plus afficher en anticipation sur la fiche. */
+  payment_method: "",
+  authorization: "",
+  auto_debit: "",
+  next_step: "Il me manque encore quelques informations.",
 } as const;
 
 export const STATUS_LABELS: Record<ProtectionPanelStatus, string> = {
@@ -36,21 +37,20 @@ export const STATUS_LABELS: Record<ProtectionPanelStatus, string> = {
   analyzing: "En cours…",
 };
 
-/** Conséquences selon l’état — rassurant, factuel. */
+/** Réassurance selon l’état — rassurant, factuel. */
 export const CONSEQUENCE_COPY: Record<ProtectionPanelStatus, string> = {
-  draft:
-    "Rien n’est créé tant que tu n’as pas confirmé. Tu peux fermer ce panneau : ton brouillon reste disponible.",
+  draft: "Rien ne sera envoyé avant ta confirmation.",
   active:
     "À l’échéance, Sidian vérifiera le paiement et te préviendra si une action est utile.",
   blocked:
     "Les relances et prélèvements automatiques sont en pause pour cette protection.",
   error:
     "Une info manque ou pose problème. Corrige-la pour reprendre le suivi.",
-  analyzing: "Sidian prépare le brouillon — aucune action n’est encore engagée.",
+  analyzing: "Je prépare ta protection. Aucune action n’est encore engagée.",
 };
 
 export const ACTION_LABELS = {
-  create: "Créer la protection",
+  create: "Continuer la protection",
   confirm: "Confirmer et créer",
   view: "Voir le détail",
   reopen: "Rouvrir le panneau",

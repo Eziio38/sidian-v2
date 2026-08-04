@@ -8,6 +8,7 @@ import { createLlmBudgetTracker } from "./budget";
 import { loadLlmEnv } from "./env";
 import { LlmError } from "./errors";
 import { createLlmRuntimeFromEnv } from "./factory";
+import { describeLlmHealth } from "./health";
 import {
   InMemoryLlmObservabilitySink,
 } from "./observability";
@@ -45,6 +46,21 @@ describe("LLM env", () => {
     ).toThrow(/live incomplète|API_KEY/i);
   });
 
+  it("variables optionnelles vides traitées comme absentes", () => {
+    // `.env.example` déclare `VAR=` : la chaîne vide ne doit pas invalider
+    // toute la configuration quand le runtime est désactivé.
+    const env = loadLlmEnv({
+      SIDIAN_LLM_PROVIDER_ENABLED: "false",
+      SIDIAN_LLM_API_KEY: "",
+      SIDIAN_LLM_FALLBACK_PROVIDER: "",
+      SIDIAN_LLM_OPENAI_API_KEY: "",
+      SIDIAN_LLM_ANTHROPIC_API_KEY: "",
+    });
+    expect(env.mode).toBe("disabled");
+    expect(env.fallbackProvider).toBeUndefined();
+    expect(env.apiKey).toBeUndefined();
+  });
+
   it("mode explicite requis si enabled", () => {
     expect(() =>
       loadLlmEnv({
@@ -62,6 +78,194 @@ describe("LLM env", () => {
     });
     expect(env.mode).toBe("live");
     expect(env.apiKey).toBe("sk-test-key");
+    // Compatibilité ascendante : sans SIDIAN_LLM_PROVIDER, on reste OpenAI
+    // et les variables génériques alimentent ce provider.
+    expect(env.provider).toBe("openai");
+    expect(env.fallbackProvider).toBeUndefined();
+    expect(env.baseUrl).toBe("https://api.openai.com/v1");
+    expect(env.providers.openai.apiKey).toBe("sk-test-key");
+    // La clé générique ne fuit jamais vers l'autre provider.
+    expect(env.providers.anthropic.apiKey).toBeUndefined();
+  });
+
+  it("stub autorisé en local uniquement", () => {
+    // Le stub répond de façon déterministe sans jamais appeler de modèle :
+    // hors local, ce serait présenter une capacité indisponible comme active.
+    const local = loadLlmEnv({
+      SIDIAN_LLM_PROVIDER_ENABLED: "true",
+      SIDIAN_LLM_TRANSPORT_MODE: "stub",
+      SIDIAN_ENVIRONMENT: "local",
+    });
+    expect(local.mode).toBe("stub");
+
+    for (const environment of ["staging", "production"]) {
+      expect(() =>
+        loadLlmEnv({
+          SIDIAN_LLM_PROVIDER_ENABLED: "true",
+          SIDIAN_LLM_TRANSPORT_MODE: "stub",
+          SIDIAN_ENVIRONMENT: environment,
+        }),
+      ).toThrow(/stub interdit/i);
+    }
+
+    // Repli sur VERCEL_ENV quand SIDIAN_ENVIRONMENT est absent.
+    expect(() =>
+      loadLlmEnv({
+        SIDIAN_LLM_PROVIDER_ENABLED: "true",
+        SIDIAN_LLM_TRANSPORT_MODE: "stub",
+        VERCEL_ENV: "preview",
+      }),
+    ).toThrow(/stub interdit/i);
+  });
+
+  it("production : provider activé exige le mode live", () => {
+    expect(() =>
+      loadLlmEnv({
+        SIDIAN_LLM_PROVIDER_ENABLED: "true",
+        SIDIAN_LLM_TRANSPORT_MODE: "disabled",
+        SIDIAN_ENVIRONMENT: "production",
+      }),
+    ).toThrow(/mode live requis en production/i);
+
+    // Désactiver franchement le provider reste permis en production.
+    const off = loadLlmEnv({
+      SIDIAN_LLM_PROVIDER_ENABLED: "false",
+      SIDIAN_ENVIRONMENT: "production",
+    });
+    expect(off.mode).toBe("disabled");
+  });
+});
+
+describe("LLM env — sélection de provider", () => {
+  const LIVE = {
+    SIDIAN_LLM_PROVIDER_ENABLED: "true",
+    SIDIAN_LLM_TRANSPORT_MODE: "live",
+  } as const;
+
+  it("anthropic primaire : clé et modèle dédiés", () => {
+    const env = loadLlmEnv({
+      ...LIVE,
+      SIDIAN_LLM_PROVIDER: "anthropic",
+      SIDIAN_LLM_ANTHROPIC_API_KEY: "sk-ant-test",
+      SIDIAN_LLM_ANTHROPIC_MODEL: "claude-haiku-4-5",
+    });
+    expect(env.provider).toBe("anthropic");
+    expect(env.model).toBe("claude-haiku-4-5");
+    expect(env.baseUrl).toBe("https://api.anthropic.com/v1");
+    expect(env.providers.anthropic.anthropicVersion).toBe("2023-06-01");
+  });
+
+  it("ANTHROPIC_API_KEY accepté en repli, derrière la variable SIDIAN_LLM_*", () => {
+    const alias = loadLlmEnv({
+      ...LIVE,
+      SIDIAN_LLM_PROVIDER: "anthropic",
+      ANTHROPIC_API_KEY: "sk-ant-alias",
+    });
+    expect(alias.apiKey).toBe("sk-ant-alias");
+
+    const precedence = loadLlmEnv({
+      ...LIVE,
+      SIDIAN_LLM_PROVIDER: "anthropic",
+      SIDIAN_LLM_ANTHROPIC_API_KEY: "sk-ant-canonique",
+      ANTHROPIC_API_KEY: "sk-ant-alias",
+    });
+    expect(precedence.apiKey).toBe("sk-ant-canonique");
+  });
+
+  it("fail-closed : provider primaire sans clé", () => {
+    expect(() =>
+      loadLlmEnv({
+        ...LIVE,
+        SIDIAN_LLM_PROVIDER: "anthropic",
+        // Une clé OpenAI ne rend jamais Anthropic opérationnel.
+        SIDIAN_LLM_OPENAI_API_KEY: "sk-openai",
+      }),
+    ).toThrow(/live incomplète|API_KEY/i);
+  });
+
+  it("fail-closed : provider de secours sans clé", () => {
+    expect(() =>
+      loadLlmEnv({
+        ...LIVE,
+        SIDIAN_LLM_PROVIDER: "openai",
+        SIDIAN_LLM_API_KEY: "sk-openai",
+        SIDIAN_LLM_FALLBACK_PROVIDER: "anthropic",
+      }),
+    ).toThrow(/secours/i);
+  });
+
+  it("refuse un secours identique au primaire", () => {
+    expect(() =>
+      loadLlmEnv({
+        ...LIVE,
+        SIDIAN_LLM_PROVIDER: "openai",
+        SIDIAN_LLM_API_KEY: "sk-openai",
+        SIDIAN_LLM_FALLBACK_PROVIDER: "openai",
+      }),
+    ).toThrow(/doit différer/i);
+  });
+
+  it("secours complet accepté", () => {
+    const env = loadLlmEnv({
+      ...LIVE,
+      SIDIAN_LLM_PROVIDER: "anthropic",
+      SIDIAN_LLM_ANTHROPIC_API_KEY: "sk-ant",
+      SIDIAN_LLM_FALLBACK_PROVIDER: "openai",
+      SIDIAN_LLM_OPENAI_API_KEY: "sk-openai",
+      SIDIAN_LLM_OPENAI_MODEL: "gpt-4o-mini",
+    });
+    expect(env.fallbackProvider).toBe("openai");
+    expect(env.providers.openai.model).toBe("gpt-4o-mini");
+    expect(env.streaming).toBe(false);
+  });
+
+  it("aucune clé n'apparaît dans les messages d'erreur de config", () => {
+    let message = "";
+    try {
+      loadLlmEnv({
+        ...LIVE,
+        SIDIAN_LLM_PROVIDER: "anthropic",
+        SIDIAN_LLM_OPENAI_API_KEY: "sk-openai-tres-secret",
+      });
+    } catch (err) {
+      message = String(err);
+    }
+    expect(message.length).toBeGreaterThan(0);
+    expect(message).not.toContain("sk-openai-tres-secret");
+  });
+});
+
+describe("LLM health report", () => {
+  it("expose la présence de clé, jamais sa valeur", () => {
+    const report = describeLlmHealth(
+      loadLlmEnv({
+        SIDIAN_LLM_PROVIDER_ENABLED: "true",
+        SIDIAN_LLM_TRANSPORT_MODE: "live",
+        SIDIAN_LLM_PROVIDER: "anthropic",
+        SIDIAN_LLM_ANTHROPIC_API_KEY: "sk-ant-secret",
+        SIDIAN_LLM_FALLBACK_PROVIDER: "openai",
+        SIDIAN_LLM_OPENAI_API_KEY: "sk-openai-secret",
+      }),
+    );
+    expect(report).toMatchObject({
+      enabled: true,
+      mode: "live",
+      provider: "anthropic",
+      api_key_present: true,
+      fallback_provider: "openai",
+      fallback_api_key_present: true,
+      streaming: false,
+    });
+    expect(JSON.stringify(report)).not.toContain("sk-ant-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-openai-secret");
+  });
+
+  it("config invalide → misconfigured plutôt qu'un throw", () => {
+    const report = describeLlmHealth(undefined);
+    // process.env de test ne configure pas le LLM : mode disabled attendu,
+    // et jamais d'exception propagée à la sonde.
+    expect(["disabled", "misconfigured"]).toContain(report.mode);
+    expect(report.api_key_present).toBe(false);
   });
 });
 

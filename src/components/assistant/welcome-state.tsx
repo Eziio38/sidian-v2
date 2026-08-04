@@ -1,65 +1,98 @@
 "use client";
 
-import { SuggestionIcon } from "./suggestion-icons";
+import { cx } from "@/design-system/utils";
+
+import { formatGreeting } from "./greeting";
+import {
+  buildWelcomeSituationCopy,
+  type WelcomeDataState,
+} from "./welcome-summary";
+import styles from "./welcome-state.module.css";
+
+export type WelcomeBriefCard = {
+  id: string;
+  label: string;
+  value: string;
+  hint?: string;
+};
 
 type WelcomeStateProps = {
-  userFirstName: string;
+  userFirstName: string | null;
   summaryLines: string[];
-  suggestions: Array<{ id: string; label: string; action: string }>;
-  onSuggestion: (action: string) => void;
   visible: boolean;
+  dataState?: WelcomeDataState;
+  briefCards?: WelcomeBriefCard[];
+  compact?: boolean;
 };
 
 export function WelcomeState({
   userFirstName,
   summaryLines,
-  suggestions,
-  onSuggestion,
   visible,
+  dataState = "none_due",
+  briefCards,
+  compact = false,
 }: WelcomeStateProps) {
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
-  const [headline, ...rest] = summaryLines;
+  const greeting = formatGreeting(userFirstName);
+  const situation = buildWelcomeSituationCopy({
+    dataState,
+    summaryLines,
+    briefCards,
+  });
+
+  if (compact) {
+    return (
+      <div
+        data-testid="welcome-state"
+        data-welcome-state={dataState}
+        data-compact="true"
+        className={cx(styles.welcome, styles.compact)}
+      >
+        <p className={styles.compactCopy}>
+          {greeting}. {situation.headline}
+          {situation.detail ? ` ${situation.detail}` : ""}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
       data-testid="welcome-state"
-      className="mx-auto mb-4 mt-16 flex w-full max-w-[32rem] flex-col items-center px-4 text-center motion-safe:animate-[assistant-welcome-in_180ms_ease-out] motion-reduce:animate-none max-md:mt-12"
+      data-welcome-state={dataState}
+      className={styles.welcome}
     >
-      <h1 className="text-balance text-[28px] font-semibold tracking-[-0.03em] text-assistant-text max-md:text-[24px]">
-        Bonjour {userFirstName}
+      <p className={styles.eyebrow} data-testid="welcome-eyebrow">
+        Votre agent IA
+      </p>
+
+      <h1 data-testid="welcome-greeting" className={styles.greeting}>
+        {greeting}
+        <span aria-hidden>,</span>
       </h1>
-      <div className="mt-4 max-w-[28rem] text-pretty">
-        {headline ? (
-          <p className="text-[14px] leading-6 text-assistant-text/80">
-            {headline}
+
+      <section
+        data-testid="welcome-sidian-message"
+        className={styles.situation}
+        aria-label="Situation du jour"
+      >
+        <p
+          data-testid="welcome-attention-line"
+          className={styles.situationHeadline}
+        >
+          {situation.headline}
+        </p>
+        {situation.detail ? (
+          <p
+            data-testid="welcome-situation-detail"
+            className={styles.situationDetail}
+          >
+            {situation.detail}
           </p>
         ) : null}
-        {rest.map((line) => (
-          <p
-            key={line}
-            className="mt-1 text-[13px] leading-5 text-assistant-muted/70"
-          >
-            {line}
-          </p>
-        ))}
-      </div>
-      <div className="mt-8 flex max-w-full flex-wrap items-center justify-center gap-2">
-        {suggestions.slice(0, 3).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            data-testid={`welcome-suggestion-${item.id}`}
-            onClick={() => onSuggestion(item.action)}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-white/[0.04] px-4 py-2 text-[12px] text-assistant-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.07] hover:text-assistant-text motion-safe:hover:-translate-y-px motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
-          >
-            <SuggestionIcon action={item.action} label={item.label} />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      </section>
     </div>
   );
 }

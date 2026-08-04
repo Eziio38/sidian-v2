@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type BillingReadiness =
+  | { enabled: false; reason: string }
+  | { enabled: true; [key: string]: unknown };
+
 const mocks = vi.hoisted(() => ({
   isStripePaymentsEnabled: vi.fn(() => true),
   createAdminClient: vi.fn(() => ({ kind: "admin" })),
@@ -14,6 +18,12 @@ const mocks = vi.hoisted(() => ({
       | { status: "unavailable" },
   ),
   logServerEvent: vi.fn(),
+  getSidianBillingReadiness: vi.fn(
+    () => ({ enabled: false, reason: "not_configured" }) as BillingReadiness,
+  ),
+  tryProcessSidianBillingWebhookRequest: vi.fn(async () => null as
+    | { httpStatus: number; body: Record<string, unknown> }
+    | null),
 }));
 
 vi.mock("@/config/env-server", () => ({
@@ -31,6 +41,13 @@ vi.mock("@/lib/stripe/webhooks/rate-limit", () => ({
 vi.mock("@/lib/observability/server-logger", () => ({
   logServerEvent: mocks.logServerEvent,
 }));
+vi.mock("@/lib/stripe/billing/env", () => ({
+  getSidianBillingReadiness: mocks.getSidianBillingReadiness,
+}));
+vi.mock("@/lib/stripe/billing/process", () => ({
+  tryProcessSidianBillingWebhookRequest:
+    mocks.tryProcessSidianBillingWebhookRequest,
+}));
 
 import {
   MAX_STRIPE_WEBHOOK_BODY_BYTES,
@@ -41,6 +58,11 @@ describe("route webhook Stripe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isStripePaymentsEnabled.mockReturnValue(true);
+    mocks.getSidianBillingReadiness.mockReturnValue({
+      enabled: false,
+      reason: "not_configured",
+    });
+    mocks.tryProcessSidianBillingWebhookRequest.mockResolvedValue(null);
   });
 
   it("retourne 404 immédiatement lorsque Stripe est désactivé", async () => {
@@ -183,5 +205,103 @@ describe("route webhook Stripe", () => {
       signatureHeader: "sig_test",
       supabaseAdmin: { kind: "admin" },
     });
+  });
+
+  it("sert la route quand seule la facturation est configurée", async () => {
+    mocks.isStripePaymentsEnabled.mockReturnValue(false);
+    mocks.getSidianBillingReadiness.mockReturnValue({ enabled: true });
+    mocks.tryProcessSidianBillingWebhookRequest.mockResolvedValue({
+      httpStatus: 200,
+      body: { received: true },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_billing" },
+        body: '{"id":"evt_billing"}',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.tryProcessSidianBillingWebhookRequest).toHaveBeenCalledWith({
+      rawBody: Buffer.from('{"id":"evt_billing"}'),
+      signatureHeader: "sig_billing",
+      supabaseAdmin: { kind: "admin" },
+    });
+    // Connect désactivé : le chemin Connect ne doit jamais être sollicité.
+    expect(mocks.processStripeWebhookRequest).not.toHaveBeenCalled();
+  });
+
+  it("refuse en 400 une signature inconnue quand seule la facturation est configurée", async () => {
+    mocks.isStripePaymentsEnabled.mockReturnValue(false);
+    mocks.getSidianBillingReadiness.mockReturnValue({ enabled: true });
+    mocks.tryProcessSidianBillingWebhookRequest.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_inconnue" },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_signature",
+    });
+    expect(mocks.processStripeWebhookRequest).not.toHaveBeenCalled();
+  });
+
+  it("bascule vers Connect quand la signature n'est pas celle de la facturation", async () => {
+    mocks.getSidianBillingReadiness.mockReturnValue({ enabled: true });
+    mocks.tryProcessSidianBillingWebhookRequest.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_connect" },
+        body: '{"id":"evt_connect"}',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.tryProcessSidianBillingWebhookRequest).toHaveBeenCalledOnce();
+    expect(mocks.processStripeWebhookRequest).toHaveBeenCalledWith({
+      rawBody: Buffer.from('{"id":"evt_connect"}'),
+      signatureHeader: "sig_connect",
+      supabaseAdmin: { kind: "admin" },
+    });
+  });
+
+  it("n'expose jamais le chemin Connect à un événement signé facturation", async () => {
+    mocks.getSidianBillingReadiness.mockReturnValue({ enabled: true });
+    mocks.tryProcessSidianBillingWebhookRequest.mockResolvedValue({
+      httpStatus: 200,
+      body: { received: true },
+    });
+
+    await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_billing" },
+        body: '{"id":"evt_billing"}',
+      }),
+    );
+
+    expect(mocks.processStripeWebhookRequest).not.toHaveBeenCalled();
+  });
+
+  it("ne consulte pas la facturation lorsqu'elle n'est pas configurée", async () => {
+    await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        method: "POST",
+        headers: { "stripe-signature": "sig_test" },
+        body: "{}",
+      }),
+    );
+
+    expect(mocks.tryProcessSidianBillingWebhookRequest).not.toHaveBeenCalled();
+    expect(mocks.processStripeWebhookRequest).toHaveBeenCalledOnce();
   });
 });

@@ -2,19 +2,29 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AppShell } from "@/components/app/app-shell";
+
 import type { AgentToolResult, AgentTransport } from "./agent-client";
-import { AssistantShell } from "./assistant-shell";
 import { ConversationalWorkspace } from "./conversational-workspace";
 
 const push = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/assistant",
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({
     push,
     replace: vi.fn(),
     prefetch: vi.fn(),
   }),
+}));
+
+vi.mock("@/app/actions/auth", () => ({
+  signOutAction: vi.fn(),
+}));
+
+vi.mock("@/app/actions/clients-creances", () => ({
+  createClientPayeurAction: vi.fn(async () => ({ ok: true })),
 }));
 
 function asTransport(
@@ -149,7 +159,7 @@ describe("Assistant flows (component e2e)", () => {
       expect(screen.getByTestId("welcome-state")).toBeVisible();
       expect(screen.getByTestId("composer")).toBeVisible();
       expect(screen.getByTestId("composer-input")).toHaveAccessibleName(
-        "Message à Sidian",
+        "Instruction pour Sidian",
       );
     },
     15_000,
@@ -197,7 +207,7 @@ describe("Assistant flows (component e2e)", () => {
   );
 
   it(
-    "crée une protection (raccourci + panneau)",
+    "crée une protection (raccourci → conversation + carte, panneau fermé)",
     async () => {
       const user = userEvent.setup();
       const onShortcutAction = vi.fn();
@@ -217,11 +227,201 @@ describe("Assistant flows (component e2e)", () => {
       );
 
       expect(onShortcutAction).toHaveBeenCalledWith("create_protection");
-      expect(screen.getByTestId("context-panel")).toBeVisible();
+      expect(screen.queryByTestId("context-panel")).not.toBeInTheDocument();
       expect(screen.getByTestId("conversational-workspace")).toHaveAttribute(
         "data-panel-open",
-        "true",
+        "false",
       );
+      expect(screen.queryByTestId("message-card")).not.toBeInTheDocument();
+      expect(screen.queryByText(/La protection n’est pas encore complète/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/Créons cette protection ensemble/i)).toBeVisible();
+      expect(screen.getByText(/Qui doit te payer/i)).toBeVisible();
+      expect(screen.getByTestId("message-suggestions")).toBeVisible();
+      expect(screen.getByRole("button", { name: "Dupont Conseil" })).toBeVisible();
+
+      await user.click(screen.getByRole("button", { name: "Dupont Conseil" }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Créer l’espace « Dupont Conseil »/i),
+        ).toBeVisible();
+      });
+      await user.click(screen.getByRole("button", { name: "Rester dans Général" }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Quel montant veux-tu sécuriser/i)).toBeVisible();
+      });
+      expect(screen.queryByTestId("message-card")).not.toBeInTheDocument();
+      expect(screen.getByTestId("message-suggestions")).toBeVisible();
+      expect(screen.getByRole("button", { name: "1 000 €" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "2 500 €" })).toBeVisible();
+    },
+    15_000,
+  );
+
+  it(
+    "ouvre le sélecteur de fichiers via le trombone",
+    async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          demoState="A"
+          viewport="desktop"
+        />,
+      );
+
+      const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click");
+
+      await user.click(
+        screen.getByRole("button", { name: "Ajouter des fichiers" }),
+      );
+
+      await waitFor(() => {
+        expect(clickSpy).toHaveBeenCalled();
+      });
+
+      clickSpy.mockRestore();
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    },
+    10_000,
+  );
+
+  it(
+    "refuse une capture d’écran comme facture",
+    async () => {
+      const user = userEvent.setup();
+      const screenshot = new File(["pixels"], "Capture d’écran 2026-07-27.png", {
+        type: "image/png",
+        lastModified: 1,
+      });
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          demoState="A"
+          viewport="desktop"
+        />,
+      );
+
+      await user.type(
+        screen.getByTestId("composer-input"),
+        "Importer un document",
+      );
+      await user.click(screen.getByTestId("composer-send"));
+      expect(
+        screen.getByText(/Importe ta facture avec le sélecteur de fichiers/i),
+      ).toBeVisible();
+
+      await user.upload(screen.getByLabelText("Choisir des fichiers"), screenshot);
+      await user.click(screen.getByTestId("composer-send"));
+
+      expect(
+        await screen.findByText(/L’analyse visuelle sera bientôt disponible/i),
+      ).toBeVisible();
+      expect(
+        screen.queryByText(/Quel est le nom du client/i),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("message-suggestion-Importer une facture"),
+      ).not.toBeInTheDocument();
+    },
+    10_000,
+  );
+
+  it(
+    "demande une confirmation et reste honnête dans l’aperçu local",
+    async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          demoState="A"
+          viewport="desktop"
+        />,
+      );
+
+      await user.click(screen.getByTestId("composer-shortcut-create-client"));
+      expect(screen.getByText(/Quel est le nom du nouveau client/i)).toBeVisible();
+
+      await user.click(
+        screen.getByRole("button", { name: "Saisir le nom du client" }),
+      );
+      await user.type(screen.getByTestId("suggestion-client-name-input"), "test");
+      await user.click(screen.getByTestId("suggestion-client-name-submit"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Quel est l’email de test/i)).toBeVisible();
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("suggestion-email-input")).toBeVisible();
+      });
+      await user.type(screen.getByTestId("suggestion-email-input"), "test@test.test");
+      await user.click(screen.getByTestId("suggestion-email-submit"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/récapitulatif avant création/i)).toBeVisible();
+      });
+      await user.click(
+        screen.getByTestId(
+          "message-suggestion-Confirmer la création du client",
+        ),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/n’est pas disponible dans cet aperçu/i),
+        ).toBeVisible();
+      });
+      expect(screen.queryByText(/Client prêt : test/i)).not.toBeInTheDocument();
+    },
+    25_000,
+  );
+
+  it(
+    "propose aussi le client issu d’un message libre (ex. client X)",
+    async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ConversationalWorkspace
+          userFirstName="Lucie"
+          userDisplayName="Lucie Martin"
+          demoState="A"
+          viewport="desktop"
+        />,
+      );
+
+      const input = screen.getByTestId("composer-input");
+      await user.type(
+        input,
+        "Nouveau client X, facture de 350 le 31 juillet",
+      );
+      await user.click(screen.getByTestId("composer-send"));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/J’ai créé le client X et préparé la protection/i),
+        ).toBeVisible();
+      });
+
+      await user.click(
+        screen.getByTestId("sidebar-new-conversation"),
+      );
+      await user.click(screen.getByTestId("composer-shortcut-create-protection"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Qui doit te payer/i)).toBeVisible();
+        expect(screen.getByTestId("message-suggestion-X")).toBeVisible();
+      });
+      expect(
+        screen.getByTestId("message-suggestion-Dupont Conseil"),
+      ).toBeVisible();
     },
     15_000,
   );
@@ -332,10 +532,12 @@ describe("Assistant flows (component e2e)", () => {
       });
 
       expect(
-        screen.getAllByText(
-          "Impossible de joindre Sidian. Vérifie ta connexion.",
-        ).length,
+        screen.getAllByText("La connexion a été interrompue.").length,
       ).toBeGreaterThan(0);
+      expect(
+        screen.getByText(/Ton message est conservé/i),
+      ).toBeVisible();
+      expect(screen.getByTestId("composer-input")).toHaveValue("Bonjour");
 
       await user.click(screen.getByTestId("message-retry"));
 
@@ -346,6 +548,9 @@ describe("Assistant flows (component e2e)", () => {
       await waitFor(() => {
         expect(screen.getByText("Qui est ton client ?")).toBeVisible();
       });
+      expect(
+        within(screen.getByTestId("message-thread")).getAllByText("Bonjour"),
+      ).toHaveLength(1);
     },
     25_000,
   );
@@ -357,9 +562,9 @@ describe("Assistant flows (component e2e)", () => {
       stubMatchMedia(false);
 
       render(
-        <AssistantShell userDisplayName="Lucie Martin">
+        <AppShell variant="workspace" userDisplayName="Lucie Martin">
           <p>Contenu</p>
-        </AssistantShell>,
+        </AppShell>,
       );
 
       expect(screen.getByTestId("assistant-shell")).toHaveAttribute(

@@ -27,18 +27,36 @@ import type {
 type CacheEntry = {
   result: ConversationalTurnResult;
   expires_at_ms: number;
+  /** Tenant propriétaire de l'entrée — revérifié à chaque lecture du cache. */
+  tenant_id: string;
 };
 
+/**
+ * Empreinte du cache d'idempotence.
+ *
+ * `tenant_id` est TOUJOURS dans la clé, y compris lorsque l'appelant fournit
+ * son propre `idempotency_key`. Ce dernier vient du corps de la requête : il
+ * est choisi par le client, donc deux tenants peuvent parfaitement envoyer la
+ * même valeur. Le tenant provient lui du TrustedExecutionContext et n'est
+ * jamais influençable depuis la requête.
+ *
+ * Les composants sont préfixés par leur longueur pour qu'aucune combinaison de
+ * valeurs ne puisse produire la même chaîne qu'une autre.
+ */
 function turnFingerprint(input: ConversationalTurnInput): string {
-  const key =
-    input.idempotency_key ??
-    [
-      input.tenant_id,
-      input.draft_id ?? "",
-      input.conversation_id ?? "",
-      input.user_message,
-      input.reference_now,
-    ].join("|");
+  const scoped =
+    input.idempotency_key !== undefined && input.idempotency_key !== null
+      ? ["k", input.tenant_id, input.idempotency_key]
+      : [
+          "d",
+          input.tenant_id,
+          input.draft_id ?? "",
+          input.conversation_id ?? "",
+          input.user_message,
+          input.reference_now,
+        ];
+
+  const key = scoped.map((part) => `${part.length}:${part}`).join("|");
   return createHash("sha256").update(key, "utf8").digest("hex");
 }
 
@@ -83,7 +101,13 @@ export function createConversationalRuntimeService(
       purge(nowMs);
       const fp = turnFingerprint(input);
       const cached = cache.get(fp);
-      if (cached && cached.expires_at_ms > nowMs) {
+      // Deuxième barrière : même si l'empreinte venait à être mal construite,
+      // une entrée appartenant à un autre tenant n'est jamais servie.
+      if (
+        cached &&
+        cached.expires_at_ms > nowMs &&
+        cached.tenant_id === input.tenant_id
+      ) {
         return { ...cached.result, replay: true };
       }
 
@@ -150,7 +174,11 @@ export function createConversationalRuntimeService(
         replay: false,
       };
 
-      cache.set(fp, { result, expires_at_ms: nowMs + ttl });
+      cache.set(fp, {
+        result,
+        expires_at_ms: nowMs + ttl,
+        tenant_id: input.tenant_id,
+      });
       return result;
     },
   };

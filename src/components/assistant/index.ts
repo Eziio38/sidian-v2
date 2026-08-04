@@ -1,8 +1,11 @@
-export { AssistantShell } from "./assistant-shell";
-export { COMPOSER_MAX_LENGTH, Composer } from "./composer";
+export {
+  COMPOSER_MAX_FILES,
+  COMPOSER_MAX_LENGTH,
+  COMPOSER_PLACEHOLDER,
+  Composer,
+} from "./composer";
 export { ComposerShortcuts } from "./composer-shortcuts";
 export { ConversationalWorkspace } from "./conversational-workspace";
-export { getDemoWorkspaceState, isDemoStateId } from "./demo-states";
 export {
   ProtectionPanel,
   mapDraftOutputToPanel,
@@ -17,7 +20,14 @@ export {
 export {
   buildWelcomeSummaryLines,
   FALLBACK_WELCOME_SUMMARY,
+  resolveWelcomeDataState,
 } from "./welcome-summary";
+export type { WelcomeDataState } from "./welcome-summary";
+export {
+  formatGreeting,
+  resolveDisplayName,
+  resolveGreetingFirstName,
+} from "./greeting";
 export type {
   ActiveContext,
   AssistantMessage,

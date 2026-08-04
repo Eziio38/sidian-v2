@@ -1,0 +1,15 @@
+.page {
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-12) var(--ds-layout-gutter-mobile);
+  background: var(--ds-color-background);
+}
+
+.content {
+  display: grid;
+  width: 100%;
+  max-width: var(--ds-layout-conversation-response-width);
+  gap: var(--ds-space-4);
+}

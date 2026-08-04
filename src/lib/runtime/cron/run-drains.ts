@@ -4,6 +4,7 @@
 
 import "server-only";
 
+import { runAbandonedDocumentUploadsPurge } from "@/lib/documents/cron-purge";
 import { logServerEvent } from "@/lib/observability/server-logger";
 
 import {
@@ -25,6 +26,7 @@ import {
   type Deadline,
 } from "./deadline";
 import { runPaymentJobsDrain } from "./payment-jobs";
+import { runRuntimeJobsDrain } from "./runtime-jobs";
 import type { CronDrainsResponse, DrainCronEntry } from "./types";
 
 const MAX_DRAIN_BATCH = 50;
@@ -162,6 +164,17 @@ export async function runScheduledDrains(
         unknown: 0,
         skipped: 0,
       },
+      runtimeJobs: {
+        status: "failed",
+        reasonCode: "skipped_after_outbox_failure",
+        claimed: 0,
+        completed: 0,
+        retryable: 0,
+        terminal: 0,
+        leaseLost: 0,
+        unwired: [],
+        durationMs: 0,
+      },
     };
   }
 
@@ -194,6 +207,39 @@ export async function runScheduledDrains(
     }
   }
 
+  // Consommation des runtime_job : c'est ce qui transforme les intentions des
+  // scanners en effets métier. Sans ce drain, les scanners écrivent dans le vide.
+  const runtimeJobs = await runRuntimeJobsDrain({
+    requestId: input.requestId,
+    limit,
+    deadline,
+  });
+
+  if (
+    runtimeJobs.status === "failed" ||
+    runtimeJobs.status === "partial" ||
+    runtimeJobs.status === "deadline_reached"
+  ) {
+    if (overall === "completed") {
+      overall = runtimeJobs.status === "failed" ? "partial" : runtimeJobs.status;
+    }
+  }
+
+  // Ménage des téléversements jamais confirmés : purement interne (aucun envoi
+  // externe), donc exécuté en dernier et sans influence sur `ok`.
+  const documentUploads = await runAbandonedDocumentUploadsPurge({
+    requestId: input.requestId,
+    isDeadlineExpired: () => deadline.isExpired(),
+  });
+
+  if (
+    (documentUploads.status === "failed" ||
+      documentUploads.status === "partial") &&
+    overall === "completed"
+  ) {
+    overall = "partial";
+  }
+
   const durationMs = Math.max(0, Date.now() - started);
   logServerEvent("info", "outbox_sent", {
     requestId: input.requestId,
@@ -203,6 +249,8 @@ export async function runScheduledDrains(
     durationMs,
     drainCount: drainEntries.length,
     paymentJobsStatus: paymentJobs.status,
+    runtimeJobsStatus: runtimeJobs.status,
+    documentUploadsStatus: documentUploads.status,
   });
 
   return {
@@ -217,5 +265,7 @@ export async function runScheduledDrains(
     durationMs,
     drains: drainEntries,
     paymentJobs,
+    runtimeJobs,
+    documentUploads,
   };
 }

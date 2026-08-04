@@ -1,0 +1,64 @@
+.compactCard {
+  padding: var(--ds-space-4);
+}
+
+.stateCard {
+  max-width: var(--ds-prose-width);
+}
+
+.bannerBody {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+.bannerBadge {
+  margin-block-end: var(--ds-space-2);
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.skeletonStack {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+
+.pageSkeleton {
+  min-height: 100dvh;
+  padding: var(--ds-layout-gutter-desktop);
+  background: var(--ds-color-background);
+}
+
+.generating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin-block-start: var(--ds-space-2);
+  color: var(--ds-color-text-muted);
+  font-size: var(--ds-type-caption-size);
+  line-height: var(--ds-type-caption-line);
+  letter-spacing: 0.01em;
+}
+
+.dots {
+  display: inline-flex;
+  gap: var(--ds-space-1);
+}
+
+.dot {
+  width: var(--ds-space-2);
+  height: var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-accent);
+}
+
+@media (max-width: 48rem) {
+  .pageSkeleton {
+    padding: var(--ds-layout-gutter-mobile);
+  }
+}

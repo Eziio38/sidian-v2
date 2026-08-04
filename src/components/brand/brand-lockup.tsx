@@ -1,67 +1,60 @@
+import Image from "next/image";
 import Link from "next/link";
 
+import { cx } from "@/design-system/utils";
+
+import styles from "./brand-lockup.module.css";
+
+/** Asset officiel unique — ne pas substituer par SVG / full / texte. */
+export const SIDIAN_LOGO_SRC = "/brand/sidian-logo.png";
+
+/** Dimensions intrinsèques du PNG officiel (fond transparent, ratio 1:1). */
+export const SIDIAN_LOGO_INTRINSIC = { width: 156, height: 156 } as const;
+
 export type BrandLockupProps = {
-  /** Fond sombre / clair : mark bleu DS par défaut ; white si fond chargé. */
-  variant?: "blue" | "white";
-  /** Taille du mark en px (min DS = 20). */
-  size?: number;
-  compact?: boolean;
+  size?: "sm" | "md" | "lg";
   /** Si défini, wrappe dans un lien (ex. auth → `/`). */
   href?: string | null;
-  /** Classe du wordmark. Si omise : Outfit ExtraBold 14px (DS). */
-  wordmarkClassName?: string;
   className?: string;
+  /** Priorité LCP (auth / hero). */
+  priority?: boolean;
 };
 
-const MARK_SRC = {
-  blue: "/brand/sidian-mark-blue.svg",
-  white: "/brand/sidian-mark-white.svg",
-} as const;
-
 /**
- * Lockup officiel : mark interim SVG (`public/brand/`) + « Sidian » Outfit ExtraBold.
- * Wordmark = texte rendu, jamais une image. Remplacer les SVG par PNG DS quand dispo.
+ * Logo officiel Sidian — `public/brand/sidian-logo.png` uniquement.
+ * Pas de wordmark texte, pas de SVG, proportions préservées, fond transparent.
  */
 export function BrandLockup({
-  variant = "blue",
-  size = 18,
-  compact = false,
+  size = "md",
   href = null,
-  wordmarkClassName,
   className = "",
+  priority = false,
 }: BrandLockupProps) {
-  const defaultWordmark = compact
-    ? "text-[14px] font-semibold tracking-tight text-inherit"
-    : "text-[14px] font-extrabold tracking-[-0.02em] text-inherit";
-  const wordmarkClass = wordmarkClassName ?? defaultWordmark;
-
-  const inner = (
-    <>
-      {/* eslint-disable-next-line @next/next/no-img-element -- SVG interim brand ; PNG DS à venir */}
-      <img
-        src={MARK_SRC[variant]}
-        alt=""
-        width={size}
-        height={size}
-        className="shrink-0"
-        aria-hidden
-      />
-      <span className={wordmarkClass}>Sidian</span>
-    </>
+  const image = (
+    <Image
+      src={SIDIAN_LOGO_SRC}
+      alt="Sidian"
+      width={SIDIAN_LOGO_INTRINSIC.width}
+      height={SIDIAN_LOGO_INTRINSIC.height}
+      {...(priority ? { priority: true } : {})}
+      className={cx(styles.image, size !== "md" && styles[size])}
+      sizes="(min-width: 64rem) 40px, 32px"
+    />
   );
 
-  const layout = `inline-flex items-center gap-2 ${className}`;
+  const layout = cx(styles.lockup, className);
 
   if (href) {
     return (
       <Link
         href={href}
-        className={`${layout} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue`}
+        aria-label="Sidian"
+        className={cx(layout, styles.link)}
       >
-        {inner}
+        {image}
       </Link>
     );
   }
 
-  return <span className={layout}>{inner}</span>;
+  return <span className={layout}>{image}</span>;
 }

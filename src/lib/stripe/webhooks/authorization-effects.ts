@@ -10,6 +10,7 @@ import type { Database } from "@/types/database.generated";
 
 import type { WebhookDispatchResult } from "./dispatch";
 import type { StripeWebhookLeaseIdentity } from "./process";
+import type { NullableRpcArgs } from "../shared/rpc-args";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -81,9 +82,12 @@ async function callEffect<
 >(
   context: AuthorizationEffectContext,
   rpc: Name,
-  args: Database["public"]["Functions"][Name]["Args"],
+  args: NullableRpcArgs<Database["public"]["Functions"][Name]["Args"]>,
 ): Promise<Record<string, unknown>> {
-  const { data, error } = await context.supabase.rpc(rpc, args);
+  const { data, error } = await context.supabase.rpc(
+    rpc,
+    args as Database["public"]["Functions"][Name]["Args"],
+  );
   if (error) {
     const message = error.message ?? "";
     if (message.includes("webhook_lease_lost")) {

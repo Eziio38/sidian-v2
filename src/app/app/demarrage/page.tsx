@@ -55,10 +55,12 @@ export default async function DemarragePage() {
     <AppShell
       title="Bien démarrer"
       description={UX_COPY.onboardingProgress.description}
+      userDisplayName={prestataire.nom}
+      userEmail={prestataire.email}
     >
       <div className="max-w-4xl space-y-6">
         <section
-          className="rounded-xl border border-gris-200 bg-white p-5 sm:p-6"
+          className="rounded-xl border border-gris-200 bg-surface p-5 sm:p-6"
           aria-labelledby="onboarding-progress-title"
         >
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -107,7 +109,7 @@ export default async function DemarragePage() {
           <MissingConfigBanner channel={autoDebitChannel} />
         ) : null}
 
-        <ol className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
+        <ol className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-surface">
           {steps.map((step, index) => (
             <li key={step.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
               <span

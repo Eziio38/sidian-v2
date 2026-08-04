@@ -34,6 +34,7 @@ const EXPECTED_TABLES = [
   "dossier_suivi",
   "regle",
   "conversation",
+  "conversation_project",
   "message",
   "approval_request",
   "audit_log",

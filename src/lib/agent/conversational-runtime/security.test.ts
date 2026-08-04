@@ -138,6 +138,54 @@ describe("G1-N security", () => {
     expect(repo._creances.size).toBe(0);
   });
 
+  it("cross-tenant : une idempotency_key partagée ne fait jamais fuiter le tour d’un autre tenant", async () => {
+    // `idempotency_key` vient du corps de la requête : deux tenants peuvent
+    // parfaitement choisir la même valeur. Le cache d'idempotence du runtime
+    // doit rester cloisonné par tenant.
+    const repo = createMemoryProtectionDraftRepository();
+    const draftService = createProtectionDraftService(repo);
+    const runtime = createConversationalRuntimeService({
+      provider: createStubLlmProvider({ mode: "deterministic" }),
+      draftService,
+    });
+
+    const sharedKey = "meme-cle-pour-les-deux-tenants";
+
+    const turnA = await runtime.handleTurn({
+      tenant_id: TENANT_A,
+      actor_id: ACTOR_A,
+      user_message: EXAMPLE_MESSAGE,
+      reference_now: NOW,
+      idempotency_key: sharedKey,
+    });
+
+    const turnB = await runtime.handleTurn({
+      tenant_id: TENANT_B,
+      actor_id: ACTOR_B,
+      user_message: EXAMPLE_MESSAGE,
+      reference_now: NOW,
+      idempotency_key: sharedKey,
+    });
+
+    // B ne doit jamais recevoir le tour de A rejoué.
+    expect(turnA.draft.tenant_id).toBe(TENANT_A);
+    expect(turnB.draft.tenant_id).toBe(TENANT_B);
+    expect(turnB.replay).not.toBe(true);
+    expect(turnB.draft.draft_id).not.toBe(turnA.draft.draft_id);
+
+    // Le rejeu reste fonctionnel à l'intérieur d'un même tenant.
+    const replayA = await runtime.handleTurn({
+      tenant_id: TENANT_A,
+      actor_id: ACTOR_A,
+      user_message: EXAMPLE_MESSAGE,
+      reference_now: NOW,
+      idempotency_key: sharedKey,
+    });
+    expect(replayA.replay).toBe(true);
+    expect(replayA.draft.tenant_id).toBe(TENANT_A);
+    expect(replayA.draft.draft_id).toBe(turnA.draft.draft_id);
+  });
+
   it("cross-tenant : get draft autre tenant refusé", async () => {
     const repo = createMemoryProtectionDraftRepository();
     const draftService = createProtectionDraftService(repo);

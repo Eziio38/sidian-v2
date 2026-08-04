@@ -1,6 +1,9 @@
 import { PrepareLinkButton } from "@/components/app/prepare-link-button";
+import { Badge, InfoCard } from "@/design-system";
 import type { PrestataireStripeReadiness } from "@/lib/stripe/connect/readiness";
 import type { Database } from "@/types/database.generated";
+
+import styles from "./receivable-payment-section.module.css";
 
 type CreanceEtat = Database["public"]["Enums"]["creance_etat"];
 
@@ -13,46 +16,46 @@ function formatMoney(cents: number, devise: string): string {
 
 const ETAT_BADGES: Record<
   CreanceEtat,
-  { label: string; className: string }
+  { label: string; tone: "neutral" | "success" | "warning" | "danger" }
 > = {
-  BROUILLON: { label: "Brouillon", className: "bg-gris-100 text-gris-500" },
-  OUVERTE: { label: "En attente", className: "bg-gris-100 text-gris-500" },
+  BROUILLON: { label: "Brouillon", tone: "neutral" },
+  OUVERTE: { label: "En attente", tone: "neutral" },
   PARTIELLEMENT_REGLEE: {
     label: "Partiellement réglé",
-    className: "bg-amber-50 text-amber-700",
+    tone: "warning",
   },
-  REGLEE: { label: "Réglé", className: "bg-emerald-50 text-emerald-700" },
-  EN_LITIGE: { label: "Litige", className: "bg-red-50 text-red-700" },
-  ANNULEE: { label: "Annulé", className: "bg-gris-100 text-gris-500" },
-  IRRECOUVRABLE: { label: "Irrécouvrable", className: "bg-red-50 text-red-700" },
+  REGLEE: { label: "Réglé", tone: "success" },
+  EN_LITIGE: { label: "Litige", tone: "danger" },
+  ANNULEE: { label: "Annulé", tone: "neutral" },
+  IRRECOUVRABLE: { label: "Irrécouvrable", tone: "danger" },
 };
 
 function describeStripeReadiness(readiness: PrestataireStripeReadiness): {
   label: string;
-  className: string;
+  tone: "info" | "success" | "warning" | "danger";
 } {
   if (readiness.chargesEnabled) {
-    return { label: "Paiements activés", className: "bg-emerald-50 text-emerald-700" };
+    return { label: "Paiements activés", tone: "success" };
   }
   if (!readiness.configured) {
     return {
       label: "Encaissement non configuré — le lien ne sera pas partageable tant que ce n'est pas fait.",
-      className: "bg-amber-50 text-amber-700",
+      tone: "warning",
     };
   }
   switch (readiness.onboardingStatus) {
     case "action_requise":
-      return { label: "Action requise pour activer l'encaissement", className: "bg-amber-50 text-amber-700" };
+      return { label: "Action requise pour activer l'encaissement", tone: "warning" };
     case "informations_requises":
-      return { label: "Informations complémentaires requises par Stripe", className: "bg-amber-50 text-amber-700" };
+      return { label: "Informations complémentaires requises par Stripe", tone: "warning" };
     case "verification_en_cours":
-      return { label: "Vérification en cours chez Stripe", className: "bg-gris-100 text-gris-500" };
+      return { label: "Vérification en cours chez Stripe", tone: "info" };
     case "paiements_indisponibles":
-      return { label: "Paiements temporairement indisponibles", className: "bg-red-50 text-red-700" };
+      return { label: "Paiements temporairement indisponibles", tone: "danger" };
     case "configuration_commencee":
-      return { label: "Configuration Stripe commencée, encore incomplète", className: "bg-amber-50 text-amber-700" };
+      return { label: "Configuration Stripe commencée, encore incomplète", tone: "warning" };
     default:
-      return { label: "Encaissement pas encore finalisé", className: "bg-amber-50 text-amber-700" };
+      return { label: "Encaissement pas encore finalisé", tone: "warning" };
   }
 }
 
@@ -81,43 +84,44 @@ export function ReceivablePaymentSection({
   const canPrepareLink = etat === "BROUILLON" || etat === "OUVERTE";
 
   return (
-    <div className="space-y-3 rounded-xl border border-gris-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <dl className="grid grid-cols-3 gap-4 text-sm">
+    <div className={styles.section}>
+      <div className={styles.summary}>
+        <dl className={styles.values}>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gris-500">Total</dt>
-            <dd className="font-semibold tabular-nums text-nuit">
+            <dt className={styles.label}>Total</dt>
+            <dd className={styles.value}>
               {formatMoney(montantTotalCents, devise)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gris-500">Réglé</dt>
-            <dd className="font-semibold tabular-nums text-nuit">
+            <dt className={styles.label}>Réglé</dt>
+            <dd className={styles.value}>
               {formatMoney(montantRegleCents, devise)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-gris-500">Solde restant</dt>
-            <dd className="font-semibold tabular-nums text-nuit">
+            <dt className={styles.label}>Solde restant</dt>
+            <dd className={styles.value}>
               {formatMoney(Math.max(soldeCents, 0), devise)}
             </dd>
           </div>
         </dl>
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-        >
+        <Badge tone={badge.tone}>
           {badge.label}
-        </span>
+        </Badge>
       </div>
 
-      <div className="border-t border-gris-100 pt-3">
-        <p className={`rounded-lg px-3 py-2 text-xs ${readiness.className}`}>
-          {readiness.label}
-        </p>
+      <div className={styles.readiness}>
+        <InfoCard
+          density="compact"
+          title="Encaissement"
+          description={readiness.label}
+          accessory={<Badge tone={readiness.tone}>État</Badge>}
+        />
       </div>
 
       {canPrepareLink ? (
-        <div className="border-t border-gris-100 pt-3">
+        <div className={styles.action}>
           <PrepareLinkButton creanceId={creanceId} />
         </div>
       ) : null}

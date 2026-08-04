@@ -21,7 +21,7 @@ export type EmailProviderSendResult = {
  * Abstraction provider — le domaine n'importe jamais Resend / vendor.
  */
 export type EmailProvider = {
-  readonly kind: "resend" | "stub";
+  readonly kind: "resend" | "brevo" | "stub";
   send(input: {
     message: import("../types").EmailMessage;
     timeoutMs: number;

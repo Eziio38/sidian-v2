@@ -1,0 +1,88 @@
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-block-end: var(--ds-space-3);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+  color: var(--ds-color-text-secondary);
+}
+
+/*
+ * Trois options exclusives, pas un interrupteur binaire : « Automatique »
+ * n'est pas un état intermédiaire entre clair et sombre, c'est un troisième
+ * choix de même rang.
+ */
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1 1 9rem;
+  min-inline-size: 9rem;
+  min-block-size: 2.75rem;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.option:hover {
+  background: var(--ds-color-hover);
+}
+
+.option:has(.input:checked) {
+  border-color: var(--ds-color-accent-border);
+  background: var(--ds-color-accent-soft);
+}
+
+/* Le focus vit sur le contrôle natif, pas sur le libellé. */
+.option:has(.input:focus-visible) {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+/*
+ * Le radio natif reste dans le flux d'accessibilité (lecteur d'écran,
+ * navigation par flèches à l'intérieur du groupe) mais n'est pas peint.
+ */
+.input {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.label {
+  font-size: var(--ds-type-body-size);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.hint {
+  font-size: var(--ds-type-caption-size);
+  line-height: var(--ds-type-caption-line);
+  color: var(--ds-color-text-secondary);
+}
+
+.status {
+  margin-block-start: var(--ds-space-3);
+  font-size: var(--ds-type-caption-size);
+  color: var(--ds-color-text-secondary);
+}

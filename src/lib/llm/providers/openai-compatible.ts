@@ -6,42 +6,21 @@
 import { LlmError } from "../errors";
 import type { LlmTransport } from "../types";
 
+import {
+  classifyLlmHttpStatus,
+  isAbortError,
+  normalizeLlmTransportError,
+} from "./http-errors";
+
+export const OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1";
+export const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
+
 export type OpenAiCompatibleTransportConfig = {
   apiKey: string;
   baseUrl: string;
   model: string;
   fetchImpl?: typeof fetch;
 };
-
-function isAbortError(err: unknown): boolean {
-  return (
-    (err instanceof Error && err.name === "AbortError") ||
-    (typeof DOMException !== "undefined" &&
-      err instanceof DOMException &&
-      err.name === "AbortError")
-  );
-}
-
-function classifyHttp(status: number): LlmError {
-  if (status === 401 || status === 403) {
-    return new LlmError("LLM_PROVIDER_AUTH", {
-      message: `llm_http_${status}`,
-    });
-  }
-  if (status === 429) {
-    return new LlmError("LLM_PROVIDER_RATE_LIMITED", {
-      message: "llm_rate_limited",
-    });
-  }
-  if (status >= 500) {
-    return new LlmError("LLM_PROVIDER_ERROR", {
-      message: `llm_http_${status}`,
-    });
-  }
-  return new LlmError("LLM_PROVIDER_ERROR", {
-    message: `llm_http_${status}`,
-  });
-}
 
 /**
  * Client HTTP isolé — jamais de `tools` / `functions` dans le payload.
@@ -90,7 +69,7 @@ export function createOpenAiCompatibleTransport(
 
         const rawText = await response.text();
         if (!response.ok) {
-          throw classifyHttp(response.status);
+          throw classifyLlmHttpStatus(response.status);
         }
 
         let json: unknown;
@@ -140,10 +119,7 @@ export function createOpenAiCompatibleTransport(
         if (isAbortError(err)) {
           throw new LlmError("LLM_TIMEOUT", { message: "llm_timeout" });
         }
-        throw new LlmError("LLM_PROVIDER_ERROR", {
-          message: "llm_network_error",
-          cause: err,
-        });
+        throw normalizeLlmTransportError(err);
       } finally {
         clearTimeout(timer);
         input.signal?.removeEventListener("abort", onAbort);

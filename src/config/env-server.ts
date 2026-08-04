@@ -43,15 +43,6 @@ const stripeDisabledEnvSchema = z.object({
   NEXT_PUBLIC_STRIPE_PAYMENTS_ENABLED: z.literal("false"),
 });
 
-const aiServerEnvSchema = z.object({
-  OPENAI_API_KEY: z.string().min(1),
-});
-
-const emailServerEnvSchema = z.object({
-  EMAIL_PROVIDER_API_KEY: z.string().min(1),
-  EMAIL_FROM_ADDRESS: z.email(),
-});
-
 export type SupabaseServerEnv = SupabasePublicEnv & {
   SUPABASE_SERVICE_ROLE_KEY: string;
 };
@@ -315,39 +306,7 @@ export function getSidianEnvironment(): SidianEnvironment {
   return getStripeServerEnv().SIDIAN_ENVIRONMENT;
 }
 
-export function getAiServerEnv() {
-  const parsed = aiServerEnvSchema.safeParse({
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  });
-
-  if (!parsed.success) {
-    const message = formatEnvValidationError("server/ai", parsed.error);
-
-    if (process.env.NODE_ENV === "development") {
-      throw new Error(message);
-    }
-
-    throw new Error("Configuration IA manquante ou invalide.");
-  }
-
-  return parsed.data;
-}
-
-export function getEmailServerEnv() {
-  const parsed = emailServerEnvSchema.safeParse({
-    EMAIL_PROVIDER_API_KEY: process.env.EMAIL_PROVIDER_API_KEY,
-    EMAIL_FROM_ADDRESS: process.env.EMAIL_FROM_ADDRESS,
-  });
-
-  if (!parsed.success) {
-    const message = formatEnvValidationError("server/email", parsed.error);
-
-    if (process.env.NODE_ENV === "development") {
-      throw new Error(message);
-    }
-
-    throw new Error("Configuration email manquante ou invalide.");
-  }
-
-  return parsed.data;
-}
+/*
+ * Runtimes IA et email : voir `src/lib/llm/env.ts` (SIDIAN_LLM_*) et
+ * `src/lib/email/env.ts` (SIDIAN_EMAIL_*). Aucun contrat d'env concurrent ici.
+ */

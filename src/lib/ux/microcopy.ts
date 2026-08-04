@@ -31,12 +31,12 @@ export const UX_COPY = {
   },
   emptyPayments: {
     title: "Aucun paiement attendu",
-    description: "Crée un premier paiement à recevoir — Stripe n’est pas encore nécessaire.",
+    description: "Crée un premier paiement à recevoir. Stripe n’est pas encore nécessaire.",
     actionLabel: "Créer un paiement",
   },
   emptyAssistant: {
     title: "Par où tu veux commencer ?",
-    description: "Dis-moi simplement ce que tu veux faire — je t’accompagne pas à pas.",
+    description: "Dis-moi simplement ce que tu veux faire. Je t’accompagne pas à pas.",
   },
   errorGeneric: {
     title: "On n’a pas pu afficher cet écran",
@@ -47,6 +47,12 @@ export const UX_COPY = {
   errorLoad: {
     title: "Chargement impossible",
     description: "Réessaie dans quelques secondes. Si ça continue, reviens un peu plus tard.",
+    actionLabel: "Réessayer",
+  },
+  requestSaveFailed: {
+    title: "Je n’ai pas pu enregistrer ta demande.",
+    description:
+      "Rien n’a été modifié. Tu peux réessayer dans un instant.",
     actionLabel: "Réessayer",
   },
   offline: {
@@ -92,7 +98,7 @@ export const UX_COPY = {
   incompleteProtection: {
     title: "La protection n’est pas encore complète",
     description:
-      "Il manque encore quelques infos. Rien n’est créé tant que tu n’as pas confirmé.",
+      "Il me manque encore quelques informations. Rien ne sera envoyé avant ta confirmation.",
     actionLabel: "Continuer",
   },
   autoDebitCeilingNotValidated: {

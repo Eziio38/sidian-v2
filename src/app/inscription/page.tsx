@@ -16,7 +16,7 @@ export default async function InscriptionPage() {
           Déjà inscrit ?{" "}
           <Link
             href="/connexion"
-            className="font-medium text-sidian-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+            className="font-medium text-lien hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
           >
             Se connecter
           </Link>

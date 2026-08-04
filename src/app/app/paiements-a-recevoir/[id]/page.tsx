@@ -85,10 +85,12 @@ export default async function PaymentReceivableDetailPage({ params }: PageProps)
     <AppShell
       title={detail.label}
       description={`${detail.clientName} · échéance ${formatDate(detail.dueDate)}`}
+      userDisplayName={prestataire.nom}
+      userEmail={prestataire.email}
       actions={
         <Link
           href="/app/paiements-a-recevoir"
-          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-gris-200 bg-white px-4 text-sm font-medium text-nuit transition-colors hover:border-sidian-blue hover:text-sidian-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-gris-200 bg-surface px-4 text-sm font-medium text-nuit transition-colors hover:border-sidian-blue hover:text-sidian-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
         >
           Retour à la liste
         </Link>
@@ -105,7 +107,7 @@ export default async function PaymentReceivableDetailPage({ params }: PageProps)
                 {STATE_LABELS[detail.state]}
               </span>
             </div>
-            <dl className="grid overflow-hidden rounded-xl border border-gris-200 bg-white sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="grid overflow-hidden rounded-xl border border-gris-200 bg-surface sm:grid-cols-2 lg:grid-cols-4">
               {[
                 ["Montant total", detail.totalCents],
                 ["Confirmé", detail.confirmedCents],
@@ -136,11 +138,11 @@ export default async function PaymentReceivableDetailPage({ params }: PageProps)
               Historique
             </h2>
             {detail.timeline.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-gris-200 bg-white p-6 text-sm text-gris-500">
+              <p className="rounded-xl border border-dashed border-gris-200 bg-surface p-6 text-sm text-gris-500">
                 Aucun événement de paiement n’est encore enregistré.
               </p>
             ) : (
-              <ol className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
+              <ol className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-surface">
                 {detail.timeline.map((event) => (
                   <li key={event.id} className="flex gap-3 p-4 sm:p-5">
                     <span
@@ -178,7 +180,7 @@ export default async function PaymentReceivableDetailPage({ params }: PageProps)
           </section>
         </div>
 
-        <aside className="rounded-xl border border-gris-200 bg-white p-5 xl:sticky xl:top-6">
+        <aside className="rounded-xl border border-gris-200 bg-surface p-5 xl:sticky xl:top-6">
           <h2 className="font-semibold text-nuit">Contexte</h2>
           <dl className="mt-4 divide-y divide-gris-100 text-sm">
             <div className="py-3 first:pt-0">

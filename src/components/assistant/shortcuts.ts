@@ -44,18 +44,23 @@ const CREATED_SHORTCUTS: ComposerShortcut[] = [
 const DEFAULT_SHORTCUTS: ComposerShortcut[] = [
   {
     id: "create-protection",
-    label: "Créer une protection",
+    label: "Protéger une facture",
     action: "create_protection",
   },
   {
-    id: "view-expected",
-    label: "Voir les paiements attendus",
-    action: "view_expected_payments",
+    id: "add-invoice",
+    label: "Analyser un document",
+    action: "add_invoice",
   },
   {
-    id: "add-invoice",
-    label: "Ajouter une facture",
-    action: "add_invoice",
+    id: "create-client",
+    label: "Ajouter un client",
+    action: "create_client",
+  },
+  {
+    id: "view-expected",
+    label: "Faire le point sur mes paiements",
+    action: "view_expected_payments",
   },
 ];
 
@@ -92,11 +97,11 @@ export function getComposerShortcuts(
   }
 
   if (!options?.includeReopenPanel) {
-    return shortcuts;
+    return shortcuts.slice(0, 4);
   }
 
   // Remplace le dernier raccourci pour garder une rangée courte.
-  return [REOPEN_PANEL_SHORTCUT, ...shortcuts.slice(0, 2)];
+  return [REOPEN_PANEL_SHORTCUT, ...shortcuts.slice(0, 3)];
 }
 
 export function shouldShowContextPanel(params: {

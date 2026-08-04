@@ -22,6 +22,10 @@ import {
   logSupabaseAuthError,
 } from "@/lib/auth/log-auth-error";
 import { createClient } from "@/lib/supabase/server";
+import {
+  clearThemePreferenceCookie,
+  syncThemePreferenceCookieFromAccount,
+} from "@/lib/theme/theme-server";
 
 export type AuthActionState = {
   ok: boolean;
@@ -147,12 +151,18 @@ export async function signInAction(
   }
 
   await ensurePrestataireForUser(supabase, data.user);
+  // La préférence d'apparence du compte remplace celle laissée sur le poste
+  // par une session précédente : deux comptes sur un même navigateur ne
+  // doivent jamais hériter l'un de l'autre.
+  await syncThemePreferenceCookieFromAccount(supabase);
   redirect("/app");
 }
 
 export async function signOutAction(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  // Le repli local ne doit pas survivre au compte qui l'a défini.
+  await clearThemePreferenceCookie();
   redirect("/connexion");
 }
 

@@ -7,6 +7,7 @@ import { requestIdFromHeaders } from "@/lib/observability/request-id";
 import { logServerEvent } from "@/lib/observability/server-logger";
 import { applyAuthNoStoreHeaders } from "@/lib/supabase/auth-response";
 import { createClient } from "@/lib/supabase/server";
+import { syncThemePreferenceCookieFromAccount } from "@/lib/theme/theme-server";
 
 const MAX_AUTH_CALLBACK_CODE_LENGTH = 2_048;
 
@@ -70,6 +71,7 @@ export async function GET(request: Request) {
   if (nextPath !== "/reinitialiser-mot-de-passe") {
     try {
       await ensurePrestataireForUser(supabase, user);
+      await syncThemePreferenceCookieFromAccount(supabase);
     } catch (error) {
       logServerEvent("error", "auth.callback_failed", {
         requestId,

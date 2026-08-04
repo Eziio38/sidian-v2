@@ -25,7 +25,7 @@ export const EMAIL_DELIVERY_STATUSES = [
 
 export type EmailDeliveryStatus = (typeof EMAIL_DELIVERY_STATUSES)[number];
 
-export const EMAIL_PROVIDER_KINDS = ["resend", "stub"] as const;
+export const EMAIL_PROVIDER_KINDS = ["resend", "brevo", "stub"] as const;
 export type EmailProviderKind = (typeof EMAIL_PROVIDER_KINDS)[number];
 
 export const EMAIL_LOCALES = ["fr"] as const;

@@ -31,8 +31,17 @@ export {
   loadLlmEnv,
   isLlmProviderEnabled,
   LLM_TRANSPORT_MODES,
+  LLM_PROVIDER_IDS,
 } from "./env";
-export type { LlmEnv, LlmEnvTransportMode } from "./env";
+export type {
+  LlmEnv,
+  LlmEnvTransportMode,
+  LlmProviderId,
+  LlmProviderConfig,
+} from "./env";
+
+export { describeLlmHealth } from "./health";
+export type { LlmHealthReport, LlmHealthMode } from "./health";
 
 export type {
   LlmTransportMode,
@@ -70,8 +79,38 @@ export {
 export { createStubLlmTransport } from "./providers/stub";
 export type { StubLlmTransportOptions } from "./providers/stub";
 
-export { createOpenAiCompatibleTransport } from "./providers/openai-compatible";
+export {
+  createOpenAiCompatibleTransport,
+  OPENAI_DEFAULT_BASE_URL,
+  OPENAI_DEFAULT_MODEL,
+} from "./providers/openai-compatible";
 export type { OpenAiCompatibleTransportConfig } from "./providers/openai-compatible";
+
+export {
+  createAnthropicMessagesTransport,
+  buildAnthropicRequestBody,
+  readAnthropicMessagesStream,
+  classifyAnthropicErrorType,
+  anthropicModelAcceptsTemperature,
+  ANTHROPIC_DEFAULT_BASE_URL,
+  ANTHROPIC_DEFAULT_MODEL,
+  ANTHROPIC_DEFAULT_VERSION,
+} from "./providers/anthropic-messages";
+export type {
+  AnthropicMessagesTransportConfig,
+  AnthropicRequestBody,
+} from "./providers/anthropic-messages";
+
+export {
+  classifyLlmHttpStatus,
+  normalizeLlmTransportError,
+} from "./providers/http-errors";
+
+export { createFailoverLlmTransport } from "./providers/failover";
+export type {
+  CreateFailoverLlmTransportOptions,
+  LlmFailoverEvent,
+} from "./providers/failover";
 
 export { createLlmRuntime } from "./runtime";
 export type { CreateLlmRuntimeOptions } from "./runtime";

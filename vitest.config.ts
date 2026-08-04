@@ -17,5 +17,11 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/test/setup.ts"],
+    // Les suites RTL les plus lourdes (conversational-workspace) dépassent le
+    // défaut de 5 s uniquement lorsqu'elles tournent en parallèle du reste de
+    // la suite : le test passe isolément. La limite par défaut produisait donc
+    // un échec de charge, pas une régression fonctionnelle.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
   },
 });

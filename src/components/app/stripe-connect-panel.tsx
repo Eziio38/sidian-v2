@@ -190,7 +190,7 @@ export function StripeConnectPanel({
   return (
     <section
       aria-labelledby="stripe-connect-title"
-      className="overflow-hidden rounded-xl border border-gris-200 bg-white"
+      className="overflow-hidden rounded-xl border border-gris-200 bg-surface"
     >
       <div className="p-5 sm:p-6">
         {returnContext === "expired" ? (
@@ -337,7 +337,7 @@ export function StripeConnectPanel({
             <button
               type="submit"
               disabled={beginPending || refreshPending}
-              className="min-h-11 rounded-lg border border-gris-200 bg-white px-4 py-2.5 text-sm font-semibold text-nuit transition-colors hover:bg-gris-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-11 rounded-lg border border-gris-200 bg-surface px-4 py-2.5 text-sm font-semibold text-nuit transition-colors hover:bg-gris-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:opacity-60"
             >
               {refreshPending ? "Vérification…" : "Actualiser l’état"}
             </button>

@@ -10,7 +10,9 @@ import { EmailError } from "./errors";
 import { buildEmailIdempotencyKey } from "./idempotency";
 import { createMemoryEmailOutboxRepository } from "./outbox/memory-repository";
 import {
+  createBrevoEmailProvider,
   createResendEmailProvider,
+  isEmailProviderError,
   createStubEmailProvider,
   EmailProviderError,
 } from "./provider";
@@ -424,5 +426,124 @@ describe("email helpers", () => {
     expect(canTransitionEmailStatus("processing", "sent")).toBe(true);
     expect(canTransitionEmailStatus("sent", "queued")).toBe(false);
     expect(canTransitionEmailStatus("dead_letter", "queued")).toBe(false);
+  });
+});
+
+
+describe("brevo provider (fetch injectable)", () => {
+  function okResponse(messageId = "<202608.abc@relay.brevo.com>") {
+    return new Response(JSON.stringify({ messageId }), {
+      status: 201,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("respecte le contrat HTTP de Brevo", async () => {
+    const fetchImpl = vi.fn(async () => okResponse());
+    const provider = createBrevoEmailProvider({
+      apiKey: "xkeysib-test",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now: () => new Date("2026-08-04T12:00:00.000Z"),
+    });
+
+    const result = await provider.send({
+      timeoutMs: 5000,
+      message: {
+        to: { email: "client@exemple.test", name: "Société Martin" },
+        from: { email: "relances@exemple.test", name: "Sidian" },
+        replyTo: "contact@exemple.test",
+        subject: "Rappel",
+        text: "bonjour",
+        html: "<p>bonjour</p>",
+      },
+    });
+
+    expect(provider.kind).toBe("brevo");
+    expect(result.providerMessageId).toBe("<202608.abc@relay.brevo.com>");
+
+    const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(call[0]).toBe("https://api.brevo.com/v3/smtp/email");
+
+    // Brevo s'authentifie par `api-key`, jamais par `Authorization: Bearer`.
+    const headers = call[1].headers as Record<string, string>;
+    expect(headers["api-key"]).toBe("xkeysib-test");
+    expect(headers.Authorization).toBeUndefined();
+
+    // Formes propres à Brevo : objets, et non chaînes « Nom <email> ».
+    const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
+    expect(body.sender).toEqual({
+      email: "relances@exemple.test",
+      name: "Sidian",
+    });
+    expect(body.to).toEqual([
+      { email: "client@exemple.test", name: "Société Martin" },
+    ]);
+    expect(body.replyTo).toEqual({ email: "contact@exemple.test" });
+    expect(body.htmlContent).toBe("<p>bonjour</p>");
+    expect(body.textContent).toBe("bonjour");
+  });
+
+  it("refuse une réponse sans messageId plutôt que d'inventer un identifiant", async () => {
+    const provider = createBrevoEmailProvider({
+      apiKey: "xkeysib-test",
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({}), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        })) as unknown as typeof fetch,
+    });
+
+    await expect(
+      provider.send({
+        timeoutMs: 5000,
+        message: {
+          to: { email: "client@exemple.test" },
+          from: { email: "relances@exemple.test" },
+          subject: "Rappel",
+          text: "bonjour",
+          html: "<p>bonjour</p>",
+        },
+      }),
+    ).rejects.toThrow(/email_missing_message_id/);
+  });
+
+  it.each([
+    [401, false],
+    [400, false],
+    [429, true],
+    [503, true],
+  ])("classifie le statut %i (rejouable : %s)", async (status, retryable) => {
+    const provider = createBrevoEmailProvider({
+      apiKey: "xkeysib-test",
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ code: "x", message: "y" }), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        })) as unknown as typeof fetch,
+    });
+
+    await provider
+      .send({
+        timeoutMs: 5000,
+        message: {
+          to: { email: "client@exemple.test" },
+          from: { email: "relances@exemple.test" },
+          subject: "Rappel",
+          text: "bonjour",
+          html: "<p>bonjour</p>",
+        },
+      })
+      .then(
+        () => {
+          throw new Error("aurait dû échouer");
+        },
+        (error: unknown) => {
+          expect(isEmailProviderError(error)).toBe(true);
+          const typed = error as { retryable: boolean; message: string };
+          expect(typed.retryable).toBe(retryable);
+          // Le corps de réponse ne doit jamais fuiter dans le message.
+          expect(typed.message).toBe(`email_http_${status}`);
+        },
+      );
   });
 });

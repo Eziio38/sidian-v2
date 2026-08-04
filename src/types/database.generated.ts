@@ -770,7 +770,10 @@ export type Database = {
           idempotency_key: string
           last_error_code: string | null
           last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
           message_kind: string
+          next_attempt_at: string | null
           payload_snapshot: Json
           provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
           provider_message_id: string | null
@@ -795,7 +798,10 @@ export type Database = {
           idempotency_key: string
           last_error_code?: string | null
           last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
           message_kind: string
+          next_attempt_at?: string | null
           payload_snapshot?: Json
           provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
           provider_message_id?: string | null
@@ -820,7 +826,10 @@ export type Database = {
           idempotency_key?: string
           last_error_code?: string | null
           last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
           message_kind?: string
+          next_attempt_at?: string | null
           payload_snapshot?: Json
           provider_kind?: Database["public"]["Enums"]["communication_provider_kind"]
           provider_message_id?: string | null
@@ -908,6 +917,8 @@ export type Database = {
           created_at: string
           id: string
           prestataire_id: string
+          project_id: string | null
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -916,6 +927,8 @@ export type Database = {
           created_at?: string
           id?: string
           prestataire_id: string
+          project_id?: string | null
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -924,6 +937,8 @@ export type Database = {
           created_at?: string
           id?: string
           prestataire_id?: string
+          project_id?: string | null
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -943,6 +958,51 @@ export type Database = {
           },
           {
             foreignKeyName: "conversation_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_project: {
+        Row: {
+          color: string
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          prestataire_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          prestataire_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          prestataire_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_project_prestataire_id_fkey"
             columns: ["prestataire_id"]
             isOneToOne: false
             referencedRelation: "prestataire"
@@ -1019,6 +1079,69 @@ export type Database = {
           },
         ]
       }
+      document: {
+        Row: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          checksum?: string | null
+          creance_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status?: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          checksum?: string | null
+          creance_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type?: string
+          original_filename?: string
+          prestataire_id?: string
+          size_bytes?: number
+          status?: Database["public"]["Enums"]["document_status"]
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dossier_suivi: {
         Row: {
           clos_at: string | null
@@ -1062,6 +1185,116 @@ export type Database = {
             columns: ["creance_id"]
             isOneToOne: true
             referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_outbox: {
+        Row: {
+          attempt_count: number
+          body_html: string
+          body_text: string
+          created_at: string
+          dead_lettered_at: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          max_attempts: number
+          next_attempt_at: string | null
+          processed_at: string | null
+          provider_kind: string
+          provider_message_id: string | null
+          queued_at: string
+          recipient_email: string
+          recipient_email_hash: string
+          recipient_name: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["email_delivery_status"]
+          subject: string
+          template_key: Database["public"]["Enums"]["email_template_key"]
+          template_locale: string
+          tenant_id: string
+          updated_at: string
+          variables_snapshot: Json
+        }
+        Insert: {
+          attempt_count?: number
+          body_html: string
+          body_text: string
+          created_at?: string
+          dead_lettered_at?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
+          processed_at?: string | null
+          provider_kind?: string
+          provider_message_id?: string | null
+          queued_at?: string
+          recipient_email: string
+          recipient_email_hash: string
+          recipient_name?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_delivery_status"]
+          subject: string
+          template_key: Database["public"]["Enums"]["email_template_key"]
+          template_locale?: string
+          tenant_id: string
+          updated_at?: string
+          variables_snapshot?: Json
+        }
+        Update: {
+          attempt_count?: number
+          body_html?: string
+          body_text?: string
+          created_at?: string
+          dead_lettered_at?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
+          processed_at?: string | null
+          provider_kind?: string
+          provider_message_id?: string | null
+          queued_at?: string
+          recipient_email?: string
+          recipient_email_hash?: string
+          recipient_name?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_delivery_status"]
+          subject?: string
+          template_key?: Database["public"]["Enums"]["email_template_key"]
+          template_locale?: string
+          tenant_id?: string
+          updated_at?: string
+          variables_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_outbox_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
             referencedColumns: ["id"]
           },
         ]
@@ -1148,6 +1381,39 @@ export type Database = {
           },
         ]
       }
+      llm_budget_counter: {
+        Row: {
+          created_at: string
+          expires_at: string
+          request_count: number
+          scope_fingerprint: string
+          token_count: number
+          updated_at: string
+          window_kind: string
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          request_count?: number
+          scope_fingerprint: string
+          token_count?: number
+          updated_at?: string
+          window_kind: string
+          window_start: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          request_count?: number
+          scope_fingerprint?: string
+          token_count?: number
+          updated_at?: string
+          window_kind?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       message: {
         Row: {
           actor_type: Database["public"]["Enums"]["actor_type"]
@@ -1182,6 +1448,38 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversation"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preference: {
+        Row: {
+          created_at: string
+          email_payment_failed: boolean
+          email_reminder_before_due: boolean
+          prestataire_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_payment_failed?: boolean
+          email_reminder_before_due?: boolean
+          prestataire_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_payment_failed?: boolean
+          email_reminder_before_due?: boolean
+          prestataire_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preference_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: true
+            referencedRelation: "prestataire"
             referencedColumns: ["id"]
           },
         ]
@@ -1375,6 +1673,88 @@ export type Database = {
           },
         ]
       }
+      payment_execution_job: {
+        Row: {
+          amount_cents: number
+          attempt_count: number
+          correlation_id: string | null
+          creance_id: string
+          created_at: string
+          currency: string
+          failure_code: string | null
+          id: string
+          idempotency_key: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          prestataire_id: string
+          source: Database["public"]["Enums"]["payment_execution_job_source"]
+          status: Database["public"]["Enums"]["payment_execution_job_status"]
+          stripe_payment_intent_id: string | null
+          tentative_paiement_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          attempt_count?: number
+          correlation_id?: string | null
+          creance_id: string
+          created_at?: string
+          currency?: string
+          failure_code?: string | null
+          id?: string
+          idempotency_key: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          prestataire_id: string
+          source: Database["public"]["Enums"]["payment_execution_job_source"]
+          status?: Database["public"]["Enums"]["payment_execution_job_status"]
+          stripe_payment_intent_id?: string | null
+          tentative_paiement_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          attempt_count?: number
+          correlation_id?: string | null
+          creance_id?: string
+          created_at?: string
+          currency?: string
+          failure_code?: string | null
+          id?: string
+          idempotency_key?: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          prestataire_id?: string
+          source?: Database["public"]["Enums"]["payment_execution_job_source"]
+          status?: Database["public"]["Enums"]["payment_execution_job_status"]
+          stripe_payment_intent_id?: string | null
+          tentative_paiement_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_execution_job_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_execution_job_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_execution_job_tentative_paiement_id_fkey"
+            columns: ["tentative_paiement_id"]
+            isOneToOne: false
+            referencedRelation: "tentative_paiement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_link: {
         Row: {
           creance_id: string
@@ -1477,6 +1857,9 @@ export type Database = {
       }
       prestataire: {
         Row: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -1506,9 +1889,13 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         Insert: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          anonymised_at?: string | null
+          closed_at?: string | null
           created_at?: string
           early_access_price_locked_until?: string | null
           email: string
@@ -1538,9 +1925,13 @@ export type Database = {
           stripe_status_synced_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
+          theme_preference?: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         Update: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          anonymised_at?: string | null
+          closed_at?: string | null
           created_at?: string
           early_access_price_locked_until?: string | null
           email?: string
@@ -1570,6 +1961,7 @@ export type Database = {
           stripe_status_synced_at?: string | null
           subscription_started_at?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
+          theme_preference?: Database["public"]["Enums"]["theme_preference"]
           user_id?: string
         }
         Relationships: []
@@ -1686,6 +2078,197 @@ export type Database = {
             foreignKeyName: "regle_prestataire_id_fkey"
             columns: ["prestataire_id"]
             isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runtime_job: {
+        Row: {
+          attempt_count: number
+          available_at: string
+          completed_at: string | null
+          creance_id: string
+          created_at: string
+          dossier_suivi_id: string | null
+          id: string
+          idempotency_key: string
+          job_kind: Database["public"]["Enums"]["runtime_job_kind"]
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          payload: Json
+          policy_version: string
+          prestataire_id: string
+          scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status: Database["public"]["Enums"]["runtime_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          available_at?: string
+          completed_at?: string | null
+          creance_id: string
+          created_at?: string
+          dossier_suivi_id?: string | null
+          id?: string
+          idempotency_key: string
+          job_kind: Database["public"]["Enums"]["runtime_job_kind"]
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          payload?: Json
+          policy_version: string
+          prestataire_id: string
+          scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status?: Database["public"]["Enums"]["runtime_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          available_at?: string
+          completed_at?: string | null
+          creance_id?: string
+          created_at?: string
+          dossier_suivi_id?: string | null
+          id?: string
+          idempotency_key?: string
+          job_kind?: Database["public"]["Enums"]["runtime_job_kind"]
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          payload?: Json
+          policy_version?: string
+          prestataire_id?: string
+          scanner_kind?: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status?: Database["public"]["Enums"]["runtime_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runtime_job_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runtime_job_dossier_suivi_id_fkey"
+            columns: ["dossier_suivi_id"]
+            isOneToOne: false
+            referencedRelation: "dossier_suivi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runtime_job_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: false
+            referencedRelation: "prestataire"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runtime_scan_lease: {
+        Row: {
+          claimed_at: string | null
+          completed_at: string | null
+          creance_id: string
+          created_at: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          occurrence_key: string
+          policy_version: string
+          scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status: Database["public"]["Enums"]["runtime_scan_lease_status"]
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          completed_at?: string | null
+          creance_id: string
+          created_at?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          occurrence_key: string
+          policy_version: string
+          scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status?: Database["public"]["Enums"]["runtime_scan_lease_status"]
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          completed_at?: string | null
+          creance_id?: string
+          created_at?: string
+          last_error_code?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          occurrence_key?: string
+          policy_version?: string
+          scanner_kind?: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status?: Database["public"]["Enums"]["runtime_scan_lease_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runtime_scan_lease_creance_id_fkey"
+            columns: ["creance_id"]
+            isOneToOne: false
+            referencedRelation: "creance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sidian_subscription: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          last_payment_failed_at: string | null
+          last_subscription_event_at: string | null
+          last_subscription_event_id: string | null
+          prestataire_id: string
+          stripe_customer_id: string
+          stripe_price_id: string | null
+          stripe_status: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          last_payment_failed_at?: string | null
+          last_subscription_event_at?: string | null
+          last_subscription_event_id?: string | null
+          prestataire_id: string
+          stripe_customer_id: string
+          stripe_price_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          last_payment_failed_at?: string | null
+          last_subscription_event_at?: string | null
+          last_subscription_event_id?: string | null
+          prestataire_id?: string
+          stripe_customer_id?: string
+          stripe_price_id?: string | null
+          stripe_status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sidian_subscription_prestataire_id_fkey"
+            columns: ["prestataire_id"]
+            isOneToOne: true
             referencedRelation: "prestataire"
             referencedColumns: ["id"]
           },
@@ -1954,9 +2537,9 @@ export type Database = {
           p_connected_account_id: string
           p_dispute_id: string
           p_lease_token: string
-          p_payment_intent_id: string | null
+          p_payment_intent_id: string
           p_processing_attempt: number
-          p_reason: string | null
+          p_reason: string
           p_stripe_event_id: string
         }
         Returns: Json
@@ -1965,9 +2548,9 @@ export type Database = {
         Args: {
           p_checkout_session_id: string
           p_connected_account_id: string
-          p_customer_id: string | null
+          p_customer_id: string
           p_lease_token: string
-          p_payment_intent_id: string | null
+          p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
         }
@@ -2011,11 +2594,11 @@ export type Database = {
           p_connected_account_id: string
           p_currency: string
           p_lease_token: string
-          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string | null
+          p_tentative_id: string
         }
         Returns: Json
       }
@@ -2036,12 +2619,12 @@ export type Database = {
         Args: {
           p_connected_account_id: string
           p_echec_code: string
-          p_echec_message: string | null
+          p_echec_message: string
           p_lease_token: string
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string | null
+          p_tentative_id: string
         }
         Returns: Json
       }
@@ -2049,11 +2632,11 @@ export type Database = {
         Args: {
           p_connected_account_id: string
           p_lease_token: string
-          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          p_moyen: Database["public"]["Enums"]["tentative_paiement_moyen"]
           p_payment_intent_id: string
           p_processing_attempt: number
           p_stripe_event_id: string
-          p_tentative_id: string | null
+          p_tentative_id: string
         }
         Returns: Json
       }
@@ -2112,13 +2695,38 @@ export type Database = {
           p_connected_account_id: string
           p_customer_id: string
           p_lease_token: string
-          p_mandate_id: string | null
-          p_mandate_status: string | null
+          p_mandate_id: string
+          p_mandate_status: string
           p_payment_method_id: string
           p_payment_method_type: string
           p_processing_attempt: number
           p_setup_intent_id: string
           p_stripe_event_id: string
+        }
+        Returns: Json
+      }
+      apply_sidian_subscription_event: {
+        Args: {
+          p_cancel_at_period_end?: boolean
+          p_current_period_end?: string
+          p_early_access_lock_months?: number
+          p_event_created_at: string
+          p_event_type: string
+          p_stripe_customer_id: string
+          p_stripe_event_id: string
+          p_stripe_price_id?: string
+          p_stripe_status: string
+          p_stripe_subscription_id: string
+        }
+        Returns: Json
+      }
+      apply_sidian_subscription_payment_failure: {
+        Args: {
+          p_event_created_at: string
+          p_stripe_customer_id: string
+          p_stripe_event_id: string
+          p_stripe_invoice_id: string
+          p_stripe_subscription_id?: string
         }
         Returns: Json
       }
@@ -2178,6 +2786,29 @@ export type Database = {
         Returns: undefined
       }
       attest_sidian_environment: { Args: never; Returns: Json }
+      bind_sidian_subscription_customer: {
+        Args: { p_prestataire_id: string; p_stripe_customer_id: string }
+        Returns: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          last_payment_failed_at: string | null
+          last_subscription_event_at: string | null
+          last_subscription_event_id: string | null
+          prestataire_id: string
+          stripe_customer_id: string
+          stripe_price_id: string | null
+          stripe_status: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "sidian_subscription"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_agent_protection_draft: {
         Args: {
           p_actor_id: string
@@ -2219,6 +2850,20 @@ export type Database = {
         Returns: Json
       }
       canonicalize_email: { Args: { p_email: string }; Returns: string }
+      claim_automatic_payment_attempt: {
+        Args: {
+          p_amount_cents: number
+          p_authorization_id: string
+          p_creance_id: string
+          p_guard_version?: string
+          p_idempotency_key: string
+          p_lease_seconds?: number
+          p_prestataire_id: string
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+        }
+        Returns: Json
+      }
       claim_checkout_provisioning: {
         Args: {
           p_creance_id: string
@@ -2230,9 +2875,53 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_communication_outbound_batch: {
+        Args: {
+          p_lease_seconds?: number
+          p_limit?: number
+          p_max_attempts?: number
+        }
+        Returns: {
+          attempt_count: number
+          channel_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_kind: string
+          next_attempt_at: string | null
+          payload_snapshot: Json
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          recipient_reference: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_message_status"]
+          template_key: string | null
+          template_locale: string | null
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "communication_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_current_prestataire_connect_provisioning: {
         Args: { p_lease_seconds?: number }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -2262,6 +2951,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -2269,6 +2959,48 @@ export type Database = {
           to: "prestataire"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      claim_email_outbox_batch: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempt_count: number
+          body_html: string
+          body_text: string
+          created_at: string
+          dead_lettered_at: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          max_attempts: number
+          next_attempt_at: string | null
+          processed_at: string | null
+          provider_kind: string
+          provider_message_id: string | null
+          queued_at: string
+          recipient_email: string
+          recipient_email_hash: string
+          recipient_name: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["email_delivery_status"]
+          subject: string
+          template_key: Database["public"]["Enums"]["email_template_key"]
+          template_locale: string
+          tenant_id: string
+          updated_at: string
+          variables_snapshot: Json
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "email_outbox"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       claim_idempotency_key: {
@@ -2299,6 +3031,60 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_payment_execution_job: {
+        Args: { p_job_id?: string; p_lease_seconds?: number }
+        Returns: Json
+      }
+      claim_runtime_jobs: {
+        Args: {
+          p_batch_size: number
+          p_job_kinds?: Database["public"]["Enums"]["runtime_job_kind"][]
+          p_lease_seconds: number
+          p_now: string
+        }
+        Returns: {
+          attempt_count: number
+          available_at: string
+          completed_at: string | null
+          creance_id: string
+          created_at: string
+          dossier_suivi_id: string | null
+          id: string
+          idempotency_key: string
+          job_kind: Database["public"]["Enums"]["runtime_job_kind"]
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          payload: Json
+          policy_version: string
+          prestataire_id: string
+          scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+          status: Database["public"]["Enums"]["runtime_job_status"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "runtime_job"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_runtime_scan_leases: {
+        Args: {
+          p_batch_size: number
+          p_creance_ids: string[]
+          p_lease_seconds: number
+          p_now: string
+          p_occurrence_keys: string[]
+          p_scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+        }
+        Returns: {
+          creance_id: string
+          lease_expires_at: string
+          lease_token: string
+          occurrence_key: string
+        }[]
+      }
       claim_stripe_webhook_event: {
         Args: {
           p_event_id: string
@@ -2308,6 +3094,51 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      close_current_account: { Args: never; Returns: Json }
+      complete_automatic_payment_attempt: {
+        Args: {
+          p_application_fee_amount: number
+          p_lease_token: string
+          p_local_etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          p_stripe_account_id: string
+          p_stripe_customer_id: string
+          p_stripe_payment_intent_id: string
+          p_tentative_id: string
+        }
+        Returns: {
+          application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
+          creance_id: string
+          created_at: string
+          echec_code: string | null
+          echec_message: string | null
+          etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          id: string
+          montant: number
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
+          payment_link_id: string | null
+          source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       complete_checkout_provisioning: {
         Args: {
@@ -2354,6 +3185,48 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_communication_outbound_claim: {
+        Args: {
+          p_accepted_at?: string
+          p_lease_token: string
+          p_message_id: string
+          p_provider_message_id: string
+        }
+        Returns: {
+          attempt_count: number
+          channel_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_kind: string
+          next_attempt_at: string | null
+          payload_snapshot: Json
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          recipient_reference: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_message_status"]
+          template_key: string | null
+          template_locale: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "communication_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_idempotency_record: {
         Args: {
           p_completed_at?: string
@@ -2372,7 +3245,7 @@ export type Database = {
           p_stripe_account_id: string
           p_stripe_customer_id: string
           p_stripe_setup_checkout_session_id: string
-          p_stripe_setup_intent_id: string | null
+          p_stripe_setup_intent_id: string
         }
         Returns: {
           accepted_at: string | null
@@ -2418,6 +3291,41 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_payment_execution_job: {
+        Args: {
+          p_failure_code?: string
+          p_job_id: string
+          p_lease_token: string
+          p_outcome: string
+          p_stripe_payment_intent_id?: string
+          p_tentative_paiement_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          attempt_count: number
+          correlation_id: string | null
+          creance_id: string
+          created_at: string
+          currency: string
+          failure_code: string | null
+          id: string
+          idempotency_key: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          prestataire_id: string
+          source: Database["public"]["Enums"]["payment_execution_job_source"]
+          status: Database["public"]["Enums"]["payment_execution_job_status"]
+          stripe_payment_intent_id: string | null
+          tentative_paiement_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_execution_job"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_prestataire_connect_provisioning: {
         Args: {
           p_audit_action: string
@@ -2426,6 +3334,9 @@ export type Database = {
           p_stripe_account_id: string
         }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -2455,6 +3366,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -2464,12 +3376,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_runtime_job: {
+        Args: { p_job_id: string; p_lease_token: string; p_now?: string }
+        Returns: boolean
+      }
+      complete_runtime_scan_lease: {
+        Args: {
+          p_creance_id: string
+          p_lease_token: string
+          p_now?: string
+          p_occurrence_key: string
+          p_scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+        }
+        Returns: boolean
+      }
       configure_current_prestataire_profile: {
         Args: {
           p_nom: string
           p_profil_agent: Database["public"]["Enums"]["profil_agent_defaut"]
         }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -2499,6 +3428,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -2517,6 +3447,30 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      confirm_document_upload: {
+        Args: { p_checksum?: string; p_document_id: string }
+        Returns: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "document"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       consume_human_approval: {
         Args: {
@@ -2660,6 +3614,64 @@ export type Database = {
         }
         Returns: Json
       }
+      document_allowed_mime_types: { Args: never; Returns: string[] }
+      document_max_size_bytes: { Args: never; Returns: number }
+      document_mime_allowed: { Args: { p_mime: string }; Returns: boolean }
+      drain_stripe_connect_audit_outbox_batch: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      enqueue_payment_execution_job: {
+        Args: {
+          p_amount_cents: number
+          p_correlation_id?: string
+          p_creance_id: string
+          p_currency: string
+          p_idempotency_key: string
+          p_prestataire_id: string
+          p_source: Database["public"]["Enums"]["payment_execution_job_source"]
+        }
+        Returns: {
+          amount_cents: number
+          attempt_count: number
+          correlation_id: string | null
+          creance_id: string
+          created_at: string
+          currency: string
+          failure_code: string | null
+          id: string
+          idempotency_key: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          prestataire_id: string
+          source: Database["public"]["Enums"]["payment_execution_job_source"]
+          status: Database["public"]["Enums"]["payment_execution_job_status"]
+          stripe_payment_intent_id: string | null
+          tentative_paiement_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_execution_job"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      enqueue_runtime_job: {
+        Args: {
+          p_available_at?: string
+          p_creance_id: string
+          p_dossier_suivi_id: string
+          p_idempotency_key: string
+          p_job_kind: Database["public"]["Enums"]["runtime_job_kind"]
+          p_now?: string
+          p_payload?: Json
+          p_policy_version: string
+          p_prestataire_id: string
+          p_scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+        }
+        Returns: Json
+      }
       ensure_current_dossier_suivi: {
         Args: { p_creance_id: string }
         Returns: {
@@ -2684,6 +3696,9 @@ export type Database = {
       ensure_prestataire_for_current_user: {
         Args: { p_nom: string }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -2713,6 +3728,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -2721,6 +3737,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      ensure_runtime_scan_leases: {
+        Args: {
+          p_creance_ids: string[]
+          p_occurrence_keys: string[]
+          p_policy_version: string
+          p_scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+        }
+        Returns: number
       }
       ensure_whatsapp_sidian_channel: {
         Args: { p_prestataire_id: string }
@@ -2741,6 +3766,48 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "communication_channel"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      export_current_account_data: { Args: never; Returns: Json }
+      fail_automatic_payment_attempt: {
+        Args: {
+          p_error_code: string
+          p_lease_token: string
+          p_retryable: boolean
+          p_tentative_id: string
+        }
+        Returns: {
+          application_fee_amount: number | null
+          automatic_execution_guard_version: string | null
+          checkout_lease_expires_at: string | null
+          checkout_lease_token: string | null
+          checkout_operation_key: string | null
+          checkout_provisioning_attempts: number
+          checkout_provisioning_error_code: string | null
+          checkout_provisioning_status: Database["public"]["Enums"]["stripe_checkout_provisioning_status"]
+          creance_id: string
+          created_at: string
+          echec_code: string | null
+          echec_message: string | null
+          etat: Database["public"]["Enums"]["tentative_paiement_etat"]
+          id: string
+          montant: number
+          moyen: Database["public"]["Enums"]["tentative_paiement_moyen"] | null
+          payment_authorization_id: string | null
+          payment_link_id: string | null
+          source: Database["public"]["Enums"]["tentative_paiement_source"]
+          stripe_account_id: string | null
+          stripe_checkout_idempotency_key: string | null
+          stripe_checkout_session_expires_at: string | null
+          stripe_checkout_session_id: string | null
+          stripe_customer_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tentative_paiement"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2782,6 +3849,51 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "tentative_paiement"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fail_communication_outbound_claim: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_lease_token: string
+          p_max_attempts?: number
+          p_message_id: string
+          p_retry_delay_seconds?: number
+          p_retryable: boolean
+        }
+        Returns: {
+          attempt_count: number
+          channel_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["communication_message_direction"]
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_message: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          message_kind: string
+          next_attempt_at: string | null
+          payload_snapshot: Json
+          provider_kind: Database["public"]["Enums"]["communication_provider_kind"]
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          recipient_reference: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_message_status"]
+          template_key: string | null
+          template_locale: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "communication_messages"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2856,6 +3968,9 @@ export type Database = {
           p_retryable: boolean
         }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -2885,6 +4000,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -2893,6 +4009,29 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      fail_runtime_job: {
+        Args: {
+          p_backoff_base_seconds?: number
+          p_error_code: string
+          p_job_id: string
+          p_lease_token: string
+          p_max_attempts?: number
+          p_now?: string
+          p_retryable?: boolean
+        }
+        Returns: string
+      }
+      fail_runtime_scan_lease: {
+        Args: {
+          p_creance_id: string
+          p_error_code?: string
+          p_lease_token: string
+          p_now?: string
+          p_occurrence_key: string
+          p_scanner_kind: Database["public"]["Enums"]["runtime_scanner_kind"]
+        }
+        Returns: boolean
       }
       flush_stripe_connect_audit_outbox: {
         Args: { p_operation_key: string; p_prestataire_id: string }
@@ -2942,6 +4081,30 @@ export type Database = {
           to: "agent_protection_drafts"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      get_current_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "document"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       get_human_approval_status: {
@@ -3005,6 +4168,58 @@ export type Database = {
           p_to: Database["public"]["Enums"]["dossier_suivi_etat"]
         }
         Returns: boolean
+      }
+      list_current_documents: {
+        Args: {
+          p_creance_id?: string
+          p_include_deleted?: boolean
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "document"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      llm_budget_consume: {
+        Args: {
+          p_estimated_tokens: number
+          p_max_requests_per_minute: number
+          p_max_requests_per_scope_per_hour: number
+          p_max_tokens_per_minute: number
+          p_now?: string
+          p_scope_fingerprint: string
+        }
+        Returns: Json
+      }
+      llm_budget_record_usage: {
+        Args: { p_now?: string; p_tokens: number }
+        Returns: number
+      }
+      load_automatic_payment_checklist: {
+        Args: { p_creance_id: string; p_prestataire_id: string }
+        Returns: Json
+      }
+      map_stripe_subscription_status: {
+        Args: { p_stripe_status: string }
+        Returns: Database["public"]["Enums"]["subscription_status"]
       }
       mark_stripe_webhook_event_status: {
         Args: {
@@ -3074,6 +4289,17 @@ export type Database = {
         }
         Returns: Json
       }
+      purge_abandoned_document_uploads: {
+        Args: { p_limit?: number; p_older_than_hours?: number }
+        Returns: {
+          id: string
+          storage_path: string
+        }[]
+      }
+      purge_expired_llm_budget_counters: {
+        Args: { p_batch_size?: number; p_now?: string }
+        Returns: number
+      }
       purge_expired_public_rate_limits: {
         Args: { p_batch_size?: number; p_now?: string }
         Returns: number
@@ -3094,15 +4320,48 @@ export type Database = {
         }
         Returns: Json
       }
+      register_document_upload: {
+        Args: {
+          p_creance_id?: string
+          p_mime_type: string
+          p_original_filename: string
+          p_size_bytes: number
+        }
+        Returns: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "document"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       register_payment_reconciliation_human_required: {
         Args: {
           p_creance_id: string
           p_reason: string
           p_reconciliation_key: string
           p_requester_user_id: string
-          p_tentative_id: string | null
+          p_tentative_id: string
         }
         Returns: Json
+      }
+      release_runtime_job: {
+        Args: { p_job_id: string; p_lease_token: string; p_now?: string }
+        Returns: boolean
       }
       renew_stripe_webhook_event_lease: {
         Args: {
@@ -3315,7 +4574,49 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      runtime_close_dossier: {
+        Args: { p_creance_id: string; p_now?: string }
+        Returns: string
+      }
+      runtime_job_backlog: {
+        Args: { p_now?: string }
+        Returns: {
+          due_now: number
+          job_kind: Database["public"]["Enums"]["runtime_job_kind"]
+          oldest_created_at: string
+          status: Database["public"]["Enums"]["runtime_job_status"]
+          total: number
+        }[]
+      }
+      runtime_load_job_context: {
+        Args: { p_creance_id: string }
+        Returns: Json
+      }
+      schema_migration_head: { Args: never; Returns: string }
       service_role_healthcheck: { Args: never; Returns: boolean }
+      set_current_prestataire_notification_preferences: {
+        Args: {
+          p_email_payment_failed: boolean
+          p_email_reminder_before_due: boolean
+        }
+        Returns: {
+          created_at: string
+          email_payment_failed: boolean
+          email_reminder_before_due: boolean
+          prestataire_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notification_preference"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_current_prestataire_theme_preference: {
+        Args: { p_theme: Database["public"]["Enums"]["theme_preference"] }
+        Returns: Database["public"]["Enums"]["theme_preference"]
+      }
       set_default_payment_authorization: {
         Args: { p_authorization_id: string }
         Returns: {
@@ -3377,6 +4678,30 @@ export type Database = {
         Args: { p_table: string }
         Returns: Json
       }
+      soft_delete_document: {
+        Args: { p_document_id: string }
+        Returns: {
+          checksum: string | null
+          creance_id: string | null
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          original_filename: string
+          prestataire_id: string
+          size_bytes: number
+          status: Database["public"]["Enums"]["document_status"]
+          storage_path: string
+          updated_at: string
+          uploaded_by: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "document"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       suspend_payment_authorization_for_dispute: {
         Args: {
           p_connected_account_id: string
@@ -3403,6 +4728,9 @@ export type Database = {
           p_stripe_account_id: string
         }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -3432,6 +4760,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -3523,6 +4852,9 @@ export type Database = {
       update_current_prestataire_name: {
         Args: { p_nom: string }
         Returns: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          anonymised_at: string | null
+          closed_at: string | null
           created_at: string
           early_access_price_locked_until: string | null
           email: string
@@ -3552,6 +4884,7 @@ export type Database = {
           stripe_status_synced_at: string | null
           subscription_started_at: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          theme_preference: Database["public"]["Enums"]["theme_preference"]
           user_id: string
         }
         SetofOptions: {
@@ -3610,6 +4943,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_status: "active" | "closed"
       actor_type: "human" | "sidian_agent" | "system" | "external_integration"
       approval_request_status: "pending" | "approved" | "rejected" | "expired"
       approval_request_type:
@@ -3670,6 +5004,12 @@ export type Database = {
         | "echeancier"
         | "abonnement"
         | "import_manuel"
+      document_status:
+        | "pending_upload"
+        | "stored"
+        | "awaiting_processing"
+        | "quarantined"
+        | "deleted"
       dossier_suivi_etat:
         | "PREVENTION"
         | "ECHEANCE"
@@ -3679,6 +5019,21 @@ export type Database = {
         | "ATTENTE_PRESTATAIRE"
         | "ESCALADE_HUMAINE"
         | "CLOS"
+      email_delivery_status:
+        | "queued"
+        | "processing"
+        | "sent"
+        | "failed"
+        | "dead_letter"
+      email_template_key:
+        | "reminder_before_due"
+        | "reminder_after_due"
+        | "payment_received"
+        | "payment_failed"
+        | "update_payment_method"
+        | "cancellation_notice"
+        | "partial_payment_notice"
+        | "guide_internal_notice"
       guide_payment_confirmation_status:
         | "awaiting_guide_response"
         | "confirmed_received"
@@ -3698,6 +5053,14 @@ export type Database = {
         | "REVOQUEE"
         | "EXPIREE"
       payment_authorization_type: "card_off_session" | "sepa_core_mandate"
+      payment_execution_job_source: "scanner" | "agent_tool"
+      payment_execution_job_status:
+        | "pending"
+        | "claimed"
+        | "succeeded_pending_webhook"
+        | "failed_terminal"
+        | "failed_retryable"
+        | "unknown"
       payment_link_status: "active" | "revoked"
       profil_agent_defaut: "controle" | "delegation"
       public_rate_limit_category:
@@ -3727,6 +5090,28 @@ export type Database = {
         | "canaux_autorises"
         | "frequence_max_sollicitation"
         | "horaires_autorises"
+      runtime_job_kind:
+        | "prevention_notice"
+        | "due_send_link"
+        | "silence_escalate"
+        | "closure_close_dossier"
+        | "autopay_intent"
+        | "retry_failed_notify"
+      runtime_job_status:
+        | "pending"
+        | "claimed"
+        | "completed"
+        | "failed_retryable"
+        | "failed_terminal"
+        | "cancelled"
+      runtime_scan_lease_status: "open" | "claimed" | "completed" | "failed"
+      runtime_scanner_kind:
+        | "prevention"
+        | "due"
+        | "silence"
+        | "closure"
+        | "auto_pay"
+        | "retries"
       stripe_capability_status: "inactive" | "pending" | "active"
       stripe_checkout_provisioning_status:
         | "not_started"
@@ -3760,6 +5145,7 @@ export type Database = {
         | "ANNULEE"
       tentative_paiement_moyen: "carte" | "sepa_core"
       tentative_paiement_source: "lien_agent" | "prelevement_auto"
+      theme_preference: "light" | "dark" | "system"
       webhook_processing_status:
         | "received"
         | "processing"
@@ -3897,6 +5283,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      account_status: ["active", "closed"],
       actor_type: ["human", "sidian_agent", "system", "external_integration"],
       approval_request_status: ["pending", "approved", "rejected", "expired"],
       approval_request_type: [
@@ -3968,6 +5355,13 @@ export const Constants = {
         "abonnement",
         "import_manuel",
       ],
+      document_status: [
+        "pending_upload",
+        "stored",
+        "awaiting_processing",
+        "quarantined",
+        "deleted",
+      ],
       dossier_suivi_etat: [
         "PREVENTION",
         "ECHEANCE",
@@ -3977,6 +5371,23 @@ export const Constants = {
         "ATTENTE_PRESTATAIRE",
         "ESCALADE_HUMAINE",
         "CLOS",
+      ],
+      email_delivery_status: [
+        "queued",
+        "processing",
+        "sent",
+        "failed",
+        "dead_letter",
+      ],
+      email_template_key: [
+        "reminder_before_due",
+        "reminder_after_due",
+        "payment_received",
+        "payment_failed",
+        "update_payment_method",
+        "cancellation_notice",
+        "partial_payment_notice",
+        "guide_internal_notice",
       ],
       guide_payment_confirmation_status: [
         "awaiting_guide_response",
@@ -4003,6 +5414,15 @@ export const Constants = {
         "EXPIREE",
       ],
       payment_authorization_type: ["card_off_session", "sepa_core_mandate"],
+      payment_execution_job_source: ["scanner", "agent_tool"],
+      payment_execution_job_status: [
+        "pending",
+        "claimed",
+        "succeeded_pending_webhook",
+        "failed_terminal",
+        "failed_retryable",
+        "unknown",
+      ],
       payment_link_status: ["active", "revoked"],
       profil_agent_defaut: ["controle", "delegation"],
       public_rate_limit_category: [
@@ -4033,6 +5453,31 @@ export const Constants = {
         "canaux_autorises",
         "frequence_max_sollicitation",
         "horaires_autorises",
+      ],
+      runtime_job_kind: [
+        "prevention_notice",
+        "due_send_link",
+        "silence_escalate",
+        "closure_close_dossier",
+        "autopay_intent",
+        "retry_failed_notify",
+      ],
+      runtime_job_status: [
+        "pending",
+        "claimed",
+        "completed",
+        "failed_retryable",
+        "failed_terminal",
+        "cancelled",
+      ],
+      runtime_scan_lease_status: ["open", "claimed", "completed", "failed"],
+      runtime_scanner_kind: [
+        "prevention",
+        "due",
+        "silence",
+        "closure",
+        "auto_pay",
+        "retries",
       ],
       stripe_capability_status: ["inactive", "pending", "active"],
       stripe_checkout_provisioning_status: [
@@ -4071,6 +5516,7 @@ export const Constants = {
       ],
       tentative_paiement_moyen: ["carte", "sepa_core"],
       tentative_paiement_source: ["lien_agent", "prelevement_auto"],
+      theme_preference: ["light", "dark", "system"],
       webhook_processing_status: [
         "received",
         "processing",

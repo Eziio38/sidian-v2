@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { paymentCreateAttemptV1 } from "@/lib/agent/tools/definitions/payment.create_attempt.1.0.0";
+import { protectionDraftConverseV1 } from "@/lib/agent/tools/definitions/protection.draft.converse.1.0.0";
 
 import { PERMISSION_POLICY_VERSION } from "./policy";
 import {
@@ -410,5 +411,33 @@ describe("Permission Service G1-C (déterministe, zéro I/O)", () => {
       ctx,
     );
     expect(decision.reason_code).toBe("RESOURCE_SCOPE_MISMATCH");
+  });
+
+  it("autorise un appel tenant sans resource si le scope outil inclut tenant", () => {
+    const service = createPermissionService({
+      resolveToolDefinition: createMemoryToolResolver([
+        ...memoryDefinitions,
+        protectionDraftConverseV1,
+      ]),
+    });
+    const decision = service.authorize(
+      {
+        ...baseWriteRequest({
+          tool_id: "protection.draft.converse",
+          tool_version: "1.0.0",
+          human_validation: undefined,
+          current_params_hash: undefined,
+          resource: undefined,
+          grants: [
+            {
+              permission: "protection.draft.write",
+              tenant_id: TENANT_A,
+            },
+          ],
+        }),
+      },
+      ctx,
+    );
+    expect(decision.decision).toBe("allow");
   });
 });

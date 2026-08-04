@@ -40,12 +40,12 @@ describe("protection panel mapping", () => {
     expect(panel.dueDateLabel).toBe("À préciser");
     expect(panel.status).toBe("draft");
     expect(panel.draftId).toBe(baseDraftOutput.draft_id);
-    expect(panel.consequenceLabel).toContain("Rien n’est créé");
+    expect(panel.consequenceLabel).toContain("Rien ne sera envoyé");
   });
 });
 
 describe("progressive fields", () => {
-  it("révèle progressivement moyen / autorisation / auto-débit", () => {
+  it("n’affiche moyen / autorisation / auto-débit qu’une fois enregistrés", () => {
     const partial: ProtectionPanelData = {
       clientName: "Dupont Conseil",
       statusLabel: STATUS_LABELS.draft,
@@ -58,12 +58,26 @@ describe("progressive fields", () => {
     expect(ids).toContain("amount");
     expect(ids).not.toContain("payment_method");
 
-    const complete: ProtectionPanelData = {
+    const withDue: ProtectionPanelData = {
       ...partial,
       dueDateLabel: "24 août 2026",
     };
-    const completeIds = selectProgressiveFields(complete).map((f) => f.id);
-    expect(completeIds).toEqual(
+    const withDueIds = selectProgressiveFields(withDue).map((f) => f.id);
+    expect(withDueIds).toEqual(
+      expect.arrayContaining(["client", "amount", "due_date", "status"]),
+    );
+    expect(withDueIds).not.toContain("payment_method");
+    expect(withDueIds).not.toContain("authorization");
+    expect(withDueIds).not.toContain("auto_debit");
+
+    const registered: ProtectionPanelData = {
+      ...withDue,
+      paymentMethodLabel: "Carte bancaire",
+      authorizationLabel: "Autorisation SEPA active",
+      autoDebitRuleLabel: "Prélèvement activé",
+    };
+    const registeredIds = selectProgressiveFields(registered).map((f) => f.id);
+    expect(registeredIds).toEqual(
       expect.arrayContaining([
         "client",
         "amount",
@@ -108,9 +122,6 @@ describe("ProtectionPanel UI", () => {
           status: "draft",
           amountLabel: "2 400 €",
           dueDateLabel: "24 août 2026",
-          paymentMethodLabel: "Le client choisira au moment du paiement",
-          authorizationLabel: "Pas encore proposée",
-          autoDebitRuleLabel: "Pas encore activé",
           nextStepLabel: "Confirmer pour créer",
           consequenceLabel: "Rien n’est créé tant que tu n’as pas confirmé.",
           primaryActionLabel: "Créer la protection",
@@ -124,12 +135,24 @@ describe("ProtectionPanel UI", () => {
     expect(screen.getByTestId("protection-field-client").textContent).toContain(
       "Dupont Conseil",
     );
-    expect(screen.getByTestId("protection-field-payment_method")).toBeTruthy();
-    expect(screen.getByTestId("protection-field-authorization")).toBeTruthy();
-    expect(screen.getByTestId("protection-field-auto_debit")).toBeTruthy();
+    expect(
+      screen.queryByTestId("protection-field-payment_method"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("protection-field-authorization"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("protection-field-auto_debit"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("protection-field-missing"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByTestId("protection-field-consequences").textContent,
     ).toContain("Rien n’est créé");
+    expect(screen.getByTestId("protection-field-consequences")).toHaveTextContent(
+      "Ce que Sidian fera",
+    );
 
     fireEvent.click(screen.getByTestId("context-panel-primary"));
     expect(onPrimary).toHaveBeenCalledTimes(1);

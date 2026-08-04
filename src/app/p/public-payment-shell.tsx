@@ -1,3 +1,5 @@
+import { BrandLockup } from "@/components/brand/brand-lockup";
+
 export function PublicPaymentShell({
   children,
   centred = false,
@@ -12,16 +14,9 @@ export function PublicPaymentShell({
           className={`w-full rounded-2xl border border-gris-200 bg-white p-6 sm:p-8 ${centred ? "text-center" : ""}`}
         >
           <div
-            className={`mb-7 flex items-center gap-2 ${centred ? "justify-center" : ""}`}
-            aria-label="Sidian"
+            className={`mb-7 flex items-center ${centred ? "justify-center" : ""}`}
           >
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 rounded-full bg-sidian-blue"
-            />
-            <span className="text-sm font-semibold tracking-tight text-nuit">
-              Sidian
-            </span>
+            <BrandLockup size="md" />
           </div>
           {children}
           <p className="mt-8 border-t border-gris-100 pt-5 text-xs leading-relaxed text-gris-500">

@@ -1,20 +1,56 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 
-import { SuggestionIcon } from "./suggestion-icons";
-import type { AssistantMessage, AssistantMessageAction } from "./types";
+import { Button, ButtonLink, Icon } from "@/design-system";
+import { cx } from "@/design-system/utils";
+
+import { formatFileSize } from "./composer";
+import {
+  AttachmentPreviewDialog,
+  type AttachmentPreviewData,
+} from "./attachment-preview-dialog";
+import {
+  getAttachmentIcon,
+  getAttachmentIconType,
+} from "./document-attachments";
+import { MessageCard } from "./message-card";
+import { MessageHoverActions } from "./message-hover-actions";
+import { MessageSuggestions } from "./message-suggestions";
+import type {
+  AssistantMessage,
+  AssistantMessageAction,
+  MessageAttachment,
+  MessageFeedback,
+} from "./types";
+import styles from "./message-thread.module.css";
 
 type MessageThreadProps = {
   messages: AssistantMessage[];
+  busy?: boolean;
+  editingMessageId?: string | null;
   onSuggestionSelect?: (suggestion: string) => void;
+  onClientNameSubmit?: (name: string) => void;
   onAction?: (action: AssistantMessageAction, message: AssistantMessage) => void;
+  onOpenCard?: (message: AssistantMessage) => void;
+  onMessageFeedback?: (
+    messageId: string,
+    feedback: MessageFeedback | null,
+    comment: string,
+  ) => void;
+  onEditMessage?: (message: AssistantMessage) => void;
 };
 
 export function MessageThread({
   messages,
+  busy = false,
+  editingMessageId = null,
   onSuggestionSelect,
+  onClientNameSubmit,
   onAction,
+  onOpenCard,
+  onMessageFeedback,
+  onEditMessage,
 }: MessageThreadProps) {
   if (messages.length === 0) {
     return null;
@@ -23,7 +59,7 @@ export function MessageThread({
   return (
     <div
       data-testid="message-thread"
-      className="flex flex-col gap-6"
+      className={styles.thread}
       role="log"
       aria-live="polite"
       aria-relevant="additions"
@@ -35,6 +71,23 @@ export function MessageThread({
         const isUser = message.role === "user";
         const isError = message.status === "error";
         const isStreaming = message.status === "streaming";
+        const isEditing = isUser && editingMessageId === message.id;
+        const cardOpensPanel =
+          message.card &&
+          (message.card.kind === "protection_draft" ||
+            message.card.kind === "protection" ||
+            message.card.kind === "payment" ||
+            message.card.kind === "action_needed");
+        const attachments = message.attachments ?? [];
+        const showUserHoverActions =
+          isUser &&
+          message.status !== "streaming" &&
+          Boolean(message.content.trim() || attachments.length > 0);
+        const showAssistantHoverActions =
+          !isUser &&
+          !isStreaming &&
+          message.status !== "pending" &&
+          Boolean(message.content.trim());
 
         return (
           <article
@@ -42,116 +95,159 @@ export function MessageThread({
             data-testid={`message-${message.role}-${message.id}`}
             data-role={message.role}
             data-status={message.status ?? "sent"}
-            className={`motion-safe:animate-[assistant-message-in_180ms_ease-out] motion-reduce:animate-none ${
-              isUser ? "ml-auto w-fit max-w-[min(100%,26rem)]" : "w-full"
-            }`}
+            aria-busy={isStreaming ? "true" : undefined}
+            data-editing={isEditing ? "true" : undefined}
+            className={cx(
+              styles.message,
+              isUser && styles.userMessage,
+              isEditing && styles.userMessageEditing,
+            )}
           >
-            <div className="mb-2 flex items-center gap-4">
-              <span
-                aria-hidden
-                className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-medium ${
-                  isUser
-                    ? "bg-assistant-bubble text-assistant-text"
-                    : "bg-white/[0.08] text-assistant-text"
-                }`}
-              >
-                {isUser ? "U" : "●"}
-              </span>
-              <span className="text-[12px] font-semibold text-assistant-muted/75">
-                {isUser ? "Vous" : "Sidian"}
-              </span>
-            </div>
-
             {isUser ? (
-              <div className="rounded-[20px] bg-assistant-bubble px-4 py-2 text-[14px] font-normal leading-6 break-words text-assistant-text">
-                <MessageBody content={message.content} />
+              <div className={styles.userStack}>
+                {attachments.length > 0 ? (
+                  <MessageAttachments attachments={attachments} />
+                ) : null}
+                {message.content.trim() ? (
+                  <div className={styles.userBubble}>
+                    <MessageBody content={message.content} />
+                  </div>
+                ) : null}
+                {showUserHoverActions ? (
+                  <div className={styles.hoverActionsSlot}>
+                    <MessageHoverActions
+                      messageId={message.id}
+                      content={
+                        message.content.trim() ||
+                        attachments.map((attachment) => attachment.name).join("\n")
+                      }
+                      feedback={message.feedback}
+                      feedbackComment={message.feedbackComment}
+                      canEdit={
+                        Boolean(message.content.trim()) &&
+                        Boolean(onEditMessage)
+                      }
+                      onFeedback={(feedback, comment) =>
+                        onMessageFeedback?.(message.id, feedback, comment)
+                      }
+                      onEdit={() => onEditMessage?.(message)}
+                    />
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <div
-                className={`max-w-prose text-[14px] font-normal leading-6 break-words text-assistant-text ${
-                  isStreaming ? "opacity-80" : ""
-                } ${isError ? "text-red-300/90" : ""}`}
-              >
-                <MessageBody content={message.content} />
-                {isError && message.errorMessage ? (
-                  <p className="mt-2 text-[13px] text-red-300/80">
-                    {message.errorMessage}
-                  </p>
+              <div className={styles.assistantBlock}>
+                <div
+                  className={cx(
+                    styles.assistantBody,
+                    isStreaming && styles.streaming,
+                    isError && styles.error,
+                  )}
+                >
+                  <MessageBody content={message.content} />
+                  {isStreaming && message.activityIndicator ? (
+                    <span className={styles.activityDots} aria-hidden>
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  ) : null}
+                  {isError && message.errorMessage ? (
+                    <p className={styles.errorDetail}>
+                      {message.errorMessage}
+                    </p>
+                  ) : null}
+                </div>
+                {showAssistantHoverActions ? (
+                  <div className={styles.hoverActionsSlot}>
+                    <MessageHoverActions
+                      messageId={message.id}
+                      content={message.content}
+                      feedback={message.feedback}
+                      feedbackComment={message.feedbackComment}
+                      canEdit={false}
+                      canRetry={
+                        message.retryable === true && Boolean(onAction)
+                      }
+                      busy={busy}
+                      align="start"
+                      onFeedback={(feedback, comment) =>
+                        onMessageFeedback?.(message.id, feedback, comment)
+                      }
+                      onRetry={() =>
+                        onAction?.(
+                          {
+                            id: "retry",
+                            label: "Réessayer",
+                            kind: "retry",
+                          },
+                          message,
+                        )
+                      }
+                    />
+                  </div>
                 ) : null}
               </div>
             )}
 
-            {isLastAssistant &&
-            message.suggestions &&
-            message.suggestions.length > 0 &&
-            !isError ? (
-              <div
-                data-testid="message-suggestions"
-                className="mt-4 flex flex-wrap gap-2"
-              >
-                {message.suggestions.slice(0, 3).map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => onSuggestionSelect?.(suggestion)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/[0.045] px-4 py-2 text-[12px] text-assistant-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.08] hover:text-assistant-text motion-safe:hover:-translate-y-px motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
-                  >
-                    <SuggestionIcon label={suggestion} />
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+            {message.card ? (
+              <MessageCard
+                card={message.card}
+                onOpen={
+                  cardOpensPanel &&
+                  onOpenCard &&
+                  !(message.actions && message.actions.length > 0)
+                    ? () => onOpenCard(message)
+                    : undefined
+                }
+              />
             ) : null}
 
             {isLastAssistant &&
-            ((message.actions && message.actions.length > 0) || isError) ? (
+            message.suggestions &&
+            message.suggestions.length > 0 &&
+            !isError &&
+            onSuggestionSelect ? (
+              <MessageSuggestions
+                suggestions={message.suggestions}
+                onSelect={onSuggestionSelect}
+                onClientNameSubmit={onClientNameSubmit}
+              />
+            ) : null}
+
+            {isLastAssistant &&
+            message.actions &&
+            message.actions.length > 0 ? (
               <div
                 data-testid="message-actions"
-                className="mt-4 flex flex-wrap gap-2"
+                className={styles.actions}
               >
-                {isError ? (
-                  <button
-                    type="button"
-                    data-testid="message-retry"
-                    onClick={() =>
-                      onAction?.(
-                        {
-                          id: "retry",
-                          label: "Réessayer",
-                          kind: "retry",
-                        },
-                        message,
-                      )
-                    }
-                    className="inline-flex items-center rounded-full bg-white/[0.06] px-4 py-2 text-[12px] font-medium text-assistant-text transition-colors duration-150 hover:bg-white/[0.1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
-                  >
-                    Réessayer
-                  </button>
-                ) : null}
-                {(message.actions ?? []).map((action) =>
-                  action.href ? (
-                    <Link
+                {message.actions.map((action) =>
+                  action.href && !onAction ? (
+                    <ButtonLink
                       key={action.id}
                       href={action.href}
+                      size="sm"
                       data-testid={`message-action-${action.id}`}
-                      className="inline-flex items-center rounded-full bg-sidian-blue px-4 py-2 text-[12px] font-medium text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
                     >
                       {action.label}
-                    </Link>
+                    </ButtonLink>
                   ) : (
-                    <button
+                    <Button
                       key={action.id}
                       type="button"
-                      data-testid={`message-action-${action.id}`}
-                      onClick={() => onAction?.(action, message)}
-                      className={`inline-flex items-center rounded-full px-4 py-2 text-[12px] font-medium transition-opacity duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue ${
+                      size="sm"
+                      variant={
                         action.kind === "confirm_protection"
-                          ? "bg-sidian-blue text-white hover:opacity-90"
-                          : "bg-white/[0.06] text-assistant-text hover:bg-white/[0.1]"
-                      }`}
+                          ? "primary"
+                          : "secondary"
+                      }
+                      data-testid={`message-action-${action.id}`}
+                      disabled={busy}
+                      onClick={() => onAction?.(action, message)}
                     >
                       {action.label}
-                    </button>
+                    </Button>
                   ),
                 )}
               </div>
@@ -163,19 +259,85 @@ export function MessageThread({
   );
 }
 
+function MessageAttachments({
+  attachments,
+}: {
+  attachments: MessageAttachment[];
+}) {
+  const [previewAttachment, setPreviewAttachment] =
+    useState<AttachmentPreviewData | null>(null);
+
+  return (
+    <>
+      <ul
+        className={styles.attachments}
+        aria-label="Pièces jointes du message"
+        data-testid="message-attachments"
+      >
+        {attachments.map((file) => {
+          const attachmentIcon = getAttachmentIcon(file);
+          const attachmentIconType = getAttachmentIconType(file);
+          return (
+            <li
+              key={file.id}
+              className={styles.attachment}
+              data-type={attachmentIconType}
+            >
+              <button
+                type="button"
+                className={styles.attachmentPreviewTrigger}
+                aria-label={`Afficher l’aperçu de ${file.name}`}
+                onClick={() =>
+                  setPreviewAttachment({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    url: file.previewUrl,
+                    source: file.previewSource,
+                  })
+                }
+              >
+                <span
+                  className={styles.attachmentIcon}
+                  aria-hidden
+                  data-testid={`attachment-icon-${attachmentIconType}`}
+                >
+                  <Icon icon={attachmentIcon} size="sm" />
+                </span>
+                <span className={styles.attachmentCopy}>
+                  <span className={styles.attachmentName} title={file.name}>
+                    {file.name}
+                  </span>
+                  <span className={styles.attachmentSize}>
+                    {formatFileSize(file.size)}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <AttachmentPreviewDialog
+        attachment={previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+      />
+    </>
+  );
+}
+
 function MessageBody({ content }: { content: string }) {
   const blocks = parseMessageBlocks(content);
 
   return (
-    <div className="space-y-2">
+    <div className={styles.body}>
       {blocks.map((block, index) => {
         if (block.type === "list") {
           return (
-            <ul key={`list-${index}`} className="space-y-1 pl-0">
+            <ul key={`list-${index}`} className={styles.list}>
               {block.items.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-assistant-muted/80" />
-                  <span className="min-w-0 break-words">{item}</span>
+                <li key={item} className={styles.listItem}>
+                  <span className={styles.bullet} aria-hidden />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
@@ -183,7 +345,7 @@ function MessageBody({ content }: { content: string }) {
         }
 
         return (
-          <p key={`p-${index}`} className="whitespace-pre-wrap break-words">
+          <p key={`p-${index}`} className={styles.paragraph}>
             {block.text}
           </p>
         );
@@ -215,21 +377,22 @@ function parseMessageBlocks(content: string): MessageBlock[] {
   }
 
   for (const line of lines) {
-    const bullet = line.match(/^\s*[•\-\*]\s+(.+)$/);
+    const bullet = line.match(/^\s*[•\-*]\s+(.+)$/);
     if (bullet) {
       flushParagraph();
       listItems.push(bullet[1]);
       continue;
     }
-    flushList();
-    if (line.trim() === "") {
+    if (!line.trim()) {
       flushParagraph();
+      flushList();
       continue;
     }
+    flushList();
     paragraph.push(line);
   }
 
-  flushList();
   flushParagraph();
+  flushList();
   return blocks;
 }

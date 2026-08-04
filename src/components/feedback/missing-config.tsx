@@ -2,6 +2,7 @@ import type { ConfigChannelStatus } from "@/lib/ux/config-status-types";
 
 import { StatusBanner } from "./status-banner";
 import type { FeedbackTone } from "./types";
+import styles from "./missing-config.module.css";
 
 function toneForState(state: ConfigChannelStatus["state"]): FeedbackTone {
   if (state === "ready") return "success";
@@ -68,20 +69,20 @@ export function ConfigStatusList({
   return (
     <section
       data-testid="config-status-list"
-      className={`space-y-3 ${className}`}
+      className={`${styles.section} ${className}`}
       aria-label={title ?? "État des canaux"}
     >
       {title ? (
-        <div className="mb-1">
-          <h2 className="text-lg font-semibold text-nuit">{title}</h2>
+        <div className={styles.header}>
+          <h2 className={styles.title}>{title}</h2>
           {description ? (
-            <p className="mt-1 text-sm leading-relaxed text-gris-500">
+            <p className={styles.description}>
               {description}
             </p>
           ) : null}
         </div>
       ) : null}
-      <ul className="space-y-3">
+      <ul className={styles.list}>
         {visible.map((channel) => (
           <li key={channel.kind}>
             <StatusBanner

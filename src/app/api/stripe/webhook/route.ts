@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { processStripeWebhookRequest } from "@/lib/stripe/webhooks/process";
 import { evaluateStripeWebhookRateLimit } from "@/lib/stripe/webhooks/rate-limit";
 import { StripeDomainError } from "@/lib/stripe/shared/errors";
+import { getSidianBillingReadiness } from "@/lib/stripe/billing/env";
+import { tryProcessSidianBillingWebhookRequest } from "@/lib/stripe/billing/process";
 
 export const runtime = "nodejs";
 export const MAX_STRIPE_WEBHOOK_BODY_BYTES = 1024 * 1024;
@@ -38,8 +40,25 @@ function assertDeclaredBodyLengthIsBounded(headers: Headers): void {
   }
 }
 
+/**
+ * Endpoint webhook Stripe — deux flux DISJOINTS partagent l'URL, jamais la
+ * confiance :
+ *
+ * - Facturation Sidian (abonnement du prestataire, compte plateforme), signée
+ *   avec STRIPE_BILLING_WEBHOOK_SECRET ;
+ * - Connect (paiements des clients du prestataire), signé avec
+ *   STRIPE_CONNECT_WEBHOOK_SECRET.
+ *
+ * Un événement n'est traité par un chemin QUE si sa signature est valide pour
+ * le secret de ce chemin. Un événement Connect ne peut donc pas écrire l'état
+ * d'abonnement, et inversement. Les deux modules s'activent indépendamment :
+ * l'un des deux suffit à faire vivre la route.
+ */
 export async function POST(request: Request): Promise<Response> {
-  if (!isStripePaymentsEnabled()) {
+  const billingReadiness = getSidianBillingReadiness();
+  const connectEnabled = isStripePaymentsEnabled();
+
+  if (!connectEnabled && !billingReadiness.enabled) {
     return new Response(null, { status: 404 });
   }
 
@@ -68,6 +87,31 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const rawBody = await readBoundedRawBody(request);
+
+    if (billingReadiness.enabled) {
+      const billingResult = await tryProcessSidianBillingWebhookRequest({
+        rawBody,
+        signatureHeader: signature,
+        supabaseAdmin,
+      });
+      if (billingResult) {
+        return Response.json(billingResult.body, {
+          status: billingResult.httpStatus,
+        });
+      }
+    }
+
+    if (!connectEnabled) {
+      // Facturation seule configurée et signature non reconnue : rien d'autre
+      // ne peut valider cet événement.
+      logServerEvent("warn", "stripe.webhook_failed", {
+        requestId,
+        errorCode: "invalid_signature",
+        status: 400,
+      });
+      return Response.json({ error: "invalid_signature" }, { status: 400 });
+    }
+
     const result = await processStripeWebhookRequest({
       rawBody,
       signatureHeader: signature,

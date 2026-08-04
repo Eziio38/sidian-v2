@@ -56,7 +56,7 @@ function probeEmail(): ConfigChannelStatus {
         label: UX_STATUS_LABEL.partial,
         title: "Emails en mode essai",
         description:
-          "L’envoi email est simulé ici. En production, Sidian active l’envoi réel — rien à configurer dans Paramètres pour l’instant.",
+          "L’envoi email est simulé ici. En production, Sidian active l’envoi réel. Rien à configurer dans Paramètres pour l’instant.",
         ...nextStep,
       };
     }
@@ -107,7 +107,7 @@ function probeWhatsApp(): ConfigChannelStatus {
         label: UX_STATUS_LABEL.partial,
         title: "WhatsApp en mode essai",
         description:
-          "WhatsApp est simulé ici. En production, le canal Sidian est activé par l’équipe — pas d’onboarding à faire dans Paramètres.",
+          "WhatsApp est simulé ici. En production, le canal Sidian est activé par l’équipe. Pas d’onboarding à faire dans Paramètres.",
         ...nextStep,
       };
     }

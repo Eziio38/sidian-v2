@@ -3,6 +3,7 @@
 import { useActionState, useId, useState } from "react";
 
 import type { WorkflowActionResult } from "@/app/actions/receivable-workflows";
+import { Input, Select, Textarea } from "@/design-system";
 import { allowedFollowUpTargets } from "@/lib/workflows/transitions";
 import type { Database } from "@/types/database.generated";
 
@@ -103,6 +104,12 @@ export function FollowUpControls({
 
   const reasonRequired =
     targetState === "PAUSE_LITIGE" || targetState === "ESCALADE_HUMAINE";
+  // Les champs du design system câblent aria-invalid + aria-describedby +
+  // role="alert" dès qu'une erreur leur est passée : il suffit de la router.
+  const fieldError = (name: string) =>
+    updateState?.ok === false
+      ? updateState.fieldErrors?.[name]?.[0]
+      : undefined;
   const nextActionDate = followUp.nextActionAt
     ? followUp.nextActionAt.slice(0, 10)
     : "";
@@ -114,54 +121,42 @@ export function FollowUpControls({
       aria-describedby={updateState ? `${id}-update-status` : undefined}
     >
       <input type="hidden" name="receivableId" value={receivableId} />
-      <div className="space-y-1.5">
-        <label htmlFor={`${id}-target`} className="block text-sm font-medium text-nuit">
-          État du suivi
-        </label>
-        <select
-          id={`${id}-target`}
-          name="targetState"
-          value={targetState}
-          onChange={(event) => setTargetState(event.target.value as FollowUpState)}
-          className="block min-h-10 w-full rounded-lg border border-gris-200 bg-white px-3 text-sm text-nuit focus-visible:outline focus-visible:outline-2 focus-visible:outline-sidian-blue"
-        >
-          {targets.map((state) => (
-            <option key={state} value={state}>
-              {LABELS[state]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Select
+        id={`${id}-target`}
+        name="targetState"
+        label="État du suivi"
+        value={targetState}
+        onChange={(event) => setTargetState(event.target.value as FollowUpState)}
+        error={fieldError("targetState")}
+      >
+        {targets.map((state) => (
+          <option key={state} value={state}>
+            {LABELS[state]}
+          </option>
+        ))}
+      </Select>
       {targetState !== "CLOS" ? (
-        <div className="space-y-1.5">
-          <label htmlFor={`${id}-date`} className="block text-sm font-medium text-nuit">
-            Prochaine date d’action
-          </label>
-          <input
-            id={`${id}-date`}
-            type="date"
-            name="nextActionDate"
-            defaultValue={nextActionDate}
-            className="block min-h-10 w-full rounded-lg border border-gris-200 bg-white px-3 text-sm text-nuit focus-visible:outline focus-visible:outline-2 focus-visible:outline-sidian-blue"
-          />
-        </div>
+        <Input
+          id={`${id}-date`}
+          type="date"
+          name="nextActionDate"
+          label="Prochaine date d’action"
+          defaultValue={nextActionDate}
+          error={fieldError("nextActionDate")}
+        />
       ) : (
         <input type="hidden" name="nextActionDate" value="" />
       )}
-      <div className="space-y-1.5">
-        <label htmlFor={`${id}-reason`} className="block text-sm font-medium text-nuit">
-          Motif {reasonRequired ? "requis" : "facultatif"}
-        </label>
-        <textarea
-          id={`${id}-reason`}
-          name="escalationReason"
-          defaultValue={followUp.escalationReason ?? ""}
-          required={reasonRequired}
-          maxLength={500}
-          rows={3}
-          className="block w-full resize-y rounded-lg border border-gris-200 bg-white px-3 py-2 text-sm text-nuit focus-visible:outline focus-visible:outline-2 focus-visible:outline-sidian-blue"
-        />
-      </div>
+      <Textarea
+        id={`${id}-reason`}
+        name="escalationReason"
+        label={`Motif ${reasonRequired ? "requis" : "facultatif"}`}
+        defaultValue={followUp.escalationReason ?? ""}
+        required={reasonRequired}
+        maxLength={500}
+        rows={3}
+        error={fieldError("escalationReason")}
+      />
       <button
         type="submit"
         disabled={updatePending}

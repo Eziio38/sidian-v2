@@ -29,6 +29,17 @@ function isFilledDue(value: string | undefined): boolean {
   return t.length > 0 && t !== "—" && t !== PLACEHOLDERS.due_date;
 }
 
+/** Valeur réellement enregistrée — pas un libellé d’attente / placeholder. */
+function isRegisteredPaymentField(value: string | undefined): boolean {
+  const t = value?.trim();
+  if (!t || t === "—") return false;
+  return (
+    t !== PLACEHOLDERS.payment_method &&
+    t !== PLACEHOLDERS.authorization &&
+    t !== PLACEHOLDERS.auto_debit
+  );
+}
+
 /**
  * Détermine quelles sections afficher selon l’avancement du dossier.
  * Ordre fixe : client → montant → échéance → moyen → autorisation → auto-débit → statut.
@@ -37,8 +48,6 @@ function isFilledDue(value: string | undefined): boolean {
 export function selectProgressiveFields(
   data: ProtectionPanelData,
 ): ProtectionPanelField[] {
-  const isActiveLike =
-    data.status === "active" || data.status === "blocked";
   const clientReady = hasText(data.clientName);
   const amountReady = isFilledAmount(data.amountLabel);
   const dueReady = isFilledDue(data.dueDateLabel);
@@ -87,23 +96,16 @@ export function selectProgressiveFields(
     );
   }
 
-  // Moyen / autorisation / auto-débit — après échéance, ou dossier déjà créé
-  if (dueReady || isActiveLike) {
-    push(
-      "payment_method",
-      data.paymentMethodLabel?.trim() || PLACEHOLDERS.payment_method,
-      !data.paymentMethodLabel?.trim(),
-    );
-    push(
-      "authorization",
-      data.authorizationLabel?.trim() || PLACEHOLDERS.authorization,
-      !data.authorizationLabel?.trim(),
-    );
-    push(
-      "auto_debit",
-      data.autoDebitRuleLabel?.trim() || PLACEHOLDERS.auto_debit,
-      !data.autoDebitRuleLabel?.trim(),
-    );
+  // Moyen / autorisation / auto-débit — uniquement s’ils sont réellement
+  // enregistrés (après paiement client via le lien), jamais en anticipation.
+  if (isRegisteredPaymentField(data.paymentMethodLabel)) {
+    push("payment_method", data.paymentMethodLabel!.trim(), false);
+  }
+  if (isRegisteredPaymentField(data.authorizationLabel)) {
+    push("authorization", data.authorizationLabel!.trim(), false);
+  }
+  if (isRegisteredPaymentField(data.autoDebitRuleLabel)) {
+    push("auto_debit", data.autoDebitRuleLabel!.trim(), false);
   }
 
   // Statut — toujours

@@ -19,7 +19,8 @@ export async function getAuthenticatedUser(): Promise<User | null> {
   return user;
 }
 
-export async function requireAuthenticatedUser(): Promise<User> {
+/** Interne : toujours passer par requireConfirmedUser côté produit (email confirmé exigé). */
+async function requireAuthenticatedUser(): Promise<User> {
   const user = await getAuthenticatedUser();
 
   if (!user) {

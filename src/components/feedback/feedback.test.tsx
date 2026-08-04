@@ -88,7 +88,7 @@ describe("composants feedback", () => {
     );
 
     expect(screen.getByTestId("error-state")).toHaveAttribute("role", "alert");
-    expect(screen.getByText(/Référence : abc-secret/)).toBeInTheDocument();
+    expect(screen.queryByText(/abc-secret/)).not.toBeInTheDocument();
     screen.getByRole("button", { name: "Réessayer" }).click();
     expect(onRetry).toHaveBeenCalledTimes(1);
   });

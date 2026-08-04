@@ -81,11 +81,6 @@ async function createDefaultDeps(): Promise<WhatsAppWebhookDeps> {
 let deps: WhatsAppWebhookDeps | null = null;
 let depsInit: Promise<WhatsAppWebhookDeps> | null = null;
 
-export function setWhatsAppWebhookDeps(next: WhatsAppWebhookDeps): void {
-  deps = next;
-  depsInit = Promise.resolve(next);
-}
-
 async function getDeps(): Promise<WhatsAppWebhookDeps> {
   if (deps) return deps;
   if (!depsInit) {
@@ -142,6 +137,17 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  return handleWhatsAppWebhookPost(request);
+}
+
+/**
+ * Cœur testable du POST : les dépendances sont passées explicitement plutôt que
+ * via un état module mutable, pour qu'aucun test ne puisse repolluer le runtime.
+ */
+export async function handleWhatsAppWebhookPost(
+  request: Request,
+  overrides?: { deps?: WhatsAppWebhookDeps },
+): Promise<Response> {
   const requestId = requestIdFromHeaders(request.headers);
   const env = loadWhatsAppEnv();
 
@@ -150,7 +156,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const current = await getDeps();
+    const current = overrides?.deps ?? (await getDeps());
     assertLiveWebhookPersistence({
       mode: env.mode,
       isMemory: current.eventsAreMemory,

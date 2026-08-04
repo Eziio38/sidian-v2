@@ -1,25 +1,32 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import { useFormStatus } from "react-dom";
+
+import { Button } from "@/design-system";
 
 type AuthSubmitButtonProps = {
   children: string;
+  icon?: LucideIcon;
   pendingLabel?: string;
 };
 
 export function AuthSubmitButton({
   children,
+  icon,
   pendingLabel = "Traitement en cours…",
 }: AuthSubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       type="submit"
       disabled={pending}
-      className="inline-flex w-full items-center justify-center rounded-lg bg-sidian-blue px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-sidian-blue-hover active:bg-sidian-blue-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:bg-state-disabled disabled:text-text-disabled disabled:opacity-100"
+      icon={icon}
+      loading={pending}
+      loadingLabel={pendingLabel}
     >
-      {pending ? pendingLabel : children}
-    </button>
+      {children}
+    </Button>
   );
 }

@@ -18,7 +18,7 @@ export const feedbackToneClasses: Record<
 > = {
   neutral: {
     border: "border-gris-200",
-    bg: "bg-white",
+    bg: "bg-surface",
     title: "text-nuit",
     body: "text-gris-500",
     badge: "bg-gris-100 text-gris-500",

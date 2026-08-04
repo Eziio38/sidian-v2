@@ -1,0 +1,114 @@
+.form {
+  display: grid;
+  gap: var(--ds-space-4);
+}
+
+.formSpacious {
+  gap: var(--ds-space-6);
+}
+
+.formStatus {
+  margin: 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+.formError {
+  color: var(--ds-color-danger);
+}
+
+.formSuccess {
+  color: var(--ds-color-success);
+}
+
+.submit {
+  width: 100%;
+  max-width: var(--ds-layout-form-action-width);
+}
+
+.inlineForm {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ds-space-1);
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--ds-space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-block-end: var(--ds-space-3);
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-type-body-size);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-type-body-line);
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-3);
+}
+
+.option {
+  display: flex;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-4);
+  color: var(--ds-color-text-primary);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-surface);
+  cursor: pointer;
+}
+
+.option:hover {
+  border-color: var(--ds-color-border-strong);
+}
+
+.option:has(:checked) {
+  border-color: var(--ds-color-accent-border);
+  background: var(--ds-color-accent-soft);
+}
+
+.radio {
+  width: var(--ds-icon-size-sm);
+  height: var(--ds-icon-size-sm);
+  margin-block-start: var(--ds-space-1);
+  flex: 0 0 auto;
+  accent-color: var(--ds-color-accent);
+}
+
+.radio:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.optionTitle,
+.optionDescription {
+  display: block;
+}
+
+.optionTitle {
+  font-size: var(--ds-type-body-size);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-type-body-line);
+}
+
+.optionDescription {
+  margin-block-start: var(--ds-space-1);
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-type-body-small-size);
+  line-height: var(--ds-type-body-small-line);
+}
+
+@media (max-width: 40rem) {
+  .optionGrid {
+    grid-template-columns: 1fr;
+  }
+}

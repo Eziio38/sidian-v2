@@ -26,7 +26,7 @@ function formatDate(value: string): string {
 export default async function ApprobationsPage() {
   const user = await requireConfirmedUser();
   const supabase = await createClient();
-  await ensurePrestataireForUser(supabase, user);
+  const prestataire = await ensurePrestataireForUser(supabase, user);
 
   let requests: Awaited<ReturnType<typeof listApprovalRequests>> = [];
   let loadError = false;
@@ -43,6 +43,8 @@ export default async function ApprobationsPage() {
     <AppShell
       title="Approbations"
       description="Les décisions qui dépassent le cadre automatique restent sous votre contrôle explicite."
+      userDisplayName={prestataire.nom}
+      userEmail={prestataire.email}
     >
       <div className="max-w-5xl space-y-8">
         {loadError ? (
@@ -52,7 +54,7 @@ export default async function ApprobationsPage() {
         ) : null}
 
         {!loadError && pending.length === 0 ? (
-          <section className="rounded-xl border border-dashed border-gris-200 bg-white p-8">
+          <section className="rounded-xl border border-dashed border-gris-200 bg-surface p-8">
             <h2 className="font-semibold text-nuit">Aucune décision en attente</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gris-500">
               Sidian vous sollicitera ici lorsqu’une règle, une situation de
@@ -66,7 +68,7 @@ export default async function ApprobationsPage() {
             <h2 id="pending-approvals-title" className="mb-3 text-lg font-semibold text-nuit">
               À décider
             </h2>
-            <ul className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
+            <ul className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-surface">
               {pending.map((request) => {
                 const presentation = presentApprovalRequest(request);
                 return (
@@ -105,7 +107,7 @@ export default async function ApprobationsPage() {
             <h2 id="approval-history-title" className="mb-3 text-lg font-semibold text-nuit">
               Historique
             </h2>
-            <ul className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
+            <ul className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-surface">
               {history.slice(0, 20).map((request) => {
                 const presentation = presentApprovalRequest(request);
                 return (

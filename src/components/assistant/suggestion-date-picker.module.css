@@ -1,0 +1,118 @@
+.picker {
+  width: min(100%, 17.5rem);
+  padding: var(--ds-space-3);
+  border: var(--ds-border-width) solid color-mix(in srgb, #ffffff 8%, transparent);
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface-muted);
+  box-shadow: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-2);
+  margin-block-end: var(--ds-space-3);
+}
+
+.month {
+  margin: 0;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-type-body-small-size);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-type-body-small-line);
+  text-transform: capitalize;
+}
+
+.weekdays,
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+}
+
+/* role="grid" impose une rangée par semaine : la grille empile les rangées. */
+.grid {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.cell {
+  display: grid;
+  min-width: 0;
+}
+
+.weekday {
+  display: grid;
+  place-items: center;
+  height: 1.5rem;
+  color: var(--ds-color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.day {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-md);
+  color: var(--ds-color-text-primary);
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: var(--ds-font-weight-medium);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.day:hover:not(:disabled) {
+  background: color-mix(in srgb, #ffffff 8%, transparent);
+}
+
+.day:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--ds-color-accent) 70%, transparent);
+  box-shadow: 0 0 0 var(--ds-focus-ring-width) var(--ds-color-focus-ring);
+}
+
+.day:disabled {
+  color: color-mix(in srgb, var(--ds-color-text-muted) 45%, transparent);
+  cursor: not-allowed;
+}
+
+.dayMuted {
+  color: color-mix(in srgb, var(--ds-color-text-muted) 70%, transparent);
+}
+
+.dayToday {
+  border-color: color-mix(in srgb, var(--ds-color-accent) 45%, transparent);
+}
+
+.daySelected,
+.daySelected:hover:not(:disabled) {
+  color: #ffffff;
+  border-color: transparent;
+  background: var(--ds-color-accent);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: var(--ds-space-3);
+}
+
+/*
+ * Sur mobile, `aspect-ratio: 1` ramène la cellule à ~34px de haut sur un écran
+ * de 320px — sous la cible tactile minimale de 44px (WCAG 2.5.8).
+ */
+@media (max-width: 39.999rem) {
+  .day {
+    aspect-ratio: auto;
+    min-height: 2.75rem;
+  }
+}

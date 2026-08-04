@@ -5,6 +5,15 @@ import {
 } from "@/app/actions/clients-creances";
 import { AppShell } from "@/components/app/app-shell";
 import { ArchiveButton, ClientForm } from "@/components/app/client-forms";
+import {
+  BusinessList,
+  BusinessRow,
+  RowAvatar,
+  RowDetails,
+  WorkspacePanel,
+  WorkspaceSection,
+  WorkspaceSplit,
+} from "@/components/app/workspace-blocks";
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { requireConfirmedUser } from "@/lib/auth/session";
@@ -12,10 +21,16 @@ import { listActiveClientPayeurs } from "@/lib/clients/client-payeur";
 import { createClient } from "@/lib/supabase/server";
 import { UX_COPY } from "@/lib/ux/microcopy";
 
-export default async function ClientsPage() {
+type ClientsPageProps = {
+  searchParams: Promise<{ conversation?: string }>;
+};
+
+export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const user = await requireConfirmedUser();
   const supabase = await createClient();
-  await ensurePrestataireForUser(supabase, user);
+  const prestataire = await ensurePrestataireForUser(supabase, user);
+  const params = await searchParams;
+  const conversationId = params.conversation;
 
   let clients: Awaited<ReturnType<typeof listActiveClientPayeurs>> = [];
   let loadError: string | null = null;
@@ -30,13 +45,15 @@ export default async function ClientsPage() {
   return (
     <AppShell
       title="Clients"
-      description="Tes clients pour le suivi des paiements. Les données restent isolées à ton compte."
+      description="Retrouve un client, vois la prochaine action, prépare un suivi."
+      userDisplayName={prestataire.nom}
+      userEmail={prestataire.email}
     >
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-gris-500">
-            Liste
-          </h2>
+      <WorkspaceSplit>
+        <WorkspaceSection
+          title="Répertoire"
+          description="Les contacts actifs et leur suivi."
+        >
           {loadError ? (
             <ErrorState
               compact
@@ -50,44 +67,50 @@ export default async function ClientsPage() {
               description={UX_COPY.emptyClients.description}
             />
           ) : null}
-          <ul className="divide-y divide-gris-100 overflow-hidden rounded-xl border border-gris-200 bg-white">
-            {clients.map((client) => (
-              <li key={client.id} className="space-y-4 p-5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-nuit">{client.nom}</p>
-                    <p className="text-sm text-gris-500">{client.email}</p>
-                  </div>
-                  <ArchiveButton
-                    action={archiveClientPayeurAction}
-                    id={client.id}
-                    label="Archiver"
-                  />
-                </div>
-                <ClientForm
-                  action={updateClientPayeurAction}
-                  initial={{
-                    id: client.id,
-                    nom: client.nom,
-                    email: client.email,
-                  }}
-                  submitLabel="Enregistrer"
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
+          {clients.length > 0 ? (
+            <BusinessList ariaLabel="Clients">
+              {clients.map((client) => (
+                <BusinessRow
+                  key={client.id}
+                  title={client.nom}
+                  description={client.email}
+                  leading={<RowAvatar name={client.nom} />}
+                >
+                  <RowDetails label="Modifier le client">
+                    <ClientForm
+                      action={updateClientPayeurAction}
+                      initial={{
+                        id: client.id,
+                        nom: client.nom,
+                        email: client.email,
+                      }}
+                      submitLabel="Enregistrer"
+                    />
+                    <ArchiveButton
+                      action={archiveClientPayeurAction}
+                      id={client.id}
+                      label="Archiver"
+                    />
+                  </RowDetails>
+                </BusinessRow>
+              ))}
+            </BusinessList>
+          ) : null}
+        </WorkspaceSection>
 
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-gris-500">
-            Nouveau client
-          </h2>
-          <ClientForm
-            action={createClientPayeurAction}
-            submitLabel="Créer le client"
-          />
-        </section>
-      </div>
+        <WorkspacePanel
+          title="Nouveau client"
+          description="Ajoute seulement les informations utiles au suivi."
+        >
+          <RowDetails label="Ajouter un client">
+            <ClientForm
+              action={createClientPayeurAction}
+              submitLabel="Créer le client"
+              conversationId={conversationId}
+            />
+          </RowDetails>
+        </WorkspacePanel>
+      </WorkspaceSplit>
     </AppShell>
   );
 }

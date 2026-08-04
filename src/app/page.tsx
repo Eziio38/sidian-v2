@@ -7,7 +7,7 @@ export default function Home() {
     <main className="flex flex-1 items-center justify-center px-4 py-16 sm:px-6">
       <section
         aria-labelledby="page-title"
-        className="w-full max-w-md rounded-xl border border-gris-200 bg-white p-8 shadow-[0_8px_24px_rgba(13,17,23,0.08)]"
+        className="w-full max-w-md rounded-xl border border-gris-200 bg-surface p-8 shadow-[0_8px_24px_rgba(13,17,23,0.08)]"
       >
         <p className="text-xs font-semibold uppercase tracking-[0.06em] text-gris-500">
           Socle technique

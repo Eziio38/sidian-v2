@@ -1,0 +1,28 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+}
+
+.image {
+  width: var(--ds-brand-size-md);
+  height: auto;
+  flex: none;
+  object-fit: contain;
+}
+
+.sm {
+  width: var(--ds-brand-size-sm);
+}
+
+.lg {
+  width: var(--ds-brand-size-lg);
+}
+
+.link {
+  border-radius: var(--ds-radius-sm);
+}
+
+.link:focus-visible {
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}

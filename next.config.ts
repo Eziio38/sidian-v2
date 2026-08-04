@@ -18,6 +18,8 @@ type DeploymentReadinessInput = DeploymentAppUrlInput & {
   supabaseServiceRoleKey: string | undefined;
   supabaseProjectRef: string | undefined;
   supabaseEnvironmentAttestationJwt: string | undefined;
+  /** Optionnel : son absence vaut « non activé », comme à l'exécution. */
+  allowDevAssistantPreview?: string | undefined;
 };
 
 function isLocalHostname(hostname: string): boolean {
@@ -87,6 +89,22 @@ export function validateDeploymentReadiness(
   }
 
   validateDeploymentAppUrl(input);
+
+  // Les routes /dev/* exposent des états de démonstration (identité, montants
+  // et coordonnées fabriqués) sans aucune authentification. En production
+  // elles sont fermées par un `notFound()` conditionné à NODE_ENV, dont la
+  // seule échappatoire est ce flag. Le laisser franchissable par une simple
+  // variable d'environnement, sans contrôle au build, était le dernier verrou
+  // manquant : on refuse désormais le build plutôt que de servir ces pages.
+  if (
+    input.vercelEnvironment === "production" &&
+    input.allowDevAssistantPreview === "1"
+  ) {
+    throw new Error(
+      "SIDIAN_ALLOW_DEV_ASSISTANT_PREVIEW=1 est interdit en production : " +
+        "ce flag ouvre les routes /dev/* non authentifiées.",
+    );
+  }
 
   const expectedEnvironment =
     input.vercelEnvironment === "production" ? "production" : "staging";
@@ -162,6 +180,7 @@ validateDeploymentReadiness({
   supabaseProjectRef: process.env.SIDIAN_SUPABASE_PROJECT_REF,
   supabaseEnvironmentAttestationJwt:
     process.env.SUPABASE_ENVIRONMENT_ATTESTATION_JWT,
+  allowDevAssistantPreview: process.env.SIDIAN_ALLOW_DEV_ASSISTANT_PREVIEW,
   vercelEnvironment: process.env.VERCEL_ENV,
   vercelUrl: process.env.VERCEL_URL,
   vercelBranchUrl: process.env.VERCEL_BRANCH_URL,
@@ -261,7 +280,7 @@ export function buildContentSecurityPolicy(
     "base-uri 'self'",
     "form-action 'self' https://checkout.stripe.com https://connect.stripe.com",
     "frame-ancestors 'none'",
-    "frame-src 'none'",
+    "frame-src blob:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     ...(nodeEnvironment === "production"
@@ -320,6 +339,9 @@ export const publicPaymentRouteHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Les previews UI ont leurs propres contrôles ; évite de masquer la
+  // navigation et les safe areas pendant les validations visuelles.
+  devIndicators: false,
   // Pin explicit : un package-lock.json vide existe dans le home parent et
   // ferait sinon inférer /Users/... comme workspace root (Turbopack + tracing).
   outputFileTracingRoot: projectRoot,

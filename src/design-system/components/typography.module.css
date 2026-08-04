@@ -1,0 +1,88 @@
+.base {
+  margin: 0;
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-family-sans);
+}
+
+.display {
+  font-size: var(--ds-type-display-size);
+  font-weight: var(--ds-type-display-weight);
+  line-height: var(--ds-type-display-line);
+  letter-spacing: var(--ds-type-display-tracking);
+}
+
+.h1 {
+  font-size: var(--ds-type-h1-size);
+  font-weight: var(--ds-type-h1-weight);
+  line-height: var(--ds-type-h1-line);
+  letter-spacing: var(--ds-type-h1-tracking);
+}
+
+.h2 {
+  font-size: var(--ds-type-h2-size);
+  font-weight: var(--ds-type-h2-weight);
+  line-height: var(--ds-type-h2-line);
+  letter-spacing: var(--ds-type-h2-tracking);
+}
+
+.h3 {
+  font-size: var(--ds-type-h3-size);
+  font-weight: var(--ds-type-h3-weight);
+  line-height: var(--ds-type-h3-line);
+  letter-spacing: var(--ds-type-h3-tracking);
+}
+
+.title {
+  font-size: var(--ds-type-title-size);
+  font-weight: var(--ds-type-title-weight);
+  line-height: var(--ds-type-title-line);
+  letter-spacing: var(--ds-type-title-tracking);
+}
+
+.body {
+  font-size: var(--ds-type-body-size);
+  font-weight: var(--ds-type-body-weight);
+  line-height: var(--ds-type-body-line);
+  letter-spacing: var(--ds-type-body-tracking);
+}
+
+.bodySmall {
+  font-size: var(--ds-type-body-small-size);
+  font-weight: var(--ds-type-body-small-weight);
+  line-height: var(--ds-type-body-small-line);
+  letter-spacing: var(--ds-type-body-small-tracking);
+}
+
+.caption {
+  font-size: var(--ds-type-caption-size);
+  font-weight: var(--ds-type-caption-weight);
+  line-height: var(--ds-type-caption-line);
+  letter-spacing: var(--ds-type-caption-tracking);
+}
+
+.label {
+  font-size: var(--ds-type-label-size);
+  font-weight: var(--ds-type-label-weight);
+  line-height: var(--ds-type-label-line);
+  letter-spacing: var(--ds-type-label-tracking);
+}
+
+.code {
+  font-family: var(--ds-font-family-code);
+  font-size: var(--ds-type-code-size);
+  font-weight: var(--ds-type-code-weight);
+  line-height: var(--ds-type-code-line);
+  letter-spacing: var(--ds-type-code-tracking);
+}
+
+.secondary {
+  color: var(--ds-color-text-secondary);
+}
+
+.muted {
+  color: var(--ds-color-text-muted);
+}
+
+.inverse {
+  color: var(--ds-color-text-inverse);
+}

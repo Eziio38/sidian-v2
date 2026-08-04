@@ -133,13 +133,9 @@ export function mapConfirmOutputToPanel(
     backendState: confirm.state,
     status: "active",
     statusLabel: statusLabelFor("active"),
-    paymentMethodLabel:
-      previous.paymentMethodLabel ??
-      "Carte ou prélèvement — au choix du client",
-    authorizationLabel:
-      previous.authorizationLabel ?? "Sera proposée au premier paiement",
-    autoDebitRuleLabel:
-      previous.autoDebitRuleLabel ?? "Activable après autorisation du client",
+    paymentMethodLabel: previous.paymentMethodLabel,
+    authorizationLabel: previous.authorizationLabel,
+    autoDebitRuleLabel: previous.autoDebitRuleLabel,
     nextStepLabel: "Suivi à l’échéance",
     consequenceLabel: CONSEQUENCE_COPY.active,
     primaryActionLabel: ACTION_LABELS.view,

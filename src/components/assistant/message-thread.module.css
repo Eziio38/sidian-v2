@@ -1,0 +1,327 @@
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  /* Bas plus généreux : les actions hover sont hors flux (absolute). */
+  padding-block: var(--ds-space-1) var(--ds-space-6);
+}
+
+.message {
+  width: 100%;
+  max-width: 100%;
+  /* Rythme de tour : plus serré à l’intérieur d’un échange, plus aéré entre tours. */
+  padding-block: 0.55rem;
+}
+
+.message[data-role="user"] {
+  padding-block-start: 0.95rem;
+}
+
+.message[data-role="user"] + .message[data-role="assistant"] {
+  padding-block-start: 0.35rem;
+}
+
+.userMessage {
+  width: fit-content;
+  max-width: min(100%, 28rem);
+  margin-inline-start: auto;
+}
+
+.userStack {
+  position: relative;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: end;
+  /* fit-content : les bulles courtes (« 30 jours ») ne s’étirent plus. */
+  width: fit-content;
+  max-width: 100%;
+  margin-inline-start: auto;
+}
+
+.userStack:has(.hoverActionsSlot),
+.assistantBlock:has(.hoverActionsSlot) {
+  /* Réserve la rangée d’actions sans la laisser dans le flux. */
+  padding-block-end: 1.65rem;
+}
+
+.assistantBlock {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, 38rem);
+}
+
+.hoverActionsSlot {
+  position: absolute;
+  z-index: 1;
+  top: auto;
+  bottom: 0;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.userMessage .hoverActionsSlot {
+  right: 0;
+}
+
+.assistantBlock > .hoverActionsSlot {
+  left: 0;
+}
+
+.message:hover .hoverActionsSlot,
+.message:focus-within .hoverActionsSlot {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tactile : actions dans le flux, sans double réserve de padding. */
+@media (hover: none) {
+  .userStack:has(.hoverActionsSlot),
+  .assistantBlock:has(.hoverActionsSlot) {
+    padding-block-end: 0;
+  }
+
+  .hoverActionsSlot {
+    position: static;
+    top: auto;
+    bottom: auto;
+    opacity: 0.88;
+    pointer-events: auto;
+    margin-block-start: 0.15rem;
+  }
+}
+
+.userBubble {
+  padding: 0.45rem 0.75rem;
+  color: var(--ds-color-text-primary);
+  border: var(--ds-border-width) solid
+    color-mix(in srgb, var(--ds-color-border) 82%, transparent);
+  border-radius: calc(var(--ds-radius-xl) - 0.1rem);
+  background: color-mix(
+    in srgb,
+    var(--ds-color-surface-muted) 82%,
+    var(--ds-color-surface-raised)
+  );
+  font-size: var(--ds-type-body-size);
+  line-height: 1.48;
+  overflow-wrap: anywhere;
+}
+
+.userMessageEditing .userBubble {
+  border-color: color-mix(in srgb, var(--ds-color-accent) 45%, var(--ds-color-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-color-accent) 22%, transparent);
+}
+
+.userMessageEditing {
+  opacity: 0.72;
+}
+
+.assistantBody {
+  max-width: 100%;
+  color: var(--ds-color-text-primary);
+  font-size: var(--ds-type-body-size);
+  line-height: 1.62;
+  letter-spacing: 0.005em;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  margin-block-start: 0.45rem;
+}
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: calc(3 * 4.5rem + 2 * 0.35rem);
+  max-width: 100%;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+/* Espace net entre les PJ du message et la bulle. */
+.userStack > .attachments {
+  margin-block-end: 0;
+}
+
+.attachment {
+  width: 4.5rem;
+  min-width: 0;
+  gap: 0.15rem;
+  padding: 0.175rem;
+  border: var(--ds-border-width) solid color-mix(in srgb, #ffffff 9%, transparent);
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, var(--ds-color-surface-raised) 88%, transparent);
+}
+
+.attachmentPreviewTrigger {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.25rem;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: start;
+  cursor: zoom-in;
+}
+
+.attachmentPreviewTrigger:focus-visible {
+  border-radius: var(--ds-radius-sm);
+  outline: var(--ds-focus-ring-width) solid var(--ds-color-focus-ring);
+  outline-offset: var(--ds-focus-ring-offset);
+}
+
+.attachmentThumb,
+.attachmentIcon {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: calc(var(--ds-radius-sm) - 1px);
+}
+
+.attachmentThumb {
+  object-fit: cover;
+  background: color-mix(in srgb, #ffffff 4%, transparent);
+}
+
+.attachmentIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ds-color-text-secondary);
+  background: color-mix(in srgb, #ffffff 6%, transparent);
+}
+
+.attachmentCopy {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  padding-inline: 0.125rem;
+}
+
+.attachmentName {
+  overflow: hidden;
+  color: var(--ds-color-text-primary);
+  font-size: 0.625rem;
+  font-weight: var(--ds-font-weight-medium);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentSize {
+  overflow: hidden;
+  color: var(--ds-color-text-muted);
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.streaming {
+  color: var(--ds-color-text-secondary);
+}
+
+.activityDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-block-start: 0.35rem;
+}
+
+.activityDots > span {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: var(--ds-radius-pill);
+  background: currentColor;
+  animation: invoice-activity-dot 900ms ease-in-out infinite;
+}
+
+.activityDots > span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.activityDots > span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes invoice-activity-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activityDots > span {
+    animation: none;
+    opacity: 0.65;
+  }
+}
+
+.error {
+  color: var(--ds-color-text-primary);
+}
+
+.errorDetail {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border: var(--ds-border-width) solid
+    color-mix(in srgb, var(--ds-color-danger) 18%, transparent);
+  border-radius: var(--ds-radius-md);
+  color: color-mix(in srgb, var(--ds-color-danger) 88%, var(--ds-color-text-primary));
+  background: color-mix(in srgb, var(--ds-color-danger) 5%, transparent);
+  font-size: var(--ds-type-body-small-size);
+  line-height: 1.45;
+}
+
+.body {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.paragraph {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem;
+  line-height: 1.55;
+}
+
+.bullet {
+  width: var(--ds-space-1);
+  height: var(--ds-space-1);
+  margin-block-start: 0.55rem;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-color-text-muted);
+}

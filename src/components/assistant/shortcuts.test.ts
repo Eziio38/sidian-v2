@@ -84,8 +84,9 @@ describe("assistant shortcuts helpers", () => {
 
     expect(getComposerShortcuts("default").map((s) => s.id)).toEqual([
       "create-protection",
-      "view-expected",
       "add-invoice",
+      "create-client",
+      "view-expected",
     ]);
     expect(getComposerShortcuts("draft").map((s) => s.action)).toContain(
       "edit_amount",

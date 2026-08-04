@@ -1,24 +1,16 @@
-# Brand assets Sidian — interim
+# Brand assets Sidian
 
-**Statut :** assets **intérimaires** pour le MVP / gate UI (2026-07-26).
-
-## Contenu
+## Asset officiel (unique pour l’UI)
 
 | Fichier | Usage |
 | --- | --- |
-| `sidian-mark-blue.svg` | Mark principal — Sidian Blue `#3B6DF8` (tous fonds, y compris Nuit) |
-| `sidian-mark-white.svg` | Variante blanche si le bleu est illisible (photo / fond chargé) |
+| `sidian-logo.png` | **Logo officiel unique** — 156×156, fond transparent. Utilisé via `BrandLockup` + `next/image`. |
 
-Le wordmark « Sidian » n’est **pas** une image : toujours du texte Outfit ExtraBold (800), letter-spacing `-0.02em` — cf. `docs/SIDIAN_DESIGN_SYSTEM.md` §1.
+**Règles produit :**
 
-## Pourquoi SVG et non PNG DS
+- Ne pas utiliser les SVG marks, ni `sidian-logo-full.png`, pour les lockups UI.
+- Ne pas modifier le PNG.
+- Ne pas recréer le logo en texte (« Sidian » Outfit à côté).
+- Conserver les proportions (ratio 1:1) et le fond transparent.
 
-Les PNG officiels (`sidian-mark-blue.png` / `sidian-mark-white.png`, 156 px) et la source vectorielle finale **ne sont pas encore dans le dépôt**. Ces SVG reproduisent l’entrelacs (deux boucles liées) pour que les lockups (`BrandLockup`, auth) ne 404 plus.
-
-## Remplacement prévu
-
-1. Déposer les PNG DS détourés (fond transparent, 156 px) dans ce dossier.
-2. Pointer `BrandLockup` / auth vers les PNG.
-3. Retirer ou archiver ces SVG interim.
-
-Ne pas inventer d’autres variantes hors design system.
+Composant : `src/components/brand/brand-lockup.tsx`.

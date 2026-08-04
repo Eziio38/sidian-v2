@@ -8,6 +8,7 @@ import { resolveAndAssertPaymentIntentIdentity } from "@/lib/stripe/webhooks/pay
 import type { Database } from "@/types/database.generated";
 import type { StripeWebhookLeaseIdentity } from "@/lib/stripe/webhooks/process";
 import type { WebhookDispatchResult } from "@/lib/stripe/webhooks/dispatch";
+import type { NullableRpcArgs } from "../shared/rpc-args";
 
 type AdminClient = SupabaseClient<Database>;
 type Moyen = Database["public"]["Enums"]["tentative_paiement_moyen"];
@@ -100,9 +101,12 @@ async function callEffect<
 >(
   context: PaymentEffectContext,
   rpc: Name,
-  args: Database["public"]["Functions"][Name]["Args"],
+  args: NullableRpcArgs<Database["public"]["Functions"][Name]["Args"]>,
 ): Promise<Record<string, unknown>> {
-  const { data, error } = await context.supabase.rpc(rpc, args);
+  const { data, error } = await context.supabase.rpc(
+    rpc,
+    args as Database["public"]["Functions"][Name]["Args"],
+  );
   if (error) {
     const message = error.message ?? "";
     if (message.includes("webhook_lease_lost")) {

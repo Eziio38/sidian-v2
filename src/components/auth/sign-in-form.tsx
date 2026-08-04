@@ -51,7 +51,7 @@ export function SignInForm({ message, error }: SignInFormProps) {
       <div className="flex justify-end">
         <Link
           href="/mot-de-passe-oublie"
-          className="text-sm font-medium text-sidian-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
+          className="text-sm font-medium text-lien hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue"
         >
           Mot de passe oublié ?
         </Link>

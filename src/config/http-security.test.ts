@@ -53,7 +53,7 @@ describe("sécurité HTTP globale", () => {
     );
   });
 
-  it("autorise Supabase et les redirections Checkout sans ouvrir les frames", () => {
+  it("autorise Supabase, Checkout et les aperçus PDF blob locaux", () => {
     const policy = buildContentSecurityPolicy(
       "production",
       "https://abcdefghijklmnopqrst.supabase.co",
@@ -67,7 +67,7 @@ describe("sécurité HTTP globale", () => {
       "form-action 'self' https://checkout.stripe.com https://connect.stripe.com",
     );
     expect(policy).toContain("frame-ancestors 'none'");
-    expect(policy).toContain("frame-src 'none'");
+    expect(policy).toContain("frame-src blob:");
     expect(policy).toContain("upgrade-insecure-requests");
     expect(policy).not.toContain("'unsafe-eval'");
   });
@@ -141,6 +141,31 @@ describe("URL publique des déploiements Vercel", () => {
   it("lie explicitement une Preview au projet Supabase staging déclaré", () => {
     expect(() =>
       validateDeploymentReadiness(validPreviewReadiness),
+    ).not.toThrow();
+  });
+
+  it("refuse un build de production ouvrant les routes /dev", () => {
+    // Ces routes servent des états de démonstration sans authentification.
+    // Leur seul verrou à l'exécution est ce flag : le build doit donc le
+    // refuser plutôt que de laisser une variable d'environnement les exposer.
+    expect(() =>
+      validateDeploymentReadiness({
+        ...validPreviewReadiness,
+        appUrl: "https://sidian.example.com",
+        vercelEnvironment: "production",
+        sidianEnvironment: "production",
+        allowDevAssistantPreview: "1",
+      }),
+    ).toThrow(/SIDIAN_ALLOW_DEV_ASSISTANT_PREVIEW/);
+  });
+
+  it("tolère le flag /dev hors production", () => {
+    // Une Preview est un environnement de recette : l'aperçu y reste utile.
+    expect(() =>
+      validateDeploymentReadiness({
+        ...validPreviewReadiness,
+        allowDevAssistantPreview: "1",
+      }),
     ).not.toThrow();
   });
 

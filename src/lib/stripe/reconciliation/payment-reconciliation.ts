@@ -230,7 +230,10 @@ async function registerHumanRequired(params: {
       p_tentative_id: params.tentativeId,
       p_reconciliation_key: reconciliationKey,
       p_reason: params.reason,
-    },
+      // `p_tentative_id` est légitimement absent quand le rapprochement ne
+      // vise aucune tentative précise. Voir shared/rpc-args : le générateur
+      // Supabase ne sait pas exprimer la nullabilité d'un paramètre SQL.
+    } as Database["public"]["Functions"]["register_payment_reconciliation_human_required"]["Args"],
   );
   if (error) {
     throw new Error("payment_reconciliation_guard_persistence_failed");

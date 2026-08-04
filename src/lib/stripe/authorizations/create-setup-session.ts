@@ -683,9 +683,11 @@ export async function createAuthorizationSetupSession(params: {
         p_stripe_account_id: stripeAccountId,
         p_stripe_customer_id: stripeCustomerId,
         p_stripe_setup_checkout_session_id: session.id,
+        // Stripe n'attache pas toujours un SetupIntent à la session : le SQL
+        // traite explicitement ce cas. Voir shared/rpc-args.
         p_stripe_setup_intent_id: stringId(session.setup_intent) ?? null,
         p_session_expires_at: expiresAt,
-      },
+      } as Database["public"]["Functions"]["complete_payment_authorization_setup"]["Args"],
     );
     if (error) {
       throw new StripeDomainError(

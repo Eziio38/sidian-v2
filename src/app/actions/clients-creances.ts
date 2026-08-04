@@ -16,6 +16,7 @@ import {
   updateCreanceDraft,
 } from "@/lib/creances/creance";
 import { requireConfirmedUser } from "@/lib/auth/session";
+import { getPrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { getPublicEnv } from "@/config/env-public";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -24,9 +25,18 @@ import {
   updateClientPayeur,
 } from "@/lib/clients/client-payeur";
 import { revalidatePath } from "next/cache";
+import {
+  assertConversationScope,
+  attachConversationToClient,
+} from "@/lib/assistant-conversations";
+import { createAgentPersistenceClient } from "@/lib/agent/server/auth/service-role";
 
 export type ActionResult =
-  | { ok: true }
+  | {
+      ok: true;
+      client?: { id: string; name: string; email: string };
+      existing?: boolean;
+    }
   | { ok: false; message: string; fieldErrors?: FieldErrors };
 
 function formString(formData: FormData, key: string): string {
@@ -54,7 +64,7 @@ export async function createClientPayeurAction(
   _prev: ActionResult | undefined,
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireConfirmedUser();
+  const user = await requireConfirmedUser();
   const parsed = clientPayeurSchema.safeParse({
     nom: formString(formData, "nom"),
     email: formString(formData, "email"),
@@ -71,10 +81,108 @@ export async function createClientPayeurAction(
 
   try {
     const supabase = await createClient();
-    await createClientPayeur(supabase, parsed.data);
+    const prestataire = await getPrestataireForUser(supabase, user.id);
+    if (!prestataire) {
+      return {
+        ok: false,
+        message: "Impossible d'enregistrer le client pour le moment.",
+      };
+    }
+    const rawConversationId = formString(formData, "conversationId").trim();
+    let conversationId: string | null = null;
+    let admin: Awaited<ReturnType<typeof createAgentPersistenceClient>> | null =
+      null;
+    if (rawConversationId) {
+      const parsedConversationId = uuidSchema.safeParse(rawConversationId);
+      if (!parsedConversationId.success) {
+        return {
+          ok: false,
+          message: "La discussion associée est introuvable.",
+        };
+      }
+      admin = await createAgentPersistenceClient();
+      const inScope = await assertConversationScope({
+        admin,
+        prestataireId: prestataire.id,
+        conversationId: parsedConversationId.data,
+      });
+      if (!inScope) {
+        return {
+          ok: false,
+          message: "La discussion associée est introuvable.",
+        };
+      }
+      conversationId = parsedConversationId.data;
+    }
+
+    const { data: existingClient, error: existingClientError } = await supabase
+      .from("client_payeur")
+      .select("id, nom, email, prestataire_id")
+      .eq("prestataire_id", prestataire.id)
+      .eq("email", parsed.data.email)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (existingClientError) {
+      throw new Error("client_payeur_lookup_failed");
+    }
+    if (existingClient) {
+      if (conversationId && admin) {
+        await attachConversationToClient({
+          admin,
+          prestataireId: prestataire.id,
+          conversationId,
+          clientId: existingClient.id,
+        });
+        revalidatePath("/app/assistant");
+      }
+      return {
+        ok: true,
+        existing: true,
+        client: {
+          id: existingClient.id,
+          name: existingClient.nom,
+          email: existingClient.email,
+        },
+      };
+    }
+
+    const { data: sameNameClient, error: sameNameError } = await supabase
+      .from("client_payeur")
+      .select("id")
+      .eq("prestataire_id", prestataire.id)
+      .eq("nom", parsed.data.nom)
+      .is("archived_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (sameNameError) {
+      throw new Error("client_payeur_lookup_failed");
+    }
+    if (sameNameClient) {
+      return {
+        ok: false,
+        message:
+          "Un client portant ce nom existe déjà. Choisissez-le dans la liste ou utilisez un autre nom.",
+      };
+    }
+
+    const client = await createClientPayeur(supabase, parsed.data);
+    if (conversationId && admin) {
+      await attachConversationToClient({
+        admin,
+        prestataireId: client.prestataire_id,
+        conversationId,
+        clientId: client.id,
+      });
+      revalidatePath("/app/assistant");
+    }
     revalidatePath("/app/clients");
     revalidatePath("/app/paiements-a-recevoir");
-    return { ok: true };
+    return {
+      ok: true,
+      existing: false,
+      client: { id: client.id, name: client.nom, email: client.email },
+    };
   } catch (error) {
     return {
       ok: false,

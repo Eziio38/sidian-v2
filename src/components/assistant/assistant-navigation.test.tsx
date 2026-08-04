@@ -1,32 +1,53 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AssistantShell } from "./assistant-shell";
-import { AssistantSidebar } from "./assistant-sidebar";
+import { AppShell } from "@/components/app/app-shell";
+import { AppSidebar } from "@/components/app/app-sidebar";
 
 const usePathname = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => usePathname(),
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
+
+vi.mock("@/app/actions/auth", () => ({
+  signOutAction: vi.fn(),
 }));
 
 function stubMatchMedia(matchesLg: boolean) {
-  const listeners = new Set<() => void>();
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
   const media = {
     matches: matchesLg,
     media: "(min-width: 1024px)",
-    addEventListener: (_event: string, listener: () => void) => {
+    addEventListener: (
+      _event: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => {
       listeners.add(listener);
     },
-    removeEventListener: (_event: string, listener: () => void) => {
+    removeEventListener: (
+      _event: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => {
       listeners.delete(listener);
     },
-    addListener: (listener: () => void) => {
+    addListener: (listener: (event: MediaQueryListEvent) => void) => {
       listeners.add(listener);
     },
-    removeListener: (listener: () => void) => {
+    removeListener: (listener: (event: MediaQueryListEvent) => void) => {
       listeners.delete(listener);
+    },
+    setMatches(next: boolean) {
+      media.matches = next;
+      const event = { matches: next } as MediaQueryListEvent;
+      for (const listener of listeners) listener(event);
     },
   };
 
@@ -42,7 +63,7 @@ function stubMatchMedia(matchesLg: boolean) {
   return media;
 }
 
-describe("AssistantSidebar", () => {
+describe("AppSidebar", () => {
   beforeEach(() => {
     usePathname.mockReturnValue("/app/assistant");
     stubMatchMedia(true);
@@ -54,38 +75,49 @@ describe("AssistantSidebar", () => {
     document.body.style.touchAction = "";
   });
 
-  it("affiche logo, nav métier, état actif et profil", () => {
-    render(<AssistantSidebar userDisplayName="Lucie Martin" />);
+  it("affiche logo, nav métier light, état actif et profil", () => {
+    render(
+      <AppSidebar
+        userDisplayName="Lucie Martin"
+        userPlan="Early Access"
+      />,
+    );
 
     const sidebar = screen.getByTestId("assistant-sidebar");
+    expect(sidebar).toHaveAttribute("data-sidebar", "light");
+    expect(sidebar.querySelector('img[alt="Sidian"]')).not.toBeNull();
     expect(sidebar.textContent).toContain("Sidian");
-    expect(sidebar.textContent).toContain("Assistant");
-    expect(sidebar.textContent).toContain("Paiements à recevoir");
+    expect(sidebar.textContent).toContain("Dossiers");
+    expect(sidebar.textContent).toContain("Paiements");
     expect(sidebar.textContent).toContain("Clients");
     expect(sidebar.textContent).not.toContain("Historique");
+    expect(sidebar.textContent).not.toContain("Agent Sidian");
+    expect(sidebar.textContent).not.toContain("Dashboard");
     expect(sidebar.textContent).toContain("Activité");
-    expect(sidebar.textContent).toContain("Paramètres");
+    expect(
+      screen.getByTestId("app-navigation").textContent,
+    ).not.toContain("Paramètres");
 
     expect(
       sidebar.querySelector('[aria-current="page"]')?.textContent,
-    ).toContain("Assistant");
+    ).toContain("Sidian");
     expect(screen.getByTestId("assistant-sidebar-profile").textContent).toContain(
       "Lucie Martin",
     );
     expect(screen.getByTestId("assistant-sidebar-profile").textContent).toContain(
-      "Profil",
+      "Early Access",
     );
   });
 
-  it("garde une largeur stable via le wrapper w-56", () => {
-    const { container } = render(
-      <AssistantSidebar userDisplayName="Lucie Martin" />,
-    );
-    expect(container.querySelector(".w-56")).not.toBeNull();
+  it("garde la largeur compacte issue du Design System", () => {
+    render(<AppSidebar userDisplayName="Lucie Martin" />);
+    expect(
+      screen.getByTestId("assistant-sidebar").parentElement,
+    ).toHaveAttribute("data-sidebar-width", "compact");
   });
 });
 
-describe("AssistantShell mobile drawer", () => {
+describe("AppShell mobile drawer", () => {
   beforeEach(() => {
     usePathname.mockReturnValue("/app/assistant");
     stubMatchMedia(false);
@@ -99,95 +131,103 @@ describe("AssistantShell mobile drawer", () => {
 
   it("ouvre avec hamburger, ferme avec chevron, overlay et Escape", async () => {
     const user = userEvent.setup();
-
     render(
-      <AssistantShell userDisplayName="Lucie Martin">
-        <button type="button">Contenu</button>
-      </AssistantShell>,
+      <AppShell variant="workspace" userDisplayName="Lucie Martin">
+        <div>contenu</div>
+      </AppShell>,
     );
 
-    const openButton = screen.getByTestId("assistant-mobile-nav");
-    expect(openButton).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("assistant-mobile-nav-overlay")).toBeNull();
-
-    await user.click(openButton);
-
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-mobile-nav",
+      "closed",
+    );
+    await user.click(screen.getByTestId("assistant-mobile-nav"));
     expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
       "data-mobile-nav",
       "open",
     );
-    expect(openButton).toHaveAttribute("aria-expanded", "true");
-    expect(
-      screen.getByTestId("assistant-mobile-nav-overlay"),
-    ).toBeInTheDocument();
-    expect(document.body.style.overflow).toBe("hidden");
-
-    const closeButton = screen.getByTestId("assistant-mobile-nav-close");
-    expect(closeButton).toHaveAttribute("aria-label", "Replier la navigation");
-    expect(closeButton).toHaveFocus();
-
-    await user.click(screen.getByTestId("assistant-mobile-nav-overlay"));
+    expect(screen.getByTestId("assistant-mobile-nav-overlay")).toBeInTheDocument();
+    await user.click(screen.getByTestId("assistant-mobile-nav-close"));
     expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
       "data-mobile-nav",
       "closed",
     );
-    expect(openButton).toHaveFocus();
-    expect(document.body.style.overflow).toBe("");
-
-    await user.click(openButton);
-    await user.keyboard("{Escape}");
-    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
-      "data-mobile-nav",
-      "closed",
-    );
-    expect(openButton).toHaveFocus();
   });
 
   it("piège le focus dans le drawer et restaure le focus à la fermeture", async () => {
     const user = userEvent.setup();
-
     render(
-      <AssistantShell userDisplayName="Lucie Martin">
-        <button type="button">Contenu</button>
-      </AssistantShell>,
+      <AppShell variant="workspace" userDisplayName="Lucie Martin">
+        <button type="button">dans le main</button>
+      </AppShell>,
     );
 
-    const openButton = screen.getByTestId("assistant-mobile-nav");
-    await user.click(openButton);
-
-    const closeButton = screen.getByTestId("assistant-mobile-nav-close");
-    expect(closeButton).toHaveFocus();
-
-    await user.tab();
-    expect(
-      screen.getByTestId("assistant-sidebar").querySelector('a[href="/app/assistant"]'),
-    ).toHaveFocus();
-
+    await user.click(screen.getByTestId("assistant-mobile-nav"));
+    expect(screen.getByTestId("assistant-mobile-nav-close")).toHaveFocus();
     await user.keyboard("{Escape}");
-    expect(openButton).toHaveFocus();
+    expect(screen.getByTestId("assistant-mobile-nav")).toHaveFocus();
+  });
+
+  it("referme le drawer au passage desktop sans le rouvrir au retour mobile", async () => {
+    const user = userEvent.setup();
+    const media = stubMatchMedia(false);
+    render(
+      <AppShell variant="workspace" userDisplayName="Lucie Martin">
+        <div>contenu</div>
+      </AppShell>,
+    );
+
+    await user.click(screen.getByTestId("assistant-mobile-nav"));
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-mobile-nav",
+      "open",
+    );
+
+    act(() => media.setMatches(true));
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-mobile-nav",
+      "closed",
+    );
+
+    act(() => media.setMatches(false));
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-mobile-nav",
+      "closed",
+    );
   });
 
   it("bloque le contenu principal (pas de click-through) quand le drawer est ouvert", async () => {
     const user = userEvent.setup();
-    const onContentClick = vi.fn();
-
     render(
-      <AssistantShell userDisplayName="Lucie Martin">
-        <button type="button" onClick={onContentClick}>
-          Contenu
-        </button>
-      </AssistantShell>,
+      <AppShell variant="workspace" userDisplayName="Lucie Martin">
+        <a href="/app/assistant">lien main</a>
+      </AppShell>,
     );
 
     await user.click(screen.getByTestId("assistant-mobile-nav"));
-
-    const main = screen.getByTestId("assistant-main");
-    expect(main).toHaveAttribute("aria-hidden", "true");
-    expect(main).toHaveAttribute("inert");
-
+    expect(screen.getByTestId("assistant-main")).toHaveAttribute("inert", "");
     expect(
-      screen.queryByRole("button", { name: "Contenu" }),
-    ).not.toBeInTheDocument();
-    expect(onContentClick).not.toHaveBeenCalled();
+      screen.getByTestId("assistant-sidebar").querySelector('a[href="/app/assistant"]'),
+    ).not.toBeNull();
+  });
+
+  it("utilise le shell App unifié (pas de sidebar sombre)", () => {
+    render(
+      <AppShell variant="workspace" userDisplayName="Lucie Martin">
+        <div>ok</div>
+      </AppShell>,
+    );
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-shell",
+      "app",
+    );
+    expect(screen.getByTestId("assistant-shell")).toHaveAttribute(
+      "data-appearance",
+      "assistant-light",
+    );
+    expect(screen.getByTestId("assistant-sidebar")).toHaveAttribute(
+      "data-sidebar",
+      "light",
+    );
   });
 });

@@ -1,5 +1,7 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 
+import { Input } from "@/design-system";
+
 type AuthFieldProps = {
   id: string;
   label: string;
@@ -17,40 +19,17 @@ export function AuthField({
   className = "",
   ...inputProps
 }: AuthFieldProps) {
-  const describedBy = [
-    hint ? `${id}-hint` : null,
-    error ? `${id}-error` : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  if (children) return <>{children}</>;
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-nuit">
-        {label}
-      </label>
-      {children ?? (
-        <input
-          id={id}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy || undefined}
-          className={`block w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-nuit shadow-sm transition-colors placeholder:text-gris-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sidian-blue disabled:cursor-not-allowed disabled:bg-state-disabled disabled:text-text-disabled ${
-            error ? "border-danger" : "border-gris-200"
-          } ${className}`}
-          {...inputProps}
-        />
-      )}
-      {hint ? (
-        <p id={`${id}-hint`} className="text-xs text-gris-500">
-          {hint}
-        </p>
-      ) : null}
-      {error ? (
-        <p id={`${id}-error`} role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Input
+      id={id}
+      label={label}
+      hint={hint}
+      error={error}
+      className={className}
+      {...inputProps}
+    />
   );
 }
 

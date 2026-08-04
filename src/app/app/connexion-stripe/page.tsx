@@ -28,7 +28,7 @@ function readReturnContext(
 export default async function ConnexionStripePage({ searchParams }: PageProps) {
   const user = await requireConfirmedUser();
   const supabaseUser = await createClient();
-  await ensurePrestataireForUser(supabaseUser, user);
+  const prestataire = await ensurePrestataireForUser(supabaseUser, user);
   const query = await searchParams;
   let activationContext: "ready" | "missing_receivable" | "unavailable" =
     "unavailable";
@@ -70,6 +70,8 @@ export default async function ConnexionStripePage({ searchParams }: PageProps) {
     <AppShell
       title="Connexion Stripe"
       description="Activez l’encaissement au moment utile, puis suivez ici l’état réel de votre compte Stripe Express."
+      userDisplayName={prestataire.nom}
+      userEmail={prestataire.email}
     >
       <div className="mx-auto max-w-3xl">
         <StripeConnectPanel

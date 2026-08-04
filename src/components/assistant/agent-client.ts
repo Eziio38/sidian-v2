@@ -49,6 +49,7 @@ const RETRYABLE_CODES = new Set([
   "INTERNAL_SERVER_ERROR",
   "HTTP_UPSTREAM_TIMEOUT",
 ]);
+const SAFE_REQUEST_ERROR = "Je n’ai pas pu enregistrer ta demande.";
 
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" && value.trim() ? value : fallback;
@@ -97,7 +98,7 @@ export const callAgentTool: AgentTransport = async <TOutput = Record<string, unk
     return {
       ok: false,
       code: "NETWORK_ERROR",
-      message: "Impossible de joindre Sidian. Vérifie ta connexion.",
+      message: SAFE_REQUEST_ERROR,
       httpStatus: 0,
       retryable: true,
     };
@@ -110,7 +111,7 @@ export const callAgentTool: AgentTransport = async <TOutput = Record<string, unk
     return {
       ok: false,
       code: "HTTP_BODY_INVALID",
-      message: "Réponse invalide du serveur.",
+      message: SAFE_REQUEST_ERROR,
       httpStatus: response.status,
       retryable: RETRYABLE_HTTP.has(response.status),
     };
@@ -125,16 +126,13 @@ export const callAgentTool: AgentTransport = async <TOutput = Record<string, unk
 
   if (!response.ok || payload.status === "error") {
     const code = readString(payload.code, `HTTP_${response.status}`);
-    const message = readString(
-      data.message,
-      "Une erreur est survenue. Réessaie dans un instant.",
-    );
     return {
       ok: false,
       request_id: request_id || undefined,
       correlation_id: correlation_id || undefined,
       code,
-      message,
+      // Les détails fournisseur / base / RPC ne quittent jamais l’adaptateur.
+      message: SAFE_REQUEST_ERROR,
       httpStatus: response.status,
       retryable:
         RETRYABLE_HTTP.has(response.status) || RETRYABLE_CODES.has(code),

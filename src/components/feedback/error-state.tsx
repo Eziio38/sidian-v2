@@ -1,13 +1,17 @@
 import { UX_COPY } from "@/lib/ux/microcopy";
+import { ErrorCard } from "@/design-system";
+import { cx } from "@/design-system/utils";
 
 import { FeedbackActionControl } from "./status-banner";
 import type { FeedbackAction } from "./types";
+import styles from "./feedback.module.css";
 
 type ErrorStateProps = {
   title?: string;
   description?: string;
   onRetry?: () => void;
   action?: FeedbackAction;
+  /** Accepté pour compatibilité Next, mais jamais rendu dans l’interface. */
   digest?: string;
   className?: string;
   compact?: boolean;
@@ -18,7 +22,7 @@ export function ErrorState({
   description = UX_COPY.errorGeneric.description,
   onRetry,
   action,
-  digest,
+  digest: _digest,
   className = "",
   compact = false,
 }: ErrorStateProps) {
@@ -32,44 +36,25 @@ export function ErrorState({
       : undefined);
 
   return (
-    <div
+    <ErrorCard
       data-testid="error-state"
       role="alert"
-      className={
-        compact
-          ? `rounded-xl border border-red-200 bg-red-50 p-4 ${className}`
-          : `rounded-xl border border-gris-200 bg-white p-6 sm:p-8 ${className}`
-      }
-    >
-      <h2
-        className={
-          compact
-            ? "text-sm font-semibold text-red-900"
-            : "text-2xl font-semibold tracking-[-0.03em] text-nuit"
-        }
-      >
-        {title}
-      </h2>
-      <p
-        className={
-          compact
-            ? "mt-1 text-sm leading-relaxed text-red-700"
-            : "mt-3 max-w-lg text-sm leading-relaxed text-gris-500"
-        }
-      >
-        {description}
-      </p>
-      {digest ? (
-        <p className="mt-3 text-xs text-gris-500">Référence : {digest}</p>
-      ) : null}
-      {resolvedAction ? (
-        <div className="mt-5">
+      title={title}
+      description={description}
+      density={compact ? "compact" : "default"}
+      className={cx(
+        styles.stateCard,
+        compact && styles.compactCard,
+        className,
+      )}
+      footer={
+        resolvedAction ? (
           <FeedbackActionControl
             action={resolvedAction}
             variant={compact ? "secondary" : "primary"}
           />
-        </div>
-      ) : null}
-    </div>
+        ) : undefined
+      }
+    />
   );
 }

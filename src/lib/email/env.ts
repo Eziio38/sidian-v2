@@ -5,9 +5,17 @@ import { z } from "zod";
 export const EMAIL_TRANSPORT_MODES = ["disabled", "stub", "live"] as const;
 export type EmailTransportMode = (typeof EMAIL_TRANSPORT_MODES)[number];
 
+/**
+ * Vendors d'envoi supportés. Chacun a son propre contrat HTTP : le choix est
+ * explicite, jamais deviné depuis la forme de la clé.
+ */
+export const EMAIL_LIVE_PROVIDERS = ["brevo", "resend"] as const;
+export type EmailLiveProvider = (typeof EMAIL_LIVE_PROVIDERS)[number];
+
 const emailEnvSchema = z.object({
   SIDIAN_EMAIL_PROVIDER_ENABLED: z.enum(["true", "false"]).default("false"),
   SIDIAN_EMAIL_TRANSPORT_MODE: z.enum(EMAIL_TRANSPORT_MODES).optional(),
+  SIDIAN_EMAIL_PROVIDER: z.enum(EMAIL_LIVE_PROVIDERS).default("brevo"),
   SIDIAN_EMAIL_API_KEY: z.string().min(1).optional(),
   SIDIAN_EMAIL_FROM_ADDRESS: z.string().email().optional(),
   SIDIAN_EMAIL_FROM_NAME: z.string().min(1).max(120).optional(),
@@ -23,6 +31,8 @@ const emailEnvSchema = z.object({
 export type EmailEnv = {
   enabled: boolean;
   mode: EmailTransportMode;
+  /** Vendor retenu en mode `live`. Sans effet en `stub` / `disabled`. */
+  providerKind: EmailLiveProvider;
   apiKey?: string;
   fromAddress?: string;
   fromName?: string;
@@ -103,6 +113,7 @@ export function loadEmailEnv(
   return {
     enabled,
     mode,
+    providerKind: parsed.data.SIDIAN_EMAIL_PROVIDER,
     apiKey: parsed.data.SIDIAN_EMAIL_API_KEY,
     fromAddress: parsed.data.SIDIAN_EMAIL_FROM_ADDRESS,
     fromName: parsed.data.SIDIAN_EMAIL_FROM_NAME,

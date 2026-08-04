@@ -1,4 +1,5 @@
 import type { EmailEnv } from "../env";
+import { createBrevoEmailProvider } from "./brevo";
 import { createResendEmailProvider } from "./resend";
 import { createStubEmailProvider } from "./stub";
 import {
@@ -20,6 +21,8 @@ export type {
 } from "./stub";
 export { createResendEmailProvider } from "./resend";
 export type { ResendEmailProviderConfig } from "./resend";
+export { createBrevoEmailProvider } from "./brevo";
+export type { BrevoEmailProviderConfig } from "./brevo";
 
 export function createEmailProviderFromEnv(env: EmailEnv): EmailProvider {
   if (!env.enabled || env.mode === "disabled") {
@@ -45,6 +48,13 @@ export function createEmailProviderFromEnv(env: EmailEnv): EmailProvider {
       message: "email_live_misconfigured",
       retryable: false,
     });
+  }
+
+  // Le vendor est choisi explicitement : deux contrats HTTP différents
+  // (en-tête d'authentification, forme du corps, nom de l'identifiant de
+  // message) qu'aucun paramétrage commun ne réconcilierait honnêtement.
+  if (env.providerKind === "brevo") {
+    return createBrevoEmailProvider({ apiKey: env.apiKey });
   }
 
   return createResendEmailProvider({

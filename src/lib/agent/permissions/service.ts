@@ -257,21 +257,24 @@ function evaluateAuthorize(
   // 7. Scope ressource dérivé de ToolDefinition.permissions.scope
   state.checks.push(PERMISSION_CHECKS.resource_scope);
   const objectScopes = definition.permissions.scope.filter(isObjectResourceKind);
+  const allowsTenantLevel = definition.permissions.scope.includes("tenant");
 
   if (objectScopes.length > 0) {
     if (!request.resource) {
+      // Outils mixtes (ex. protection.draft.*) : invocation tenant autorisée
+      // tant que "tenant" est dans le scope ; la ressource objet reste optionnelle.
+      if (!allowsTenantLevel) {
+        return decide("deny", "RESOURCE_SCOPE_MISMATCH", state, {
+          failed_check: PERMISSION_CHECKS.resource_scope,
+          error_code: "PERMISSION_DENIED",
+        });
+      }
+    } else if (!objectScopes.includes(request.resource.kind)) {
       return decide("deny", "RESOURCE_SCOPE_MISMATCH", state, {
         failed_check: PERMISSION_CHECKS.resource_scope,
         error_code: "PERMISSION_DENIED",
       });
-    }
-    if (!objectScopes.includes(request.resource.kind)) {
-      return decide("deny", "RESOURCE_SCOPE_MISMATCH", state, {
-        failed_check: PERMISSION_CHECKS.resource_scope,
-        error_code: "PERMISSION_DENIED",
-      });
-    }
-    if (request.resource.tenant_id !== request.tenant_id) {
+    } else if (request.resource.tenant_id !== request.tenant_id) {
       return decide("deny", "TENANT_SCOPE_MISMATCH", state, {
         failed_check: PERMISSION_CHECKS.resource_scope,
         error_code: "PERMISSION_DENIED",

@@ -43,13 +43,6 @@ export function buildProtectionContextFromConverse(
   const ready = isDraftReadyForConfirm(output);
   const panel = mapDraftOutputToPanel(output, {
     statusOverride: ready ? "analyzing" : undefined,
-    paymentMethodLabel: ready
-      ? "Le client choisira au moment du paiement"
-      : undefined,
-    authorizationLabel: ready ? "Sera proposée au premier paiement" : undefined,
-    autoDebitRuleLabel: ready
-      ? "Activable après autorisation du client"
-      : undefined,
   });
 
   if (ready) {
@@ -58,7 +51,7 @@ export function buildProtectionContextFromConverse(
       statusLabel: "Prêt à confirmer",
       status: "draft",
       nextStepLabel: "Confirmation explicite",
-      primaryActionLabel: "Créer la protection",
+      primaryActionLabel: "Confirmer et créer",
     };
   }
 
@@ -103,7 +96,7 @@ export function buildAssistantMessageFromConverse(params: {
     !parts.some((part) => /confirm/i.test(part))
   ) {
     parts.push(
-      "Rien n’est créé tant que tu n’as pas confirmé explicitement.",
+      "Rien ne sera envoyé avant ta confirmation.",
     );
   }
 
@@ -121,10 +114,43 @@ export function buildAssistantMessageFromConverse(params: {
   if (isDraftReadyForConfirm(output) && output.confirmation_nonce) {
     actions.push({
       id: "confirm-protection",
-      label: "Confirmer la création",
+      label: "Confirmer la protection",
       kind: "confirm_protection",
     });
+    actions.push({
+      id: "edit-protection",
+      label: "Modifier",
+      kind: "edit_protection",
+    });
   }
+
+  const protection = buildProtectionContextFromConverse(output);
+  const hasDetectedData =
+    protection.clientName !== "À préciser" ||
+    protection.amountLabel !== "À préciser" ||
+    (protection.dueDateLabel !== undefined &&
+      protection.dueDateLabel !== "À préciser");
+  const card =
+    hasDetectedData || isDraftReadyForConfirm(output)
+      ? {
+          kind: "protection_draft" as const,
+          title: isDraftReadyForConfirm(output)
+            ? "Vérifie les informations"
+            : "Informations de la facture",
+          subtitle: isDraftReadyForConfirm(output)
+            ? "La protection sera créée uniquement après ta confirmation."
+            : "Les informations manquantes restent à compléter.",
+          statusLabel: protection.statusLabel,
+          meta: [
+            { label: "Client", value: protection.clientName },
+            { label: "Montant", value: protection.amountLabel },
+            {
+              label: "Échéance",
+              value: protection.dueDateLabel ?? "À préciser",
+            },
+          ],
+        }
+      : undefined;
 
   return {
     id: messageId,
@@ -132,6 +158,7 @@ export function buildAssistantMessageFromConverse(params: {
     content: parts.join("\n\n"),
     suggestions: suggestions.length > 0 ? suggestions : undefined,
     actions: actions.length > 0 ? actions : undefined,
+    card,
     status: "sent",
   };
 }
@@ -139,17 +166,31 @@ export function buildAssistantMessageFromConverse(params: {
 export function buildAssistantMessageFromConfirm(params: {
   messageId: string;
   output: ConfirmToolOutput;
-  clientName?: string;
+  protection?: ProtectionContextData | null;
 }): AssistantMessage {
-  const { messageId, output, clientName } = params;
-  const name = clientName?.trim() || "ton client";
+  const { messageId, output, protection } = params;
+  const name = protection?.clientName?.trim() || "ton client";
   return {
     id: messageId,
     role: "assistant",
     content:
       output.outcome === "replay"
-        ? `La protection ${name} était déjà créée.\n\nTu peux ouvrir le détail pour suivre l’échéance.`
-        : `La protection ${name} est créée.\n\nProchaine étape : suivi à l’échéance.`,
+        ? `La protection ${name} était déjà créée.`
+        : `C’est fait, la protection ${name} est créée.`,
+    card: {
+      kind: "protection",
+      title: "Protection créée",
+      subtitle: "Sidian suivra le règlement à l’échéance.",
+      statusLabel: "Active",
+      meta: [
+        { label: "Client", value: name },
+        { label: "Montant", value: protection?.amountLabel ?? "À préciser" },
+        {
+          label: "Échéance",
+          value: protection?.dueDateLabel ?? "À préciser",
+        },
+      ],
+    },
     status: "sent",
     actions: [
       {

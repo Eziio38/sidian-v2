@@ -1,4 +1,12 @@
 import { UX_COPY } from "@/lib/ux/microcopy";
+import {
+  PageLoading,
+  Skeleton as DesignSystemSkeleton,
+  Spinner,
+} from "@/design-system";
+import { cx } from "@/design-system/utils";
+
+import styles from "./feedback.module.css";
 
 type LoadingStateProps = {
   label?: string;
@@ -15,13 +23,9 @@ export function LoadingState({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className={`flex items-center gap-3 text-sm text-gris-500 ${className}`}
+      className={cx(styles.loading, className)}
     >
-      <span
-        className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gris-200 border-t-sidian-blue motion-reduce:animate-none"
-        aria-hidden
-      />
-      <span>{label}</span>
+      <Spinner label={label} />
     </div>
   );
 }
@@ -43,14 +47,12 @@ export function Skeleton({
       data-testid="skeleton"
       aria-busy="true"
       aria-label={label}
-      className={`animate-pulse motion-reduce:animate-none space-y-3 ${className}`}
+      className={cx(styles.skeletonStack, className)}
     >
       {Array.from({ length: lines }, (_, index) => (
-        <div
+        <DesignSystemSkeleton
           key={index}
-          className={`h-4 rounded bg-gris-100 ${
-            index === lines - 1 ? "w-2/3" : "w-full"
-          }`}
+          short={index === lines - 1}
         />
       ))}
       <p className="sr-only">{label}</p>
@@ -69,20 +71,11 @@ export function PageSkeleton({
   return (
     <main
       data-testid="page-skeleton"
-      className="min-h-dvh bg-gris-50 px-4 py-8 sm:px-6 lg:px-8 lg:py-10"
+      className={styles.pageSkeleton}
       aria-busy="true"
       aria-label={label}
     >
-      <div className="mx-auto max-w-6xl animate-pulse motion-reduce:animate-none">
-        <div className="h-8 w-52 rounded-lg bg-gris-200" />
-        <div className="mt-3 h-4 w-full max-w-xl rounded bg-gris-100" />
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="h-28 rounded-xl bg-white" />
-          ))}
-        </div>
-        <div className="mt-6 h-72 rounded-xl bg-white" />
-      </div>
+      <PageLoading />
       <p className="sr-only">{UX_COPY.loading.description}</p>
     </main>
   );
@@ -102,12 +95,12 @@ export function GeneratingIndicator({
       data-testid="generating-indicator"
       role="status"
       aria-live="polite"
-      className={`flex items-center gap-2 text-[12px] text-assistant-muted/65 ${className}`}
+      className={cx(styles.generating, className)}
     >
-      <span className="flex gap-1" aria-hidden>
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-assistant-muted/50 motion-reduce:animate-none" />
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-assistant-muted/50 motion-reduce:animate-none [animation-delay:120ms]" />
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-assistant-muted/50 motion-reduce:animate-none [animation-delay:240ms]" />
+      <span className={styles.dots} aria-hidden>
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.dot} />
       </span>
       <span>{label}</span>
     </div>

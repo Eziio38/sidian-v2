@@ -3,6 +3,9 @@
 import { useActionState, useId } from "react";
 
 import type { PaymentReconciliationActionResult } from "@/app/actions/payment-reconciliation";
+import { Button } from "@/design-system";
+
+import styles from "./form-layout.module.css";
 
 type ReconciliationAction = (
   previous: PaymentReconciliationActionResult | undefined,
@@ -23,31 +26,35 @@ export function PaymentReconciliationButton({
     <form
       action={formAction}
       aria-describedby={state ? statusId : undefined}
+      className={styles.form}
     >
       <input type="hidden" name="receivableId" value={receivableId} />
-      <button
+      <Button
         type="submit"
-        disabled={pending}
-        className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-gris-200 bg-white px-4 text-sm font-medium text-nuit transition-colors hover:border-sidian-blue hover:text-sidian-blue focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidian-blue disabled:cursor-wait disabled:opacity-60"
+        variant="secondary"
+        loading={pending}
+        loadingLabel="Vérification Stripe…"
+        className={styles.submit}
       >
-        {pending ? "Vérification Stripe…" : "Vérifier avec Stripe"}
-      </button>
+        Vérifier avec Stripe
+      </Button>
       {state ? (
         <p
           id={statusId}
           role={state.ok ? "status" : "alert"}
-          className={`mt-2 text-sm leading-relaxed ${
+          className={`${styles.formStatus} ${
             state.ok && state.status !== "human_required"
-              ? "text-emerald-700"
+              ? styles.formSuccess
               : state.ok
-                ? "text-amber-700"
-                : "text-red-700"
+                ? ""
+                : styles.formError
           }`}
         >
-          {state.message}
+          {state.ok
+            ? state.message
+            : "La vérification n’a pas pu aboutir. Réessaie dans un instant."}
         </p>
       ) : null}
     </form>
   );
 }
-

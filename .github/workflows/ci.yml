@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Installer pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           # La version exacte vient du champ "packageManager" de package.json,
           # que Vercel honore également : une seule source de vérité.
@@ -117,7 +117,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Installer pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           # Version exacte lue depuis "packageManager" dans package.json.
           run_install: false

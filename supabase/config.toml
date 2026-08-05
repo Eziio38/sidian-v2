@@ -413,3 +413,40 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # pg-delta (désactivé ici : non supporté par cette version du CLI).
 # [experimental.pgdelta]
 # enabled = true
+
+# =====================================================================
+# GARDE-FOU — NE PAS SUPPRIMER
+#
+# Ce fichier décrit l'environnement LOCAL. `site_url` et
+# `additional_redirect_urls` plus haut pointent volontairement sur
+# localhost : c'est correct pour `supabase start`, et destructeur pour le
+# projet hébergé.
+#
+# `supabase config push` écrase la configuration du projet distant. Son
+# prompt vaut [Y/n] avec Y par défaut, et il répond OUI tout seul en CI,
+# en shell non interactif, avec `--yes` ou avec `--output-format json`.
+# La confirmation porte sur un service entier, pas sur un champ : un seul
+# « oui » sur auth expédie une vingtaine de réglages, dont les URLs
+# localhost — ce qui casserait tous les liens de confirmation et de
+# réinitialisation en production.
+#
+# Le bloc ci-dessous met auth et storage à `enabled = false` POUR LA CIBLE
+# DISTANTE UNIQUEMENT : le CLI sort avant même la lecture, aucun PATCH
+# n'est émis. Le développement local n'est pas affecté, un bloc `remotes`
+# ne s'appliquant que lorsque le project_id correspond au projet lié.
+#
+# Pour gérer un jour l'auth en tant que code, passer `enabled = true` ET
+# renseigner les vraies valeurs de production dans ce bloc — jamais dans
+# le `[auth]` du dessus.
+#
+# Ne pas ajouter `enabled = false` sous `remotes.production.api` : ce
+# chemin enverrait un `db_schema` vide et masquerait tous les schémas.
+# =====================================================================
+[remotes.production]
+project_id = "hujufkcnrkgwvsyjcenk"
+
+[remotes.production.auth]
+enabled = false
+
+[remotes.production.storage]
+enabled = false

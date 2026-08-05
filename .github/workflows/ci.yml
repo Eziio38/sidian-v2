@@ -56,9 +56,8 @@ jobs:
       - name: Installer pnpm
         uses: pnpm/action-setup@v4
         with:
-          # package.json ne déclare pas de champ "packageManager" ; la version
-          # majeure est donc épinglée ici (pnpm 10, celle du lockfile v9.0).
-          version: 10
+          # La version exacte vient du champ "packageManager" de package.json,
+          # que Vercel honore également : une seule source de vérité.
           run_install: false
 
       - name: Installer Node
@@ -70,6 +69,14 @@ jobs:
 
       - name: Installer les dépendances
         run: pnpm install --frozen-lockfile
+
+      - name: Audit des dépendances
+        # Signale les avis de sécurité connus. Toléré en échec pour l'instant :
+        # les avis restants viennent de dépendances transitives de next et
+        # eslint (postcss, sharp, brace-expansion), non corrigeables sans bump
+        # amont. À passer bloquant dès que ce bruit disparaît.
+        continue-on-error: true
+        run: pnpm audit --audit-level high
 
       - name: Vérifier les types
         run: pnpm exec tsc --noEmit
@@ -112,7 +119,7 @@ jobs:
       - name: Installer pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          # Version exacte lue depuis "packageManager" dans package.json.
           run_install: false
 
       - name: Installer Node
@@ -143,13 +150,10 @@ jobs:
         run: pnpm test:local-guard
 
       - name: Suites SQL
+        # Inclut désormais billing, account-lifecycle, notification-preferences,
+        # runtime-relances et les compteurs de budget LLM : ces harnais
+        # existaient mais n'étaient lancés nulle part.
         run: pnpm test:sql
-
-      - name: Compteurs de budget LLM (SID-OPS-001)
-        # Non inclus dans `pnpm test:sql` : le script package.json n'a pas été
-        # modifié pour éviter un conflit d'édition concurrente. À fusionner
-        # dans test:sql dès que package.json est libre.
-        run: node scripts/test-llm-budget-counters.mjs
 
       - name: État Supabase en cas d'échec
         if: failure()

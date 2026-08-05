@@ -1,0 +1,43 @@
+# Surveillance des dépendances.
+#
+# Motif : au 5 août 2026, Next.js était épinglé en 16.2.10 avec neuf avis de
+# sécurité non corrigés, dont un déni de service non authentifié sur les Server
+# Actions. Rien dans le dépôt ne le signalait. Ce fichier est le garde-fou.
+#
+# Les mises à jour de sécurité arrivent isolées pour être fusionnables vite ;
+# le reste est groupé pour ne pas noyer la revue.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels:
+      - dépendances
+    groups:
+      # Un seul lot pour les patchs et mineures : la revue porte sur l'ensemble.
+      routine:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Les majeures se traitent à la main : elles impliquent une migration.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  # Les actions GitHub sont épinglées par tag mutable (@v4). Un repoint de tag
+  # exécuterait du code arbitraire dans une CI qui détient les secrets du dépôt.
+  # Dependabot les suit et proposera le passage aux SHA.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - ci

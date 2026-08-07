@@ -44,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Dumps de sauvegarde Supabase : contiennent des donnees personnelles de
+# debiteurs. Ne doivent jamais etre versionnes.
+backups/

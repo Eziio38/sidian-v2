@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import {
+  EARLY_ACCESS_DENIED_MESSAGE,
+  isEarlyAccessAllowed,
+} from "@/lib/auth/early-access";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { ensurePrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import {
@@ -71,6 +75,12 @@ export async function beginStripeConnectAction(
   void previousState;
   void formData;
   const user = await requireConfirmedUser();
+
+  // Barrière d'accès anticipé : ouvrir un compte Connect engage de l'argent
+  // sous la marque Sidian, un email confirmé ne suffit pas à l'autoriser.
+  if (!isEarlyAccessAllowed(user?.email)) {
+    return { status: "error", message: EARLY_ACCESS_DENIED_MESSAGE };
+  }
 
   let destination: string | null = null;
 

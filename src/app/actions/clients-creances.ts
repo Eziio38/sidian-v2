@@ -15,6 +15,10 @@ import {
   createCreanceDraft,
   updateCreanceDraft,
 } from "@/lib/creances/creance";
+import {
+  EARLY_ACCESS_DENIED_MESSAGE,
+  isEarlyAccessAllowed,
+} from "@/lib/auth/early-access";
 import { requireConfirmedUser } from "@/lib/auth/session";
 import { getPrestataireForUser } from "@/lib/auth/ensure-prestataire";
 import { getPublicEnv } from "@/config/env-public";
@@ -418,7 +422,12 @@ export async function openPaymentReceivableAction(
   _prev: PrepareLinkResult | undefined,
   formData: FormData,
 ): Promise<PrepareLinkResult> {
-  await requireConfirmedUser();
+  const user = await requireConfirmedUser();
+  // Émettre un lien de paiement encaisse sous la marque Sidian : même barrière
+  // que l'ouverture du compte Connect.
+  if (!isEarlyAccessAllowed(user?.email)) {
+    return { ok: false, message: EARLY_ACCESS_DENIED_MESSAGE };
+  }
   const idParsed = uuidSchema.safeParse(formString(formData, "creanceId"));
   if (!idParsed.success) {
     return { ok: false, message: "Paiement à recevoir introuvable." };
